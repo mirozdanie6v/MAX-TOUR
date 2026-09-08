@@ -41,5 +41,10 @@ export const api = {
   analytics:(params:URLSearchParams)=>request<AnalyticsResponse>(`/api/admin/analytics?${params.toString()}`),
   ownerOverview:()=>request<any>('/api/owner/overview'),
   ownerSettings:(data:any)=>request<any>('/api/owner/settings',{method:'PATCH',body:JSON.stringify(data)}),
+  telegramStatus:()=>request<any>('/api/integrations/telegram/status'),
+  telegramWebhookInfo:()=>request<any>('/api/integrations/telegram/webhook'),
+  configureTelegramWebhook:()=>request<any>('/api/integrations/telegram/webhook',{method:'POST',body:'{}'}),
+  flushTelegram:()=>request<any>('/api/integrations/telegram/flush',{method:'POST',body:'{}'}),
+  tildaStatus:()=>request<any>('/api/integrations/tilda/status'),
   event:(eventType:string,tourId?:string,source='Telegram')=>request('/api/analytics/event',{method:'POST',body:JSON.stringify({eventType,tourId,source})}).catch(()=>null),
 };

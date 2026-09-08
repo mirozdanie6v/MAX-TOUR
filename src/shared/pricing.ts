@@ -27,9 +27,14 @@ export function childPriceMinor(rules: PricingRules, child: BookingChildInput): 
 }
 
 export function privatePriceMinor(rules: PricingRules, people: number): number {
-  const tier = rules.privateTiers?.find(t => people >= t.minPeople && people <= t.maxPeople);
-  if (!tier) return 0;
-  return tier.totalMinor ?? (tier.perPersonMinor ?? 0) * people;
+  const matches = (rules.privateTiers ?? []).filter(t => people >= t.minPeople && people <= t.maxPeople);
+  if (!matches.length) return 0;
+
+  const totals = matches.map(t => t.totalMinor ?? (t.perPersonMinor ?? 0) * people);
+  const unique = [...new Set(totals)];
+
+  // Official source data can contain overlapping tiers. Never silently choose one.
+  return unique.length === 1 ? unique[0] ?? 0 : 0;
 }
 
 export function detectTransfer(hotel: string, people: number, explicitZoneId?: string) {
@@ -40,6 +45,22 @@ export function detectTransfer(hotel: string, people: number, explicitZoneId?: s
   }
   const tier = zone.tiers.find(t => people <= t.maxPeople) ?? zone.tiers[zone.tiers.length - 1];
   return { zone, priceMinor: tier?.priceMinor ?? 0 };
+}
+
+export function promoDiscountMinor(tour: Tour, subtotalMinor: number): number {
+  const promo = tour.promo;
+  if (!promo?.enabled || !promo.discountType || promo.discountType === 'none' || !promo.discountValue) return 0;
+
+  if (promo.discountType === 'percent_bps') {
+    const safeBps = Math.min(10_000, Math.max(0, promo.discountValue));
+    return Math.min(subtotalMinor, Math.floor(subtotalMinor * safeBps / 10_000));
+  }
+
+  if (promo.discountType === 'fixed_minor') {
+    return Math.min(subtotalMinor, Math.max(0, promo.discountValue));
+  }
+
+  return 0;
 }
 
 export function calculateQuote(tour: Tour, draft: BookingDraft, depositPercentDemo = 30) {
@@ -64,16 +85,23 @@ export function calculateQuote(tour: Tour, draft: BookingDraft, depositPercentDe
   }
 
   const transfer = detectTransfer(draft.hotel, people, draft.transferZoneId);
-  const totalMinor = subtotal + transfer.priceMinor;
+  if (transfer.priceMinor > 0) lines.push({ label: `Трансфер · ${transfer.zone.label}`, amountMinor: transfer.priceMinor });
+
+  const discountMinor = promoDiscountMinor(tour, subtotal);
+  if (discountMinor > 0) lines.push({ label: tour.promo?.label || 'DEMO-акция', amountMinor: -discountMinor });
+
+  const totalMinor = Math.max(0, subtotal + transfer.priceMinor - discountMinor);
   const payNowMinor = draft.paymentChoice === 'full' ? totalMinor : Math.round(totalMinor * depositPercentDemo / 100);
   return {
     tourSubtotalMinor: subtotal,
     transferMinor: transfer.priceMinor,
+    discountMinor,
     totalMinor,
     depositPercentDemo,
     payNowMinor,
     remainingMinor: totalMinor - payNowMinor,
     lines,
     transferLabel: transfer.zone.label,
+    promoLabel: discountMinor > 0 ? (tour.promo?.label || 'DEMO-акция') : undefined,
   };
 }

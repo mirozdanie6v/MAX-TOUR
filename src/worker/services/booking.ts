@@ -1,7 +1,7 @@
 import { calculateQuote } from '../../shared/pricing';
 import { bookingDraftSchema } from '../../shared/schemas';
 import type { BookingDraft, Quote, Tour } from '../../shared/types';
-import { getTourByIdOrSlug } from '../db/repository';
+import { getAvailability, getTourByIdOrSlug } from '../db/repository';
 import type { Env } from '../db/repository';
 
 export class HttpError extends Error {
@@ -18,6 +18,15 @@ function validateTourRequiredFields(tour: Tour, draft: BookingDraft) {
   }
 }
 
+async function validateAvailability(env: Env, sessionId: string, tour: Tour, draft: BookingDraft) {
+  if (tour.scheduleMode !== 'demoDates') return;
+  const dates = await getAvailability(env.DB, sessionId, tour.id);
+  const selected = dates.find(item => item.date === draft.date);
+  if (!selected) {
+    throw new HttpError(409, 'Выбранная дата отсутствует в DEMO-расписании. Обновите список дат.', 'DEMO_DATE_NOT_AVAILABLE');
+  }
+}
+
 export async function quoteBooking(env: Env, sessionId: string, input: unknown): Promise<{ draft: BookingDraft; tour: Tour; quote: Quote }> {
   const parsed = bookingDraftSchema.safeParse(input);
   if (!parsed.success) throw new HttpError(400, 'Проверьте данные бронирования', 'VALIDATION_ERROR');
@@ -25,8 +34,9 @@ export async function quoteBooking(env: Env, sessionId: string, input: unknown):
   const tour = await getTourByIdOrSlug(env.DB, sessionId, draft.tourId);
   if (!tour || !tour.published) throw new HttpError(404, 'Экскурсия не найдена', 'TOUR_NOT_FOUND');
   validateTourRequiredFields(tour, draft);
-  if (draft.format === 'private' && !tour.pricingRules.privateTiers?.length) throw new HttpError(400, 'Для этой экскурсии индивидуальный расчёт выполняется по запросу', 'PRIVATE_REQUEST_ONLY');
+  await validateAvailability(env, sessionId, tour, draft);
+  if (draft.format === 'private' && !tour.pricingRules.privateTiers?.length) throw new HttpError(409, 'Для этой экскурсии индивидуальный расчёт выполняется по запросу', 'PRIVATE_REQUEST_ONLY');
   const c = calculateQuote(tour, draft, 30);
-  if (c.totalMinor <= 0) throw new HttpError(400, 'Для выбранного формата нужен индивидуальный расчёт', 'QUOTE_REQUEST_REQUIRED');
+  if (c.totalMinor <= 0) throw new HttpError(409, 'Для выбранного формата нужен индивидуальный расчёт: опубликованного однозначного тарифа нет', 'QUOTE_REQUEST_REQUIRED');
   return { draft, tour, quote: { tourId: tour.id, tourTitle: tour.title, ...c, demo: true } };
 }

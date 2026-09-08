@@ -1,5 +1,5 @@
 import type { Tour } from '../../shared/types';
-import { addTourSchema, adminTourPatchSchema } from '../../shared/schemas';
+import { addTourSchema, adminTourPatchSchema, availabilitySchema, promoSchema } from '../../shared/schemas';
 import { getMergedTours, getTourByIdOrSlug, getDestinations } from '../db/repository';
 import type { Env } from '../db/repository';
 import { HttpError } from './booking';
@@ -36,28 +36,48 @@ export async function patchTour(env: Env, sessionId: string, tourId: string, inp
 export async function addTour(env: Env, sessionId: string, input: unknown) {
   const parsed=addTourSchema.safeParse(input);
   if(!parsed.success) throw new HttpError(400,'Некорректные данные новой экскурсии','VALIDATION_ERROR');
+  const directions = await getDestinations(env.DB, sessionId);
+  if (!directions.some(direction => direction.name.toLowerCase() === parsed.data.direction.toLowerCase())) {
+    throw new HttpError(400,'Сначала добавьте направление или выберите существующее','DIRECTION_NOT_FOUND');
+  }
   const id=`demo-tour-${crypto.randomUUID()}`;
-  const slug=`demo-${Date.now()}`;
+  const slug=`demo-${Date.now()}-${crypto.randomUUID().slice(0,8)}`;
   const d=parsed.data;
   const tour:Tour={id,slug,title:d.title,direction:d.direction,category:'DEMO',published:d.published,sourceUrl:'DEMO USER INPUT',priceMode:d.priceMode,pricingRules:{adultMinor:d.adultMinor,childRules:[]},requiredFields:['fullName'],scheduleMode:d.scheduleMode,description:d.description,program:[],included:[],extraCosts:[],whatToTake:[],images:d.images,badges:[],dataStatus:'userCreatedDemo',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
   await env.DB.prepare('INSERT INTO demo_user_created_tours(id,session_id,tour_json) VALUES (?,?,?)').bind(id,sessionId,JSON.stringify(tour)).run();
   return tour;
 }
 
-export async function setAvailability(env: Env, sessionId:string, tourId:string, input:any){
+export async function setAvailability(env: Env, sessionId:string, tourId:string, input:unknown){
   const tour=await getTourByIdOrSlug(env.DB,sessionId,tourId); if(!tour) throw new HttpError(404,'Экскурсия не найдена','TOUR_NOT_FOUND');
-  const date=String(input?.date??''); const status=String(input?.status??'');
-  const labels:any={available:'доступно',low:'мало мест',request:'по запросу'};
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!labels[status]) throw new HttpError(400,'Некорректная demo-дата или статус','VALIDATION_ERROR');
+  const parsed = availabilitySchema.safeParse(input);
+  if (!parsed.success) throw new HttpError(400,'Некорректная demo-дата или статус','VALIDATION_ERROR');
+  const labels = {available:'доступно',low:'мало мест',request:'по запросу'} as const;
+  const { date, status } = parsed.data;
   await env.DB.prepare(`INSERT INTO demo_availability(session_id,tour_id,date,status,label) VALUES (?,?,?,?,?) ON CONFLICT(session_id,tour_id,date) DO UPDATE SET status=excluded.status,label=excluded.label,updated_at=CURRENT_TIMESTAMP`).bind(sessionId,tour.id,date,status,labels[status]).run();
   return {date,status,label:labels[status],dataStatus:'demoAvailability'};
 }
 
-export async function setPromo(env:Env,sessionId:string,tourId:string,input:any){
+function inferPromoDiscount(value: string, explicitType: 'none'|'percent_bps'|'fixed_minor', explicitValue: number) {
+  if (explicitType !== 'none') return { discountType: explicitType, discountValue: explicitValue };
+  const percent = value.match(/^\s*-?\s*(\d+(?:[.,]\d+)?)\s*%\s*$/);
+  if (percent) {
+    const pct = Number(percent[1]!.replace(',','.'));
+    if (Number.isFinite(pct) && pct >= 0 && pct <= 100) {
+      return { discountType: 'percent_bps' as const, discountValue: Math.round(pct * 100) };
+    }
+  }
+  return { discountType: 'none' as const, discountValue: 0 };
+}
+
+export async function setPromo(env:Env,sessionId:string,tourId:string,input:unknown){
   const tour=await getTourByIdOrSlug(env.DB,sessionId,tourId); if(!tour) throw new HttpError(404,'Экскурсия не найдена','TOUR_NOT_FOUND');
-  const enabled=Boolean(input?.enabled); const label=String(input?.label??'').slice(0,80); const value=String(input?.value??'').slice(0,80);
-  await env.DB.prepare(`INSERT INTO demo_promotions(session_id,tour_id,enabled,label,value) VALUES (?,?,?,?,?) ON CONFLICT(session_id,tour_id) DO UPDATE SET enabled=excluded.enabled,label=excluded.label,value=excluded.value,updated_at=CURRENT_TIMESTAMP`).bind(sessionId,tour.id,enabled?1:0,label,value).run();
-  return {enabled,label,value,dataStatus:'demoPromo'};
+  const parsed = promoSchema.safeParse(input);
+  if (!parsed.success) throw new HttpError(400,'Некорректные параметры DEMO-акции','VALIDATION_ERROR');
+  const { enabled, label, value } = parsed.data;
+  const discount = inferPromoDiscount(value, parsed.data.discountType, parsed.data.discountValue);
+  await env.DB.prepare(`INSERT INTO demo_promotions(session_id,tour_id,enabled,label,value,discount_type,discount_value) VALUES (?,?,?,?,?,?,?) ON CONFLICT(session_id,tour_id) DO UPDATE SET enabled=excluded.enabled,label=excluded.label,value=excluded.value,discount_type=excluded.discount_type,discount_value=excluded.discount_value,updated_at=CURRENT_TIMESTAMP`).bind(sessionId,tour.id,enabled?1:0,label,value,discount.discountType,discount.discountValue).run();
+  return {enabled,label,value,...discount,dataStatus:'demoPromo'};
 }
 
 export async function addDirection(env:Env,sessionId:string,input:any){
