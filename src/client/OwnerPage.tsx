@@ -6,6 +6,7 @@ export function OwnerPage() {
   const [data,setData]=useState<any>(null);
   const [integration,setIntegration]=useState<any>(null);
   const [tilda,setTilda]=useState<any>(null);
+  const [audit,setAudit]=useState<any[]>([]);
   const [webhook,setWebhook]=useState<any>(null);
   const [integrationMessage,setIntegrationMessage]=useState('');
   const [saving,setSaving]=useState(false);
@@ -13,16 +14,17 @@ export function OwnerPage() {
   const [connecting,setConnecting]=useState(false);
   const [settings,setSettings]=useState({managerSlaMinutes:15,managerNotifications:true,ownerDigest:'Ежедневно',salesFocus:'Премиум экскурсии'});
   const load=async()=>{
-    const [overview,status,tildaStatus]=await Promise.all([api.ownerOverview(),api.telegramStatus(),api.tildaStatus()]);
-    setData(overview);setSettings(overview.settings);setIntegration(status);setTilda(tildaStatus);
+    const [overview,status,tildaStatus,auditData]=await Promise.all([api.ownerOverview(),api.telegramStatus(),api.tildaStatus(),api.ownerAudit(new URLSearchParams({limit:'8'}))]);
+    setData(overview);setSettings(overview.settings);setIntegration(status);setTilda(tildaStatus);setAudit(auditData.items??[]);
     if(status?.telegram?.botTokenConfigured){
       try{setWebhook(await api.telegramWebhookInfo())}catch{setWebhook(null)}
     }
   };
   useEffect(()=>{void load()},[]);
+  const refreshAudit=async()=>{try{const result=await api.ownerAudit(new URLSearchParams({limit:'8'}));setAudit(result.items??[])}catch{/* demo audit is non-critical to the panel */}};
   const maxSource=useMemo(()=>Math.max(1,...(data?.sources??[]).map((row:any)=>row.orders)),[data]);
   if(!data)return <div className="px-owner-loading">Собираем показатели владельца…</div>;
-  const save=async()=>{setSaving(true);try{const result=await api.ownerSettings(settings);setData(result);setSettings(result.settings)}finally{setSaving(false)}};
+  const save=async()=>{setSaving(true);try{const result=await api.ownerSettings(settings);setData(result);setSettings(result.settings);await refreshAudit()}finally{setSaving(false)}};
   const flush=async()=>{setFlushing(true);setIntegrationMessage('');try{const result=await api.flushTelegram();setIntegration(await api.telegramStatus());setIntegrationMessage(result.tokenConfigured?`Отправлено: ${result.sent}, ошибок: ${result.failed}`:'Очередь сохранена. Bot Token ещё не настроен.')}catch(e:any){setIntegrationMessage(e.message||'Не удалось проверить очередь')}finally{setFlushing(false)}};
   const connectWebhook=async()=>{setConnecting(true);setIntegrationMessage('');try{await api.configureTelegramWebhook();setWebhook(await api.telegramWebhookInfo());setIntegration(await api.telegramStatus());setIntegrationMessage('Telegram webhook подключён к MAX TOUR.')}catch(e:any){setIntegrationMessage(e.message||'Не удалось подключить Telegram webhook')}finally{setConnecting(false)}};
   const tg=integration?.telegram;
@@ -46,6 +48,7 @@ export function OwnerPage() {
       <article className="px-owner-panel"><span className="px-kicker">ПРАВИЛА РАБОТЫ · DEMO</span><h3>Настройки владельца</h3><label className="px-field"><span>SLA менеджера, минут</span><input type="number" min="5" max="120" value={settings.managerSlaMinutes} onChange={e=>setSettings({...settings,managerSlaMinutes:Number(e.target.value)})}/></label><label className="px-field"><span>Фокус продаж</span><input value={settings.salesFocus} onChange={e=>setSettings({...settings,salesFocus:e.target.value})}/></label><label className="px-field"><span>Сводка владельцу</span><select value={settings.ownerDigest} onChange={e=>setSettings({...settings,ownerDigest:e.target.value})}><option>Отключено</option><option>Ежедневно</option><option>Еженедельно</option></select></label><label className="px-owner-check"><input type="checkbox" checked={settings.managerNotifications} onChange={e=>setSettings({...settings,managerNotifications:e.target.checked})}/><span>Уведомлять менеджеров о новых заказах</span></label><button className="px-button px-button-dark px-block" onClick={save} disabled={saving}>{saving?'Сохраняем…':'Сохранить правила'}</button><p className="px-form-note">Это демонстрационная настройка будущей системы. Она хранится в D1 только в текущей demo-сессии.</p></article>
       <article className="px-owner-panel"><span className="px-kicker">ПОСЛЕДНИЕ ЗАКАЗЫ</span><h3>Картина без перехода в Manager</h3><div className="px-owner-orders">{data.recentOrders.map((order:any)=><div key={order.id}><div><b>{order.tourTitle}</b><span>{order.customer} · {order.source}</span></div><div><strong>{formatUsd(order.totalMinor)}</strong><small>{order.status}</small></div></div>)}</div></article>
     </section>
+    <section className="px-owner-panel"><span className="px-kicker">AUDIT TRAIL</span><h3>История изменений системы</h3><div className="px-owner-orders">{audit.length?audit.map((item:any)=><div key={item.id}><div><b>{item.action}</b><span>{item.actorRole} · {item.entityType} · {item.entityId}</span></div><div><small>{new Date(item.createdAt).toLocaleString('ru-RU')}</small></div></div>):<p>Изменений в текущей demo-сессии пока нет.</p>}</div><p className="px-form-note">Записи создаются сервером после изменений Manager, Admin и Owner и содержат состояние до/после операции.</p></section>
     <section className="px-owner-grid">
       <article className="px-owner-panel"><span className="px-kicker">TELEGRAM INTEGRATION</span><h3>Готовность уведомлений</h3><div className="px-owner-statuses"><div><span>Bot token</span><b>{tg?.botTokenConfigured?'OK':'—'}</b></div><div><span>Webhook secret</span><b>{tg?.webhookSecretConfigured?'OK':'—'}</b></div><div><span>Manager chat</span><b>{tg?.managerChatConfigured?'OK':'—'}</b></div><div><span>Owner chat</span><b>{tg?.ownerChatConfigured?'OK':'—'}</b></div></div><p>Бизнес-события уже пишутся в D1 outbox. Пока секреты не заданы, очередь сохраняется и ничего не отправляет наружу.</p><button className="px-button px-button-dark px-block" onClick={connectWebhook} disabled={!canConnectWebhook||connecting}>{connecting?'Подключаем…':webhook?.url?'Переподключить Telegram webhook':'Подключить Telegram webhook'}</button>{webhook?.url&&<p className="px-form-note">Webhook: {webhook.url}</p>}<button className="px-button px-button-dark px-block" onClick={flush} disabled={flushing}>{flushing?'Проверяем очередь…':'Отправить очередь, если Telegram настроен'}</button>{integrationMessage&&<p className="px-form-note">{integrationMessage}</p>}</article>
       <article className="px-owner-panel"><span className="px-kicker">NOTIFICATION OUTBOX</span><h3>Очередь событий</h3><div className="px-owner-statuses"><div><span>Ожидают</span><b>{integration?.outbox?.queued??0}</b></div><div><span>Отправлено</span><b>{integration?.outbox?.sent??0}</b></div><div><span>Ошибки</span><b>{integration?.outbox?.failed??0}</b></div></div><p>{integration?.readyForDelivery?'Telegram готов к доставке сообщений.':'Для реальной доставки останется добавить Telegram secrets/chat IDs. Код, webhook и очередь уже готовы.'}</p></article>
