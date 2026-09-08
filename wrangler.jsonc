@@ -11,7 +11,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "max-tour-demo"
+      "database_name": "max-tour-demo",
+      "database_id": "b399588a-25de-415e-957e-bdb8dbdb07c9"
     }
   ],
   "routes": [
