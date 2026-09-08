@@ -3,6 +3,7 @@ export type BookingFormat = 'group' | 'private';
 export type SourceChannel = 'Telegram' | 'Сайт' | 'Реклама' | 'Другие каналы';
 export type OrderStatus = 'Новый' | 'Оплачено' | 'Подтверждено';
 export type PaymentChoice = 'deposit' | 'full';
+export type PromoDiscountType = 'none' | 'percent_bps' | 'fixed_minor';
 
 export interface ChildRule {
   type: 'height' | 'age';
@@ -25,6 +26,15 @@ export interface PricingRules {
   childRules: ChildRule[];
   privateTiers?: PrivatePriceTier[];
   note?: string;
+}
+
+export interface TourPromo {
+  enabled: boolean;
+  label: string;
+  value: string;
+  discountType?: PromoDiscountType;
+  discountValue?: number;
+  dataStatus?: DataStatus;
 }
 
 export interface Tour {
@@ -51,7 +61,7 @@ export interface Tour {
   dataStatus: DataStatus;
   createdAt?: string;
   updatedAt?: string;
-  promo?: { enabled: boolean; label: string; value: string; dataStatus?: DataStatus };
+  promo?: TourPromo;
 }
 
 export interface Destination {
@@ -80,7 +90,7 @@ export interface ParticipantInput {
 
 export interface ContactInput {
   name: string;
-  phone: string;
+  phone?: string;
   telegram?: string;
 }
 
@@ -109,12 +119,14 @@ export interface Quote {
   tourTitle: string;
   tourSubtotalMinor: number;
   transferMinor: number;
+  discountMinor: number;
   totalMinor: number;
   depositPercentDemo: number;
   payNowMinor: number;
   remainingMinor: number;
   lines: QuoteLine[];
   transferLabel: string;
+  promoLabel?: string;
   demo: true;
 }
 
