@@ -44,6 +44,17 @@ async function seedDemoSession(env: Env, sessionId: string) {
     ).run();
   }
 
+  await env.DB.prepare('INSERT OR IGNORE INTO demo_owner_settings(session_id,manager_sla_minutes,manager_notifications,owner_digest,sales_focus) VALUES (?,15,1,?,?)').bind(sessionId,'Ежедневно','Премиум экскурсии').run();
+  const opsSeed = [
+    ['MT-DEMO-1039','Менеджер 1','Уточнить время сбора в отеле','Клиент ещё не подтвердил детали — DEMO'],
+    ['MT-DEMO-1040','Менеджер 2','Лобби отеля','Полная оплата получена — передать гиду — DEMO'],
+    ['MT-DEMO-1041','Менеджер 1','Amiana — отдельная зона трансфера','Проверить трансфер и даты рождения участников — DEMO']
+  ];
+  for (const [display,assigned,pickup,note] of opsSeed) {
+    const row=await env.DB.prepare('SELECT id FROM orders WHERE session_id=? AND display_id=?').bind(sessionId,display).first<{id:string}>();
+    if(row) await env.DB.prepare('INSERT OR REPLACE INTO demo_order_operations(session_id,order_id,assigned_manager,pickup_note,internal_note) VALUES (?,?,?,?,?)').bind(sessionId,row.id,assigned,pickup,note).run();
+  }
+
   const events: Array<[string,string,string|null,string|null,number|null]> = [
     ['view_tour','Telegram','dalat-premium',null,null],['view_tour','Telegram','dalat-premium',null,null],['view_tour','Telegram','dalat-premium',null,null],['view_tour','Telegram','dalat-premium',null,null],['start_booking','Telegram','dalat-premium',null,null],['start_booking','Telegram','dalat-premium',null,null],
     ['view_tour','Сайт','phuyen',null,null],['view_tour','Сайт','phuyen',null,null],['view_tour','Сайт','phuyen',null,null],['start_booking','Сайт','phuyen',null,null],
@@ -75,7 +86,7 @@ export async function ensureSession(request: Request, env: Env): Promise<{ id: s
 }
 
 export async function resetSession(env: Env, sessionId: string) {
-  const tables = ['demo_tour_overrides','demo_user_created_tours','demo_availability','demo_promotions','demo_directions','manager_status_history','payments','order_participants','orders','analytics_events'];
+  const tables = ['demo_tour_overrides','demo_user_created_tours','demo_availability','demo_promotions','demo_directions','demo_order_operations','demo_owner_settings','manager_status_history','payments','order_participants','orders','analytics_events'];
   for (const table of tables) {
     // table names are fixed constants, never user-controlled.
     await env.DB.prepare(`DELETE FROM ${table} WHERE ${table === 'order_participants' ? 'order_id IN (SELECT id FROM orders WHERE session_id=?)' : 'session_id=?'}`).bind(sessionId).run();

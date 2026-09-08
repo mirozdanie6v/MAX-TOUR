@@ -5,6 +5,7 @@ import { quoteBooking, HttpError } from './services/booking';
 import { createOrder, demoPayment, updateOrderStatus } from './services/orders';
 import { addDirection, addTour, adminTours, patchTour, setAvailability, setPromo } from './services/admin';
 import { getAnalytics, recordEvent } from './services/analytics';
+import { getManagerOps, patchManagerOps, getOwnerOverview, patchOwnerSettings } from './services/operations';
 import { managerStatusSchema } from '../shared/schemas';
 
 function json(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
@@ -132,6 +133,13 @@ export default {
         const { raw: _raw, ...safe } = order;
         return finish(json({ order: safe }));
       }
+
+      m = match(path, /^\/api\/manager\/orders\/([^/]+)\/ops$/);
+      if (m && request.method === 'GET') return finish(json({ ops: await getManagerOps(env, session.id, m[0]) }));
+      if (m && request.method === 'PATCH') return finish(json({ ops: await patchManagerOps(env, session.id, m[0], await body(request)) }));
+
+      if (path === '/api/owner/overview' && request.method === 'GET') return finish(json(await getOwnerOverview(env, session.id)));
+      if (path === '/api/owner/settings' && request.method === 'PATCH') return finish(json(await patchOwnerSettings(env, session.id, await body(request))));
 
       if (path === '/api/admin/tours' && request.method === 'GET') return finish(json({ items: await adminTours(env, session.id) }));
       if (path === '/api/admin/tours' && request.method === 'POST') return finish(json({ item: await addTour(env, session.id, await body(request)) }, 201));
