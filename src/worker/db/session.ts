@@ -1,6 +1,7 @@
 import type { Env } from './repository';
 
 const COOKIE = 'max_tour_demo_session';
+const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 
 function getCookie(request: Request, name: string): string | null {
   const header = request.headers.get('Cookie') ?? '';
@@ -12,7 +13,7 @@ function getCookie(request: Request, name: string): string | null {
 }
 
 export function sessionCookie(id: string, secure = true): string {
-  return `${COOKIE}=${encodeURIComponent(id)}; Path=/; HttpOnly; ${secure ? 'Secure; ' : ''}SameSite=Lax; Max-Age=604800`;
+  return `${COOKIE}=${encodeURIComponent(id)}; Path=/; HttpOnly; ${secure ? 'Secure; ' : ''}SameSite=Lax; Max-Age=${SESSION_MAX_AGE_SECONDS}`;
 }
 
 async function seedDemoSession(env: Env, sessionId: string) {
@@ -38,8 +39,8 @@ async function seedDemoSession(env: Env, sessionId: string) {
   for (const s of samples) {
     const internal = crypto.randomUUID();
     const paymentState = s.paid === 0 ? 'Ожидает DEMO-оплату' : s.paid === s.total ? 'Полная оплата получена — DEMO' : 'Предоплата получена — DEMO';
-    await env.DB.prepare(`INSERT INTO orders(id,display_id,session_id,idempotency_key,tour_id,tour_title,selected_date,participants_summary,pricing_snapshot_json,hotel,transfer_minor,total_minor,paid_minor,remaining_minor,payment_choice,payment_method,payment_state,status,source,customer,contact,participant_data_json,data_status)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(
+    await env.DB.prepare(`INSERT INTO orders(id,display_id,session_id,idempotency_key,tour_id,tour_title,selected_date,participants_summary,pricing_snapshot_json,hotel,transfer_minor,total_minor,paid_minor,remaining_minor,payment_choice,payment_method,payment_state,status,source,customer,contact,participant_data_json,data_status,customer_visible)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)`).bind(
       internal,s.display,sessionId,`seed-${s.display}`,s.tour,s.title,s.date,'2 взрослых','{}',s.hotel,0,s.total,s.paid,s.total-s.paid,'deposit','card',paymentState,s.status,s.source,s.customer,'demo contact','[]','demoInput'
     ).run();
   }
@@ -72,21 +73,26 @@ async function seedDemoSession(env: Env, sessionId: string) {
 
 export async function ensureSession(request: Request, env: Env): Promise<{ id: string; setCookie?: string }> {
   const candidate = getCookie(request, COOKIE);
-  if (candidate) {
-    const exists = await env.DB.prepare('SELECT id FROM demo_sessions WHERE id=?').bind(candidate).first<{id:string}>();
-    if (exists) {
-      await env.DB.prepare('UPDATE demo_sessions SET last_seen_at=CURRENT_TIMESTAMP WHERE id=?').bind(candidate).run();
-      return { id: candidate };
+  const nextExpiry = new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000).toISOString();
+
+  if (candidate && /^[0-9a-f-]{36}$/i.test(candidate)) {
+    const exists = await env.DB.prepare('SELECT id,expires_at FROM demo_sessions WHERE id=?').bind(candidate).first<{id:string;expires_at:string|null}>();
+    const expiresAt = exists?.expires_at ? Date.parse(exists.expires_at) : Number.POSITIVE_INFINITY;
+    if (exists && expiresAt > Date.now()) {
+      await env.DB.prepare('UPDATE demo_sessions SET last_seen_at=CURRENT_TIMESTAMP,expires_at=? WHERE id=?').bind(nextExpiry,candidate).run();
+      return { id: candidate, setCookie: sessionCookie(candidate, new URL(request.url).protocol === 'https:') };
     }
+    if (exists) await env.DB.prepare('DELETE FROM demo_sessions WHERE id=?').bind(candidate).run();
   }
+
   const id = crypto.randomUUID();
-  await env.DB.prepare('INSERT INTO demo_sessions(id) VALUES (?)').bind(id).run();
+  await env.DB.prepare('INSERT INTO demo_sessions(id,expires_at) VALUES (?,?)').bind(id,nextExpiry).run();
   await seedDemoSession(env, id);
   return { id, setCookie: sessionCookie(id, new URL(request.url).protocol === 'https:') };
 }
 
 export async function resetSession(env: Env, sessionId: string) {
-  const tables = ['demo_tour_overrides','demo_user_created_tours','demo_availability','demo_promotions','demo_directions','demo_order_operations','demo_owner_settings','manager_status_history','payments','order_participants','orders','analytics_events'];
+  const tables = ['demo_tour_overrides','demo_user_created_tours','demo_availability','demo_promotions','demo_directions','notification_outbox','demo_order_operations','demo_owner_settings','manager_status_history','payments','order_participants','orders','analytics_events'];
   for (const table of tables) {
     // table names are fixed constants, never user-controlled.
     await env.DB.prepare(`DELETE FROM ${table} WHERE ${table === 'order_participants' ? 'order_id IN (SELECT id FROM orders WHERE session_id=?)' : 'session_id=?'}`).bind(sessionId).run();
