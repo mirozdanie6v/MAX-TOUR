@@ -3,6 +3,7 @@ import type { Env } from '../db/repository';
 import { getOrder, listOrders } from '../db/repository';
 import { HttpError } from './booking';
 import { queueNotification, type NotificationAudience } from './notifications';
+import { recordAudit } from './internal-workflows';
 
 function participantSummary(draft: BookingDraft) {
   return `${draft.adults} взрослых${draft.children.length ? `, ${draft.children.length} ${draft.children.length === 1 ? 'ребёнок' : 'детей'}` : ''}`;
@@ -50,6 +51,7 @@ export async function createOrder(env: Env, sessionId: string, draft: BookingDra
   });
   if (participantStatements.length) await env.DB.batch(participantStatements);
   await env.DB.prepare('INSERT INTO analytics_events(session_id,event_type,source,tour_id,order_id,amount_minor,metadata_json,demo) VALUES (?,?,?,?,?,?,?,1)').bind(sessionId,'order_created',draft.source,tour.id,displayId,quote.totalMinor,JSON.stringify({ customerVisible: true })).run();
+  await recordAudit(env, sessionId, 'tourist', 'Создание заказа', 'order', displayId, {}, { tour: tour.title, date: draft.date, totalMinor: quote.totalMinor, source: draft.source });
 
   const notificationPayload = { displayId, tourTitle: tour.title, customer: draft.contact.name, amountMinor: quote.totalMinor, selectedDate: draft.date };
   await bestEffortNotify(env, sessionId, 'manager', 'order_created', id, notificationPayload);
@@ -65,8 +67,6 @@ export async function demoPayment(env: Env, sessionId: string, displayId: string
   if (existing) return getOrder(env.DB, sessionId, displayId);
 
   const raw = order.raw;
-  // One DEMO payment completes the selected payment scenario. Different idempotency keys
-  // must not create duplicate charges or duplicate revenue analytics for the same order.
   if (Number(raw.paid_minor ?? 0) > 0) return order;
 
   const snap = JSON.parse(raw.pricing_snapshot_json || '{}');
@@ -77,6 +77,7 @@ export async function demoPayment(env: Env, sessionId: string, displayId: string
   const paymentState = raw.payment_choice === 'full' ? 'Полная оплата получена — DEMO' : 'Предоплата получена — DEMO';
   await env.DB.prepare("UPDATE orders SET paid_minor=?, remaining_minor=?, payment_state=?, status='Оплачено', updated_at=CURRENT_TIMESTAMP WHERE id=? AND session_id=?").bind(amountMinor,remaining,paymentState,raw.id,sessionId).run();
   await env.DB.prepare('INSERT INTO analytics_events(session_id,event_type,source,tour_id,order_id,amount_minor,metadata_json,demo) VALUES (?,?,?,?,?,?,?,1)').bind(sessionId,'demo_payment_completed',raw.source,raw.tour_id,displayId,amountMinor,'{}').run();
+  await recordAudit(env, sessionId, 'tourist', 'DEMO-оплата', 'order', displayId, { paidMinor: 0 }, { paidMinor: amountMinor, remainingMinor: remaining, paymentState });
 
   const notificationPayload = { displayId, tourTitle: raw.tour_title, customer: raw.customer, amountMinor };
   await bestEffortNotify(env, sessionId, 'manager', 'demo_payment_completed', raw.id, notificationPayload);
@@ -95,6 +96,7 @@ export async function updateOrderStatus(env: Env, sessionId: string, displayId: 
     env.DB.prepare('UPDATE orders SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND session_id=?').bind(status,order.raw.id,sessionId),
     env.DB.prepare('INSERT INTO analytics_events(session_id,event_type,source,tour_id,order_id,metadata_json,demo) VALUES (?,?,?,?,?,?,1)').bind(sessionId,'manager_status_changed',order.source,order.tourId,displayId,JSON.stringify({from:order.status,to:status}))
   ]);
+  await recordAudit(env, sessionId, 'manager', 'Изменение статуса заказа', 'order', displayId, { status: order.status }, { status });
 
   await bestEffortNotify(env, sessionId, 'owner', 'order_status_changed', order.raw.id, {
     displayId,
