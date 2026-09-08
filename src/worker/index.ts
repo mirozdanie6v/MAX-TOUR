@@ -9,6 +9,7 @@ import { getManagerOps, patchManagerOps, getOwnerOverview, patchOwnerSettings } 
 import { flushTelegramOutbox, getIntegrationStatus, handleTelegramWebhook } from './services/notifications';
 import { configureTelegramWebhook, getTelegramWebhookInfo } from './services/telegram-config';
 import { getTildaIntegrationStatus, receiveTildaWebhook } from './services/tilda';
+import { listAudit } from './services/audit';
 import { managerStatusSchema } from '../shared/schemas';
 
 function json(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
@@ -188,6 +189,7 @@ export default {
 
       if (path === '/api/owner/overview' && request.method === 'GET') return finish(json(await getOwnerOverview(env, session.id)));
       if (path === '/api/owner/settings' && request.method === 'PATCH') return finish(json(await patchOwnerSettings(env, session.id, await body(request))));
+      if (path === '/api/owner/audit' && request.method === 'GET') return finish(json(await listAudit(env, session.id, url.searchParams)));
 
       if (path === '/api/admin/tours' && request.method === 'GET') return finish(json({ items: await adminTours(env, session.id) }));
       if (path === '/api/admin/tours' && request.method === 'POST') return finish(json({ item: await addTour(env, session.id, await body(request)) }, 201));
