@@ -2,6 +2,10 @@ name: MAX TOUR Production Smoke
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/production-smoke.yml'
 
 permissions:
   contents: read
@@ -11,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Verify public production flow
+      - name: Verify public production flow and role mutations
         shell: bash
         run: |
           set -euo pipefail
@@ -20,29 +24,52 @@ jobs:
 
           curl -L -fsS --retry 3 --retry-delay 2 --connect-timeout 5 --max-time 20 "$base/" -o /tmp/home.html
           grep -q 'MAX TOUR' /tmp/home.html
-
           curl -L -fsS --retry 3 --retry-delay 2 --connect-timeout 5 --max-time 20 "$base/api/health" -o /tmp/health.json
           jq -e '.ok == true and .service == "max-tour-demo" and .database == "D1"' /tmp/health.json >/dev/null
 
           curl -L -fsS -c "$jar" -b "$jar" "$base/api/session" -o /tmp/session.json
           jq -e '.ok == true and .demoSession == true' /tmp/session.json >/dev/null
 
+          echo '--- Catalog / quote ---'
           curl -L -fsS -c "$jar" -b "$jar" "$base/api/tours" -o /tmp/tours.json
           jq -e '.items | length >= 8' /tmp/tours.json >/dev/null
           jq -e '.items[] | select(.id == "dalat-premium") | .pricingRules.adultMinor == 5200' /tmp/tours.json >/dev/null
-
           curl -L -fsS -c "$jar" -b "$jar" "$base/api/tours/dalat-premium/availability" -o /tmp/availability.json
           date=$(jq -r '.items[0].date // empty' /tmp/availability.json)
           test -n "$date"
-
           jq -n --arg date "$date" '{tourId:"dalat-premium",format:"group",date:$date,adults:2,children:[{height:112}],hotel:"Amiana Resort",transferZoneId:"north",participants:[{fullName:"Smoke Adult A",birthDate:"1990-01-01"},{fullName:"Smoke Adult B",birthDate:"1990-01-01"},{fullName:"Smoke Child",birthDate:"2020-01-01"}],contact:{name:"Smoke Test",phone:"00000"},paymentChoice:"deposit",paymentMethod:"card",source:"Telegram"}' > /tmp/quote-request.json
           curl -L -fsS -c "$jar" -b "$jar" -H 'Content-Type: application/json' --data-binary @/tmp/quote-request.json "$base/api/booking/quote" -o /tmp/quote.json
           jq -e '.quote.demo == true and .quote.totalMinor > 0 and .quote.payNowMinor > 0' /tmp/quote.json >/dev/null
 
+          echo '--- Integration status ---'
           curl -L -fsS -c "$jar" -b "$jar" "$base/api/integrations/telegram/status" -o /tmp/integration.json
           jq -e '.telegram.botTokenConfigured == true or .telegram.botTokenConfigured == false' /tmp/integration.json >/dev/null
 
+          echo '--- Owner overview/settings ---'
+          curl -L -fsS -c "$jar" -b "$jar" "$base/api/owner/overview" -o /tmp/owner.json
+          jq -e '.demo == true and .metrics.orders >= 5 and (.workflow | length) == 4' /tmp/owner.json >/dev/null
+          curl -L -fsS -c "$jar" -b "$jar" -X PATCH -H 'content-type: application/json' --data '{"managerSlaMinutes":20,"managerNotifications":true,"ownerDigest":"Ежедневно","salesFocus":"Премиум экскурсии · QA"}' "$base/api/owner/settings" -o /tmp/owner-patch.json
+          jq -e '.settings.managerSlaMinutes == 20 and .settings.salesFocus == "Премиум экскурсии · QA"' /tmp/owner-patch.json >/dev/null
+
+          echo '--- Manager operations editor ---'
+          curl -L -fsS -c "$jar" -b "$jar" "$base/api/manager/orders" -o /tmp/orders.json
+          order_id=$(jq -r '.items[0].id' /tmp/orders.json)
+          test -n "$order_id" -a "$order_id" != 'null'
+          curl -L -fsS -c "$jar" -b "$jar" -X PATCH -H 'content-type: application/json' --data '{"assignedManager":"QA Manager","pickupNote":"QA pickup","internalNote":"QA internal note","markContacted":true}' "$base/api/manager/orders/$order_id/ops" -o /tmp/ops.json
+          jq -e '.ops.assignedManager == "QA Manager" and .ops.pickupNote == "QA pickup" and .ops.internalNote == "QA internal note" and .ops.lastContactAt != null' /tmp/ops.json >/dev/null
+
+          echo '--- Admin editor and create tour ---'
+          curl -L -fsS -c "$jar" -b "$jar" -X PATCH -H 'content-type: application/json' --data '{"adultMinor":5300,"published":true}' "$base/api/admin/tours/dalat-premium" -o /tmp/admin-edit.json
+          jq -e '.item.pricingRules.adultMinor == 5300 and .item.published == true' /tmp/admin-edit.json >/dev/null
+          curl -L -fsS -c "$jar" -b "$jar" "$base/api/tours/dalat-premium" -o /tmp/tour-after.json
+          jq -e '.item.pricingRules.adultMinor == 5300' /tmp/tour-after.json >/dev/null
+          curl -L -fsS -c "$jar" -b "$jar" -X POST -H 'content-type: application/json' --data '{"title":"QA DEMO tour","direction":"Нячанг","description":"QA only","priceMode":"dynamic-request","adultMinor":0,"scheduleMode":"request","images":[],"published":true}' "$base/api/admin/tours" -o /tmp/admin-add.json
+          jq -e '.item.id | startswith("demo-tour-")' /tmp/admin-add.json >/dev/null
+
+          echo '--- Reset isolated QA demo session ---'
           curl -L -fsS -c "$jar" -b "$jar" -H 'Content-Type: application/json' -d '{}' "$base/api/demo/reset" -o /tmp/reset.json
           jq -e '.ok == true and .reset == true' /tmp/reset.json >/dev/null
+          curl -L -fsS -c "$jar" -b "$jar" "$base/api/tours/dalat-premium" -o /tmp/tour-reset.json
+          jq -e '.item.pricingRules.adultMinor == 5200' /tmp/tour-reset.json >/dev/null
 
-          echo 'Public MAX TOUR frontend, D1, session, catalog, quote and integration status verified.'
+          echo 'MAX TOUR production frontend, D1, quote, integrations, Owner, Manager and Admin verified; QA session reset.'
