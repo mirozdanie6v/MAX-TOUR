@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "max-tour-demo",
+  "main": "./src/worker/index.ts",
+  "compatibility_date": "2026-09-09",
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "max-tour-demo"
+    }
+  ],
+  "routes": [
+    {
+      "pattern": "max-tour.viiversion.com",
+      "custom_domain": true
+    }
+  ]
+}
