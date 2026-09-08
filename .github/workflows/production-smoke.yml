@@ -1,0 +1,24 @@
+name: MAX TOUR Production Smoke
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify public production URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://max-tour.viiversion.com'
+          curl -L -fsS --connect-timeout 5 --max-time 20 "$base/" -o /tmp/home.html
+          grep -q 'MAX TOUR' /tmp/home.html
+          curl -L -fsS --connect-timeout 5 --max-time 20 "$base/api/health" -o /tmp/health.json
+          jq -e '.ok == true and .service == "max-tour-demo" and .database == "D1"' /tmp/health.json >/dev/null
+          echo 'Public home and D1 health verified.'
