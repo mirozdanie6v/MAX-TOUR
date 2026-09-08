@@ -41,6 +41,7 @@ export const api = {
   analytics:(params:URLSearchParams)=>request<AnalyticsResponse>(`/api/admin/analytics?${params.toString()}`),
   ownerOverview:()=>request<any>('/api/owner/overview'),
   ownerSettings:(data:any)=>request<any>('/api/owner/settings',{method:'PATCH',body:JSON.stringify(data)}),
+  ownerAudit:(params=new URLSearchParams())=>request<any>(`/api/owner/audit?${params.toString()}`),
   telegramStatus:()=>request<any>('/api/integrations/telegram/status'),
   telegramWebhookInfo:()=>request<any>('/api/integrations/telegram/webhook'),
   configureTelegramWebhook:()=>request<any>('/api/integrations/telegram/webhook',{method:'POST',body:'{}'}),
