@@ -1,0 +1,38 @@
+name: Bootstrap source probe
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Discover Firestorage API route
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://firestorage.ai'
+          page="$origin/ja/f/7BHHEoPT_mIF"
+          curl -L -fsS "$page" -o /tmp/page
+          chunk=$(grep -o '/_next/static/chunks/app/(files)/ja/f/page-[^"<]*\.js' /tmp/page | head -n1 || true)
+          [ -n "$chunk" ] || chunk='/_next/static/chunks/4899-d89df949f2dbd5af.js'
+          curl -L -fsS "$origin$chunk" -o /tmp/chunk || true
+          curl -L -fsS "$origin/_next/static/chunks/4899-d89df949f2dbd5af.js" -o /tmp/chunk2 || true
+          cat /tmp/chunk /tmp/chunk2 > /tmp/alljs
+          python3 - <<'PY'
+          import re
+          s=open('/tmp/alljs',encoding='utf-8',errors='ignore').read()
+          print('URLS')
+          for u in sorted(set(re.findall(r'https?://[^"\'` ]+', s))):
+              if 'firestorage' in u.lower() or '/api' in u.lower(): print(u[:500])
+          print('API-LIKE STRINGS')
+          for pat in [r'[^"\']{0,80}/api[^"\']{0,180}', r'[^"\']{0,80}shares/[^"\']{0,180}', r'[^"\']{0,100}files\?maxResults[^"\']{0,100}']:
+              for x in re.findall(pat,s)[:50]: print(x[:500])
+          idx=s.find('async function v()')
+          if idx>=0: print('CONTEXT',s[max(0,idx-2500):idx+3500])
+          PY
