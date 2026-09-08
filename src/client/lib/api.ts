@@ -29,6 +29,8 @@ export const api = {
   managerOrders:()=>request<{items:OrderSummary[]}>('/api/manager/orders'),
   managerOrder:(id:string)=>request<{order:OrderSummary}>(`/api/manager/orders/${encodeURIComponent(id)}`),
   managerStatus:(id:string,status:OrderSummary['status'])=>request<{order:OrderSummary}>(`/api/manager/orders/${encodeURIComponent(id)}/status`,{method:'PATCH',body:JSON.stringify({status})}),
+  managerOps:(id:string)=>request<{ops:{assignedManager:string;pickupNote:string;internalNote:string;lastContactAt:string|null;updatedAt:string|null}}>(`/api/manager/orders/${encodeURIComponent(id)}/ops`),
+  patchManagerOps:(id:string,data:any)=>request<{ops:any}>(`/api/manager/orders/${encodeURIComponent(id)}/ops`,{method:'PATCH',body:JSON.stringify(data)}),
   adminTours:()=>request<{items:Tour[]}>('/api/admin/tours'),
   patchTour:(id:string,patch:any)=>request<{item:Tour}>(`/api/admin/tours/${encodeURIComponent(id)}`,{method:'PATCH',body:JSON.stringify(patch)}),
   addTour:(data:any)=>request<{item:Tour}>('/api/admin/tours',{method:'POST',body:JSON.stringify(data)}),
@@ -37,5 +39,7 @@ export const api = {
   directions:()=>request<{items:Destination[]}>('/api/admin/directions'),
   addDirection:(name:string)=>request('/api/admin/directions',{method:'POST',body:JSON.stringify({name})}),
   analytics:(params:URLSearchParams)=>request<AnalyticsResponse>(`/api/admin/analytics?${params.toString()}`),
+  ownerOverview:()=>request<any>('/api/owner/overview'),
+  ownerSettings:(data:any)=>request<any>('/api/owner/settings',{method:'PATCH',body:JSON.stringify(data)}),
   event:(eventType:string,tourId?:string,source='Telegram')=>request('/api/analytics/event',{method:'POST',body:JSON.stringify({eventType,tourId,source})}).catch(()=>null),
 };
