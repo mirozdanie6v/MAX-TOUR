@@ -49,7 +49,7 @@ export async function getAnalytics(env:Env,sessionId:string,filters:URLSearchPar
   }).slice(0,30);
 
   return {
-    metrics:{views,started,orders,paid,revenueMinor,conversion:views?paid/views:0,averageOrderMinor:paid?Math.round(revenueMinor/paid):0},
+    metrics:{views,started,orders,paid,revenueMinor,conversion:views?Math.round((paid/views)*1000)/10:0,averageOrderMinor:paid?Math.round(revenueMinor/paid):0},
     sources:[...grouped.values()],
     tours:[...tg.values()],
     funnel:[{stage:'Просмотры',value:views},{stage:'Начали бронирование',value:started},{stage:'Заказы',value:orders},{stage:'Оплаты',value:paid}],
