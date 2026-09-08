@@ -45,5 +45,6 @@ export const api = {
   telegramWebhookInfo:()=>request<any>('/api/integrations/telegram/webhook'),
   configureTelegramWebhook:()=>request<any>('/api/integrations/telegram/webhook',{method:'POST',body:'{}'}),
   flushTelegram:()=>request<any>('/api/integrations/telegram/flush',{method:'POST',body:'{}'}),
+  tildaStatus:()=>request<any>('/api/integrations/tilda/status'),
   event:(eventType:string,tourId?:string,source='Telegram')=>request('/api/analytics/event',{method:'POST',body:JSON.stringify({eventType,tourId,source})}).catch(()=>null),
 };
