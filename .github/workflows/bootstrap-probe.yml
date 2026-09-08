@@ -1,4 +1,4 @@
-name: Bootstrap source probe
+name: Import MAX TOUR source
 
 on:
   push:
@@ -6,20 +6,24 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  probe:
+  import-source:
     runs-on: ubuntu-latest
     steps:
-      - name: Verify source bundle download
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Download verified source bundle
         shell: bash
         run: |
           set -euo pipefail
           base='https://api.firestorage.ai/dev/file'
           share='7BHHEoPT_mIF'
           curl -fsS "$base/shares/$share/files?maxResults=1000" -o /tmp/files.json
-          jq '{fileCount:(.files|length), files:[.files[]|{fileId,fileName,sizeBytes,contentType}]}' /tmp/files.json
           file_id=$(jq -r '.files[] | select(.fileName=="max-tour-fullstack.tar.gz") | .fileId' /tmp/files.json | head -n1)
           test -n "$file_id"
           curl -fsS -X POST "$base/shares/$share/files/$file_id/download" -o /tmp/download.json
@@ -27,4 +31,22 @@ jobs:
           test "$download_url" != "null"
           curl -L -fsS "$download_url" -o /tmp/source.tar.gz
           test "$(sha256sum /tmp/source.tar.gz | awk '{print $1}')" = '02a03c97d0ebf23ab956502b9b27fb42d1622fa881666e97bc9a33bdcba3e5c5'
-          tar -tzf /tmp/source.tar.gz | head -n 60
+          mkdir -p /tmp/source
+          tar -xzf /tmp/source.tar.gz -C /tmp/source
+
+      - name: Import full-stack project into repository root
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -a /tmp/source/max-tour-fullstack/. ./
+          rm -f TRIGGER.txt
+          rm -f .github/workflows/bootstrap-probe.yml
+          git add -A
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --cached --quiet; then
+            echo 'Source already imported'
+          else
+            git commit -m 'feat: import complete MAX TOUR full-stack source'
+            git push origin HEAD:main
+          fi
