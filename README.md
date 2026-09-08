@@ -1,105 +1,44 @@
-# MAX TOUR Vietnam — Telegram Mini App demo
+# MAX TOUR — Full-stack Telegram Mini App Demo
 
-Full-stack demonstration product for MAX TOUR Vietnam, implemented from the v4 execution prompt as a React/TypeScript application with a Cloudflare Worker API and D1 persistence.
+Production: https://max-tour.viiversion.com/
+Health: https://max-tour.viiversion.com/api/health
 
-## Status
+## Stack
 
-- Production: **DEPLOYED**
-- Production domain: `https://max-tour.viiversion.com/`
-- Frontend: React + TypeScript + Vite
-- Backend: Cloudflare Worker + TypeScript
-- Database: Cloudflare D1 (`DB` binding, database name `max-tour-demo`)
-- External money movement: simulated
-- Tilda production sync: simulated architecture proof
-- Telegram Bot API transport: simulated unless real bot credentials are explicitly configured
-
-Production is considered deployed only while both the homepage and `/api/health` are verified on the custom domain.
-
-## Why this demo exists
-
-The demo is designed to answer the exact client questions that also structure the commercial proposal:
-
-1. what the Telegram bot and Mini App look like;
-2. how a tourist independently selects a tour/date/participants, receives information, books and follows a payment flow;
-3. how the same order becomes visible to a manager;
-4. how the existing Tilda site and Telegram can become two channels of one booking model;
-5. how MAX TOUR can edit/add tours, prices, demo schedules and promotions;
-6. how source → tour → order → payment analytics can look;
-7. how the model scales to multiple verified directions.
-
-Development pricing, implementation timelines, payment-provider commissions, advertising results and revenue promises are intentionally kept out of the customer Mini App and belong in the commercial proposal.
+- React + TypeScript + Vite
+- Cloudflare Worker API
+- Cloudflare D1 (`DB` binding)
+- Cloudflare Worker Static Assets
+- GitHub Actions CI
+- Shared Cloudflare deployment runner using the existing authorized `rusinfocenter` repository secrets for the `viiversion.com` account. Secret values are never copied into this repository.
 
 ## Architecture
 
 ```text
-Browser / Telegram WebView
-        |
-        v
-React + React Router (Vite)
-        |
-        | same-origin /api/*
-        v
+React Mini App / browser demo
+          ↓ same-origin /api/*
 Cloudflare Worker (TypeScript)
-        |
-        v
+          ↓ DB binding
 Cloudflare D1
-   |                |
-verified base     session-scoped demo data
-immutable facts   orders / payment demo / overrides / analytics
 ```
 
-The Worker creates a cryptographically random demo session and stores it in an HttpOnly SameSite cookie. Mutable demo data is isolated by `session_id`. A new browser session sees the verified baseline and does not inherit another visitor's mutations.
+Verified MAX TOUR catalog data and mutable demo data are separated. Demo changes are isolated by a cryptographically random server-created session stored in a Secure + HttpOnly + SameSite cookie.
 
-## Data model
+## Demo roles
 
-Main D1 entities:
+Role switching is available from the right hamburger menu in the public demo.
 
-- `app_settings`
-- `destinations`
-- `tours`
-- `demo_sessions`
-- `demo_tour_overrides`
-- `demo_user_created_tours`
-- `demo_availability`
-- `demo_promotions`
-- `demo_directions`
-- `orders`
-- `order_participants`
-- `payments`
-- `analytics_events`
-- `manager_status_history`
+- **Tourist** — catalog → detail → date → participants → hotel/transfer → quote → order → simulated payment → My Trips.
+- **Manager** — receives the same D1 order, changes status, assigns a responsible manager, edits pickup/transfer clarification, adds internal operational notes and marks customer contact.
+- **Administrator** — creates tours and edits title, adult price, description, program, publication state, demo schedule, promo and directions.
+- **Owner** — sees business-level demo KPIs/order queue/source mix and edits demo operating rules such as manager SLA, notification preference, digest frequency and sales focus.
 
-Money is stored as integer minor units. Final quotes and order totals are recalculated by the Worker; totals supplied by the browser are never trusted.
+Detailed responsibility/business logic: `docs/ROLE_WORKFLOW_V2.md`.
+Client-promise audit and remaining production work: `docs/CLIENT_PROMISE_AUDIT.md`.
 
-## Official MAX TOUR source URLs used
+## Important demo boundary
 
-Business/product facts are seeded from MAX TOUR pages checked during implementation:
-
-- https://maxtourvietnam.com/
-- https://maxtourvietnam.com/ekskursiya-v-dalat-iz-nyachanga-premium
-- https://maxtourvietnam.com/ekskursiya-v-fuyen-iz-nyachanga
-- https://maxtourvietnam.com/vip-ekskursiya-v-dalat-iz-nyachanga
-- https://maxtourvietnam.com/ekskursiya-v-dalat-so-steklyannym-mostom-iz-nyachanga
-- https://maxtourvietnam.com/dnevnaya-obzornaya-ekskursiya-po-nyachangu
-- https://maxtourvietnam.com/vechernyaya-obzornaya-ekskursiya-po-nyachangu
-- https://maxtourvietnam.com/ekskursiya-v-dalat-na-2-dnya-iz-nyachanga
-- https://maxtourvietnam.com/hanoj-halong-iz-nyachanga-2-dnya
-
-## Data verification notes
-
-- The flagship Dalat Premium detail page is treated as the source of truth for its itinerary, prices and participant requirements.
-- Dalat Premium group logic: adult `$52`; height `<=100 cm` free; `>100 cm && <=120 cm` `$38`.
-- Acceptance demo: 2 adults + one 112 cm child = `$142`; Amiana / 3 travellers adds `$20`; total `$162`; 30% demo deposit = `$48.60`.
-- The 30% value is a **DEMO CONFIGURATION**, not a claim that Dalat Premium currently has a fixed 30% deposit. MAX TOUR's general site rule is 30–100%.
-- Availability dates and “available / low / request” statuses are `DEMO AVAILABILITY`, not live inventory.
-- Analytics values are `DEMO ANALYTICS` and are not historical MAX TOUR/VIIVERSION performance.
-- Promotions created in Admin are `DEMO PROMO` and are session-scoped.
-- User-created tours/directions are marked `userCreatedDemo`.
-- No payment-provider commission, provider, merchant account, VietQR, VNPAY, ZaloPay or payOS is claimed as selected.
-
-## Images
-
-Images are intentionally separate from the business-data source-of-truth policy. High-quality travel imagery may come from external sources, but it must semantically match the exact tour/location. Dalat Premium has six distinct images aligned to its itinerary. For this demo the images are remote URLs; a production hardening pass should copy licensed/approved files into project-owned Cloudflare static assets and convert them to WebP/AVIF.
+The public role switch is a demonstration device, not production authorization. Manager/Admin/Owner access is intentionally session-scoped and must be protected by real authentication + RBAC before live use.
 
 ## API overview
 
@@ -115,13 +54,16 @@ Catalog/booking:
 - `GET /api/tours/:id/availability`
 - `POST /api/booking/quote`
 - `POST /api/orders`
-- `POST /api/payments/demo`
+- `GET /api/orders/:id`
 - `GET /api/my-trips`
+- `POST /api/payments/demo`
 
 Manager:
 - `GET /api/manager/orders`
 - `GET /api/manager/orders/:id`
 - `PATCH /api/manager/orders/:id/status`
+- `GET /api/manager/orders/:id/ops`
+- `PATCH /api/manager/orders/:id/ops`
 
 Admin:
 - `GET|POST /api/admin/tours`
@@ -131,121 +73,90 @@ Admin:
 - `GET|POST /api/admin/directions`
 - `GET /api/admin/analytics`
 
-## Demo modes / routes
+Owner:
+- `GET /api/owner/overview`
+- `PATCH /api/owner/settings`
 
-- Bot: `/bot`
-- Tourist home: `/`
-- Catalog: `/catalog`
-- Dalat Premium: `/tour/dalat-premium`
-- Booking: `/booking/date` → participants → hotel → travelers → checkout → payment → success
-- My Trips: `/trips`
-- Manager: `/manager`
-- Unified Tilda/Telegram proof: `/channels`
-- Admin tours: `/admin`
-- Schedule/promo: `/admin/schedule`
-- Analytics: `/admin/analytics`
-- Directions: `/admin/directions`
+Analytics:
+- `POST /api/analytics/event`
 
-Append `?clean=1` to hide the demo role switcher for proposal screenshots.
+## D1
 
-Suggested screenshot states:
+Database: `max-tour-demo`
+Binding: `DB`
 
-- S01 `/bot?clean=1`
-- S02 `/?clean=1`
-- S03 `/tour/dalat-premium?clean=1`
-- S04 `/booking/checkout?clean=1` after completing participant inputs
-- S05 `/booking/payment?clean=1`
-- S06 `/manager/MT-DEMO-1048?clean=1` after creating the order
-- S07 `/channels?clean=1`
-- S08 `/admin/tours/dalat-premium?clean=1`
-- S09 `/admin/analytics?clean=1`
+Migrations:
+- `0001_init.sql`
+- `0002_indexes.sql`
+- `0003_operations_owner.sql`
+
+Money is stored in integer minor units. SQL user values use prepared statements. Quote/order totals are calculated server-side.
 
 ## Local development
 
 ```bash
 npm install
-npm run cf:types
-npm run db:migrate:local
-npm run db:seed:local
-npm run dev
-```
-
-Quality gates:
-
-```bash
 npm run typecheck
 npm test
 npm run build
+npm run dev
 ```
 
-The demo session cookie omits `Secure` on plain HTTP local development and uses `Secure` on HTTPS production.
-
-## D1 migrations and seed
-
-```bash
-npm run db:migrate:local
-npm run db:seed:local
-npm run db:migrate:remote
-npm run db:seed:remote
-```
-
-`seed/verified-max-tour-data.sql` is idempotent; rerunning it does not duplicate base tours/directions. Reset only clears mutable data for the current demo session and reseeds its synthetic demo availability/orders/analytics.
-
-## Production deployment
-
-Source code, CI and public production smoke checks live in this `MAX-TOUR` repository. Cloudflare credentials are intentionally **not duplicated into MAX-TOUR**.
-
-Production deployment uses a protected shared runner in `mirozdanie6v/rusinfocenter`:
-
-- workflow: `.github/workflows/deploy-max-tour-shared.yml`;
-- credentials: existing `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets in the shared runner repository;
-- source checkout: always `mirozdanie6v/MAX-TOUR@main`;
-- deployment target: `max-tour-demo` + D1 `max-tour-demo` + `max-tour.viiversion.com`.
-
-The shared deployment performs:
-
-1. checkout of `MAX-TOUR/main`;
-2. `npm ci`, typecheck, tests and production build;
-3. remote D1 migrations;
-4. idempotent verified seed;
-5. Worker + React asset deployment;
-6. custom-domain binding;
-7. homepage and `/api/health` production smoke checks.
-
-The normal RIC deployment ignores the MAX-TOUR trigger/workflow, so both products remain isolated even though the same secured Cloudflare credential store is reused.
-
-No secret value belongs in source files, README or the frontend bundle.
+Apply local migrations with Wrangler using the project `wrangler.jsonc`. Verified seed lives in `seed/verified-max-tour-data.sql` and is idempotent.
 
 ## Real vs simulated
 
 Real in this demo:
-- React frontend;
-- Worker API;
-- D1 persistence;
-- session isolation;
-- verified catalog seed;
-- server-side validation and pricing;
-- order/payment-demo persistence;
-- Manager status persistence;
-- Admin overrides/add/schedule/promo/direction persistence;
-- analytics event storage/filtering.
+- React UI
+- Worker API
+- D1 persistence
+- session isolation
+- server-side pricing
+- order persistence
+- manager status and operations persistence
+- admin mutations
+- owner demo settings/overview
+- analytics event persistence/querying
+- production deployment
 
-Simulated:
-- actual bank/card money movement;
-- concrete payment provider response;
-- production Tilda sync;
-- production inventory/seat locking;
-- external manager notification transport;
-- Telegram Bot API transport unless real credentials are separately configured;
-- historical business analytics.
+Still simulated/not connected to live business systems:
+- real money movement/payment provider
+- production Tilda synchronization
+- live seat inventory/capacity locking
+- real Telegram bot transport/identity when credentials are absent
+- real company-wide historical analytics
+- production staff authentication/RBAC
+- real notification/SLA automation
 
-## Reset demo state
+## Source/data policy
 
-Admin → `Reset demo data`, or:
+Business facts must come from the official MAX TOUR website or the buyer request used to prepare this demo. Artificial operational values are marked as DEMO data. Images are the explicit exception: higher-quality replacements may be used, but must be semantically exact to the excursion/location.
 
-```bash
-curl -X POST -H 'content-type: application/json' --cookie-jar cookies.txt --cookie cookies.txt \
-  https://max-tour.viiversion.com/api/demo/reset -d '{}'
-```
+Official source: https://maxtourvietnam.com/
 
-Reset affects only the current demo session.
+## Branding/images
+
+The header currently uses a corrected current-site MAX TOUR graphic with a text fallback. A client-supplied original vector/high-resolution logo should replace the remote website asset before production launch. Demo travel imagery may be externally sourced under the project image policy; production should move approved/licensed media to project-owned Cloudflare assets.
+
+## Telegram behavior
+
+The frontend calls `window.Telegram?.WebApp?.ready()` and `expand()` when available and remains fully usable in a normal browser. Real Telegram identity must only be trusted after backend `initData` validation using a bot token stored as a Cloudflare secret.
+
+## Deployment
+
+The source of truth is `mirozdanie6v/MAX-TOUR@main`. Cloudflare deployment is executed by a shared GitHub Actions runner in `mirozdanie6v/rusinfocenter` because that repository already holds the authorized Cloudflare secrets for the `viiversion.com` account. The runner checks out only this repository's `main`, runs CI/migrations/seed/deploy and verifies the production domain.
+
+No Cloudflare secret value is committed here.
+
+## Production verification
+
+Production deployment is considered successful only after:
+- typecheck/tests/build succeed;
+- remote D1 migrations apply;
+- verified seed succeeds;
+- Worker + assets deploy;
+- custom domain is attached;
+- `/api/health` succeeds;
+- homepage smoke succeeds.
+
+For current remaining work see GitHub Issue #1 and `docs/CLIENT_PROMISE_AUDIT.md`.
