@@ -8,6 +8,7 @@ export interface Env {
   TELEGRAM_MANAGER_CHAT_ID?: string;
   TELEGRAM_OWNER_CHAT_ID?: string;
   TELEGRAM_MINIAPP_URL?: string;
+  TILDA_WEBHOOK_SECRET?: string;
 }
 
 type TourRow = {
