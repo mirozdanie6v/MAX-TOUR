@@ -9,14 +9,40 @@ permissions:
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Verify public production URL
+      - name: Verify public production flow
         shell: bash
         run: |
           set -euo pipefail
           base='https://max-tour.viiversion.com'
-          curl -L -fsS --connect-timeout 5 --max-time 20 "$base/" -o /tmp/home.html
+          jar=/tmp/max-tour-cookies.txt
+
+          curl -L -fsS --retry 3 --retry-delay 2 --connect-timeout 5 --max-time 20 "$base/" -o /tmp/home.html
           grep -q 'MAX TOUR' /tmp/home.html
-          curl -L -fsS --connect-timeout 5 --max-time 20 "$base/api/health" -o /tmp/health.json
+
+          curl -L -fsS --retry 3 --retry-delay 2 --connect-timeout 5 --max-time 20 "$base/api/health" -o /tmp/health.json
           jq -e '.ok == true and .service == "max-tour-demo" and .database == "D1"' /tmp/health.json >/dev/null
-          echo 'Public home and D1 health verified.'
+
+          curl -L -fsS -c "$jar" -b "$jar" "$base/api/session" -o /tmp/session.json
+          jq -e '.ok == true and .demoSession == true' /tmp/session.json >/dev/null
+
+          curl -L -fsS -c "$jar" -b "$jar" "$base/api/tours" -o /tmp/tours.json
+          jq -e '.items | length >= 8' /tmp/tours.json >/dev/null
+          jq -e '.items[] | select(.id == "dalat-premium") | .pricingRules.adultMinor == 5200' /tmp/tours.json >/dev/null
+
+          curl -L -fsS -c "$jar" -b "$jar" "$base/api/tours/dalat-premium/availability" -o /tmp/availability.json
+          date=$(jq -r '.items[0].date // empty' /tmp/availability.json)
+          test -n "$date"
+
+          jq -n --arg date "$date" '{tourId:"dalat-premium",format:"group",date:$date,adults:2,children:[{height:112}],hotel:"Amiana Resort",transferZoneId:"north",participants:[{fullName:"Smoke Adult A",birthDate:"1990-01-01"},{fullName:"Smoke Adult B",birthDate:"1990-01-01"},{fullName:"Smoke Child",birthDate:"2020-01-01"}],contact:{name:"Smoke Test",phone:"00000"},paymentChoice:"deposit",paymentMethod:"card",source:"Telegram"}' > /tmp/quote-request.json
+          curl -L -fsS -c "$jar" -b "$jar" -H 'Content-Type: application/json' --data-binary @/tmp/quote-request.json "$base/api/booking/quote" -o /tmp/quote.json
+          jq -e '.quote.demo == true and .quote.totalMinor > 0 and .quote.payNowMinor > 0' /tmp/quote.json >/dev/null
+
+          curl -L -fsS -c "$jar" -b "$jar" "$base/api/integrations/telegram/status" -o /tmp/integration.json
+          jq -e '.telegram.botTokenConfigured == true or .telegram.botTokenConfigured == false' /tmp/integration.json >/dev/null
+
+          curl -L -fsS -c "$jar" -b "$jar" -H 'Content-Type: application/json' -d '{}' "$base/api/demo/reset" -o /tmp/reset.json
+          jq -e '.ok == true and .reset == true' /tmp/reset.json >/dev/null
+
+          echo 'Public MAX TOUR frontend, D1, session, catalog, quote and integration status verified.'
