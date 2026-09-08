@@ -7,6 +7,7 @@ import { addDirection, addTour, adminTours, patchTour, setAvailability, setPromo
 import { getAnalytics, recordEvent } from './services/analytics';
 import { getManagerOps, patchManagerOps, getOwnerOverview, patchOwnerSettings } from './services/operations';
 import { flushTelegramOutbox, getIntegrationStatus, handleTelegramWebhook } from './services/notifications';
+import { configureTelegramWebhook, getTelegramWebhookInfo } from './services/telegram-config';
 import { managerStatusSchema } from '../shared/schemas';
 
 function json(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
@@ -87,6 +88,12 @@ export default {
       }
       if (path === '/api/integrations/telegram/flush' && request.method === 'POST') {
         return finish(json(await flushTelegramOutbox(env, session.id)));
+      }
+      if (path === '/api/integrations/telegram/webhook' && request.method === 'POST') {
+        return finish(json(await configureTelegramWebhook(env, url.origin)));
+      }
+      if (path === '/api/integrations/telegram/webhook' && request.method === 'GET') {
+        return finish(json(await getTelegramWebhookInfo(env)));
       }
 
       if (path === '/api/destinations' && request.method === 'GET') return finish(json({ items: await getDestinations(env.DB, session.id) }));
