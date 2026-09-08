@@ -58,13 +58,26 @@ export async function setAvailability(env: Env, sessionId:string, tourId:string,
   return {date,status,label:labels[status],dataStatus:'demoAvailability'};
 }
 
+function inferPromoDiscount(value: string, explicitType: 'none'|'percent_bps'|'fixed_minor', explicitValue: number) {
+  if (explicitType !== 'none') return { discountType: explicitType, discountValue: explicitValue };
+  const percent = value.match(/^\s*-?\s*(\d+(?:[.,]\d+)?)\s*%\s*$/);
+  if (percent) {
+    const pct = Number(percent[1]!.replace(',','.'));
+    if (Number.isFinite(pct) && pct >= 0 && pct <= 100) {
+      return { discountType: 'percent_bps' as const, discountValue: Math.round(pct * 100) };
+    }
+  }
+  return { discountType: 'none' as const, discountValue: 0 };
+}
+
 export async function setPromo(env:Env,sessionId:string,tourId:string,input:unknown){
   const tour=await getTourByIdOrSlug(env.DB,sessionId,tourId); if(!tour) throw new HttpError(404,'Экскурсия не найдена','TOUR_NOT_FOUND');
   const parsed = promoSchema.safeParse(input);
   if (!parsed.success) throw new HttpError(400,'Некорректные параметры DEMO-акции','VALIDATION_ERROR');
-  const { enabled, label, value, discountType, discountValue } = parsed.data;
-  await env.DB.prepare(`INSERT INTO demo_promotions(session_id,tour_id,enabled,label,value,discount_type,discount_value) VALUES (?,?,?,?,?,?,?) ON CONFLICT(session_id,tour_id) DO UPDATE SET enabled=excluded.enabled,label=excluded.label,value=excluded.value,discount_type=excluded.discount_type,discount_value=excluded.discount_value,updated_at=CURRENT_TIMESTAMP`).bind(sessionId,tour.id,enabled?1:0,label,value,discountType,discountValue).run();
-  return {enabled,label,value,discountType,discountValue,dataStatus:'demoPromo'};
+  const { enabled, label, value } = parsed.data;
+  const discount = inferPromoDiscount(value, parsed.data.discountType, parsed.data.discountValue);
+  await env.DB.prepare(`INSERT INTO demo_promotions(session_id,tour_id,enabled,label,value,discount_type,discount_value) VALUES (?,?,?,?,?,?,?) ON CONFLICT(session_id,tour_id) DO UPDATE SET enabled=excluded.enabled,label=excluded.label,value=excluded.value,discount_type=excluded.discount_type,discount_value=excluded.discount_value,updated_at=CURRENT_TIMESTAMP`).bind(sessionId,tour.id,enabled?1:0,label,value,discount.discountType,discount.discountValue).run();
+  return {enabled,label,value,...discount,dataStatus:'demoPromo'};
 }
 
 export async function addDirection(env:Env,sessionId:string,input:any){
