@@ -8,6 +8,7 @@ import { getAnalytics, recordEvent } from './services/analytics';
 import { getManagerOps, patchManagerOps, getOwnerOverview, patchOwnerSettings } from './services/operations';
 import { flushTelegramOutbox, getIntegrationStatus, handleTelegramWebhook } from './services/notifications';
 import { configureTelegramWebhook, getTelegramWebhookInfo } from './services/telegram-config';
+import { getTildaIntegrationStatus, receiveTildaWebhook } from './services/tilda';
 import { managerStatusSchema } from '../shared/schemas';
 
 function json(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
@@ -65,11 +66,21 @@ export default {
         return json({ ok: probe?.ok === 1, service: 'max-tour-demo', database: 'D1', time: new Date().toISOString() });
       }
 
-      // Telegram webhook is intentionally outside browser demo-session creation.
+      // External webhooks are intentionally outside browser demo-session creation.
       if (path === '/api/telegram/webhook' && request.method === 'POST') {
         if (!telegramWebhookAuthorized(request, env)) throw new HttpError(401, 'Неверный Telegram webhook secret', 'TELEGRAM_WEBHOOK_UNAUTHORIZED');
         if (!env.TELEGRAM_BOT_TOKEN?.trim()) throw new HttpError(503, 'Telegram bot token ещё не настроен', 'TELEGRAM_NOT_CONFIGURED');
         return json(await handleTelegramWebhook(env, await body(request)), 202);
+      }
+      if (path === '/api/tilda/webhook' && request.method === 'POST') {
+        await receiveTildaWebhook(request, env);
+        return new Response('ok', {
+          status: 200,
+          headers: {
+            'content-type': 'text/plain; charset=utf-8',
+            'cache-control': 'no-store',
+          },
+        });
       }
 
       const session = await ensureSession(request, env);
@@ -94,6 +105,9 @@ export default {
       }
       if (path === '/api/integrations/telegram/webhook' && request.method === 'GET') {
         return finish(json(await getTelegramWebhookInfo(env)));
+      }
+      if (path === '/api/integrations/tilda/status' && request.method === 'GET') {
+        return finish(json(await getTildaIntegrationStatus(env)));
       }
 
       if (path === '/api/destinations' && request.method === 'GET') return finish(json({ items: await getDestinations(env.DB, session.id) }));
