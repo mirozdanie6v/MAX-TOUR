@@ -7,6 +7,8 @@ export class ApiError extends Error {
 async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body && !headers.has('content-type')) headers.set('content-type','application/json');
+  const initData = typeof window !== 'undefined' ? String((window as any).Telegram?.WebApp?.initData ?? '') : '';
+  if (initData && !headers.has('X-Telegram-Init-Data')) headers.set('X-Telegram-Init-Data', initData);
   const response = await fetch(url,{...init,headers,credentials:'same-origin'});
   const data:any = await response.json().catch(()=>({}));
   if(!response.ok) throw new ApiError(data?.error?.message ?? 'Ошибка API',response.status,data?.error?.code);
@@ -42,6 +44,8 @@ export const api = {
   ownerOverview:()=>request<any>('/api/owner/overview'),
   ownerSettings:(data:any)=>request<any>('/api/owner/settings',{method:'PATCH',body:JSON.stringify(data)}),
   ownerAudit:(params=new URLSearchParams())=>request<any>(`/api/owner/audit?${params.toString()}`),
+  authReadiness:()=>request<any>('/api/auth/readiness'),
+  authenticateTelegram:()=>request<any>('/api/auth/telegram',{method:'POST',body:JSON.stringify({initData:String((window as any).Telegram?.WebApp?.initData??'')})}),
   telegramStatus:()=>request<any>('/api/integrations/telegram/status'),
   telegramWebhookInfo:()=>request<any>('/api/integrations/telegram/webhook'),
   configureTelegramWebhook:()=>request<any>('/api/integrations/telegram/webhook',{method:'POST',body:'{}'}),
