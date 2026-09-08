@@ -28,9 +28,11 @@ jobs:
         with:
           node-version: 22
 
+      - name: Refresh lockfile metadata
+        run: npm install --package-lock-only --ignore-scripts
+
       - name: Install dependencies
-        run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+        run: npm ci
 
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
@@ -92,7 +94,7 @@ jobs:
         run: npx wrangler deploy --dry-run --outdir dist/wrangler-dry-run
 
       - name: Persist npm lockfile
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push'
         shell: bash
         run: |
           if [ -n "$(git status --porcelain -- package-lock.json)" ]; then
@@ -100,7 +102,7 @@ jobs:
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
             git add package-lock.json
             git commit -m 'build: update npm lockfile'
-            git push origin HEAD:main
+            git push origin "HEAD:${GITHUB_REF_NAME}"
           else
             echo 'package-lock.json unchanged'
           fi
