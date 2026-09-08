@@ -4,7 +4,8 @@ Full-stack demonstration product for MAX TOUR Vietnam, implemented from the v4 e
 
 ## Status
 
-- Target production domain: `https://max-tour.viiversion.com/`
+- Production: **DEPLOYED**
+- Production domain: `https://max-tour.viiversion.com/`
 - Frontend: React + TypeScript + Vite
 - Backend: Cloudflare Worker + TypeScript
 - Database: Cloudflare D1 (`DB` binding, database name `max-tour-demo`)
@@ -12,7 +13,7 @@ Full-stack demonstration product for MAX TOUR Vietnam, implemented from the v4 e
 - Tilda production sync: simulated architecture proof
 - Telegram Bot API transport: simulated unless real bot credentials are explicitly configured
 
-Production status must only be changed to **DEPLOYED** after both the homepage and `/api/health` have been verified on the custom domain.
+Production is considered deployed only while both the homepage and `/api/health` are verified on the custom domain.
 
 ## Why this demo exists
 
@@ -192,25 +193,28 @@ npm run db:seed:remote
 
 ## Production deployment
 
-The repository CI workflow performs these steps:
+Source code, CI and public production smoke checks live in this `MAX-TOUR` repository. Cloudflare credentials are intentionally **not duplicated into MAX-TOUR**.
 
-1. installs dependencies;
-2. typechecks and runs tests;
-3. finds or creates remote D1 `max-tour-demo`;
-4. writes its real UUID into `wrangler.jsonc` for the deployment run;
-5. applies remote migrations;
-6. applies the idempotent verified seed;
-7. deploys Worker + React assets;
-8. attaches `max-tour.viiversion.com` as a custom domain;
-9. verifies homepage and `/api/health`;
-10. performs API smoke checks.
+Production deployment uses a protected shared runner in `mirozdanie6v/rusinfocenter`:
 
-Required GitHub Actions secrets:
+- workflow: `.github/workflows/deploy-max-tour-shared.yml`;
+- credentials: existing `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets in the shared runner repository;
+- source checkout: always `mirozdanie6v/MAX-TOUR@main`;
+- deployment target: `max-tour-demo` + D1 `max-tour-demo` + `max-tour.viiversion.com`.
 
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
+The shared deployment performs:
 
-No secret belongs in source files, README or the frontend bundle.
+1. checkout of `MAX-TOUR/main`;
+2. `npm ci`, typecheck, tests and production build;
+3. remote D1 migrations;
+4. idempotent verified seed;
+5. Worker + React asset deployment;
+6. custom-domain binding;
+7. homepage and `/api/health` production smoke checks.
+
+The normal RIC deployment ignores the MAX-TOUR trigger/workflow, so both products remain isolated even though the same secured Cloudflare credential store is reused.
+
+No secret value belongs in source files, README or the frontend bundle.
 
 ## Real vs simulated
 
