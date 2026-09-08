@@ -6,6 +6,7 @@ import { createOrder, demoPayment, updateOrderStatus } from './services/orders';
 import { addDirection, addTour, adminTours, patchTour, setAvailability, setPromo } from './services/admin';
 import { getAnalytics, recordEvent } from './services/analytics';
 import { getManagerOps, patchManagerOps, getOwnerOverview, patchOwnerSettings } from './services/operations';
+import { getCustomerRecord, getOrderWorkflow, listAudit, patchCustomerRecord, patchOrderWorkflow } from './services/internal-workflows';
 import { flushTelegramOutbox, getIntegrationStatus, handleTelegramWebhook } from './services/notifications';
 import { configureTelegramWebhook, getTelegramWebhookInfo } from './services/telegram-config';
 import { getTildaIntegrationStatus, receiveTildaWebhook } from './services/tilda';
@@ -66,7 +67,6 @@ export default {
         return json({ ok: probe?.ok === 1, service: 'max-tour-demo', database: 'D1', time: new Date().toISOString() });
       }
 
-      // External webhooks are intentionally outside browser demo-session creation.
       if (path === '/api/telegram/webhook' && request.method === 'POST') {
         if (!telegramWebhookAuthorized(request, env)) throw new HttpError(401, 'Неверный Telegram webhook secret', 'TELEGRAM_WEBHOOK_UNAUTHORIZED');
         if (!env.TELEGRAM_BOT_TOKEN?.trim()) throw new HttpError(503, 'Telegram bot token ещё не настроен', 'TELEGRAM_NOT_CONFIGURED');
@@ -76,39 +76,24 @@ export default {
         await receiveTildaWebhook(request, env);
         return new Response('ok', {
           status: 200,
-          headers: {
-            'content-type': 'text/plain; charset=utf-8',
-            'cache-control': 'no-store',
-          },
+          headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
         });
       }
 
       const session = await ensureSession(request, env);
       const finish = (r: Response) => withCookie(r, session.setCookie);
 
-      if (path === '/api/session' && (request.method === 'GET' || request.method === 'POST')) {
-        return finish(json({ ok: true, demoSession: true }));
-      }
+      if (path === '/api/session' && (request.method === 'GET' || request.method === 'POST')) return finish(json({ ok: true, demoSession: true }));
       if (path === '/api/demo/reset' && request.method === 'POST') {
         await resetSession(env, session.id);
         return finish(json({ ok: true, reset: true }));
       }
 
-      if (path === '/api/integrations/telegram/status' && request.method === 'GET') {
-        return finish(json(await getIntegrationStatus(env, session.id)));
-      }
-      if (path === '/api/integrations/telegram/flush' && request.method === 'POST') {
-        return finish(json(await flushTelegramOutbox(env, session.id)));
-      }
-      if (path === '/api/integrations/telegram/webhook' && request.method === 'POST') {
-        return finish(json(await configureTelegramWebhook(env, url.origin)));
-      }
-      if (path === '/api/integrations/telegram/webhook' && request.method === 'GET') {
-        return finish(json(await getTelegramWebhookInfo(env)));
-      }
-      if (path === '/api/integrations/tilda/status' && request.method === 'GET') {
-        return finish(json(await getTildaIntegrationStatus(env)));
-      }
+      if (path === '/api/integrations/telegram/status' && request.method === 'GET') return finish(json(await getIntegrationStatus(env, session.id)));
+      if (path === '/api/integrations/telegram/flush' && request.method === 'POST') return finish(json(await flushTelegramOutbox(env, session.id)));
+      if (path === '/api/integrations/telegram/webhook' && request.method === 'POST') return finish(json(await configureTelegramWebhook(env, url.origin)));
+      if (path === '/api/integrations/telegram/webhook' && request.method === 'GET') return finish(json(await getTelegramWebhookInfo(env)));
+      if (path === '/api/integrations/tilda/status' && request.method === 'GET') return finish(json(await getTildaIntegrationStatus(env)));
 
       if (path === '/api/destinations' && request.method === 'GET') return finish(json({ items: await getDestinations(env.DB, session.id) }));
       if (path === '/api/tours' && request.method === 'GET') {
@@ -150,9 +135,7 @@ export default {
         const { raw: _raw, ...safe } = order;
         return finish(json({ order: safe }));
       }
-      if (path === '/api/my-trips' && request.method === 'GET') {
-        return finish(json({ items: await listCustomerOrders(env.DB, session.id) }));
-      }
+      if (path === '/api/my-trips' && request.method === 'GET') return finish(json({ items: await listCustomerOrders(env.DB, session.id) }));
       if (path === '/api/payments/demo' && request.method === 'POST') {
         const input: any = await body(request);
         const orderId = String(input?.orderId ?? '');
@@ -185,9 +168,21 @@ export default {
       m = match(path, /^\/api\/manager\/orders\/([^/]+)\/ops$/);
       if (m && request.method === 'GET') return finish(json({ ops: await getManagerOps(env, session.id, m[0]) }));
       if (m && request.method === 'PATCH') return finish(json({ ops: await patchManagerOps(env, session.id, m[0], await body(request)) }));
+      m = match(path, /^\/api\/manager\/orders\/([^/]+)\/workflow$/);
+      if (m && request.method === 'GET') return finish(json({ workflow: await getOrderWorkflow(env, session.id, m[0]) }));
+      if (m && request.method === 'PATCH') return finish(json({ workflow: await patchOrderWorkflow(env, session.id, m[0], await body(request)) }));
+
+      if (path === '/api/manager/customer-record' && request.method === 'GET') {
+        return finish(json({ record: await getCustomerRecord(env, session.id, url.searchParams.get('key') ?? '') }));
+      }
+      if (path === '/api/manager/customer-record' && request.method === 'PATCH') {
+        const input: any = await body(request);
+        return finish(json({ record: await patchCustomerRecord(env, session.id, String(input?.customerKey ?? ''), input) }));
+      }
 
       if (path === '/api/owner/overview' && request.method === 'GET') return finish(json(await getOwnerOverview(env, session.id)));
       if (path === '/api/owner/settings' && request.method === 'PATCH') return finish(json(await patchOwnerSettings(env, session.id, await body(request))));
+      if (path === '/api/owner/audit' && request.method === 'GET') return finish(json({ items: await listAudit(env, session.id, Number(url.searchParams.get('limit') ?? 30)) }));
 
       if (path === '/api/admin/tours' && request.method === 'GET') return finish(json({ items: await adminTours(env, session.id) }));
       if (path === '/api/admin/tours' && request.method === 'POST') return finish(json({ item: await addTour(env, session.id, await body(request)) }, 201));
