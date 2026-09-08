@@ -60,7 +60,7 @@ export async function createOrder(env: Env, sessionId: string, draft: BookingDra
 
 export async function demoPayment(env: Env, sessionId: string, displayId: string, idempotencyKey: string) {
   const order = await getOrder(env.DB, sessionId, displayId);
-  if (!order) throw new HttpError(404, 'Заказ не найден', 'ORDER_NOT_FOUND');
+  if (!order || Number(order.raw.customer_visible ?? 0) !== 1) throw new HttpError(404, 'Заказ не найден', 'ORDER_NOT_FOUND');
   const existing = await env.DB.prepare('SELECT id FROM payments WHERE session_id=? AND idempotency_key=?').bind(sessionId,idempotencyKey).first<{id:string}>();
   if (existing) return getOrder(env.DB, sessionId, displayId);
 
