@@ -3,6 +3,7 @@ import { addTourSchema, adminTourPatchSchema, availabilitySchema, promoSchema } 
 import { getMergedTours, getTourByIdOrSlug, getDestinations } from '../db/repository';
 import type { Env } from '../db/repository';
 import { HttpError } from './booking';
+import { recordAudit } from './internal-workflows';
 
 export async function patchTour(env: Env, sessionId: string, tourId: string, input: unknown) {
   const parsed = adminTourPatchSchema.safeParse(input);
@@ -18,6 +19,7 @@ export async function patchTour(env: Env, sessionId: string, tourId: string, inp
       updatedAt:new Date().toISOString()
     };
     await env.DB.prepare('UPDATE demo_user_created_tours SET tour_json=?, updated_at=CURRENT_TIMESTAMP WHERE session_id=? AND id=?').bind(JSON.stringify(next),sessionId,current.id).run();
+    await recordAudit(env,sessionId,'admin','Редактирование экскурсии','tour',current.id,current,next);
     return next;
   }
   const existing = await env.DB.prepare('SELECT override_json FROM demo_tour_overrides WHERE session_id=? AND tour_id=?').bind(sessionId,current.id).first<{override_json:string}>();
@@ -30,7 +32,9 @@ export async function patchTour(env: Env, sessionId: string, tourId: string, inp
   patch.updatedAt = new Date().toISOString();
   await env.DB.prepare(`INSERT INTO demo_tour_overrides(session_id,tour_id,override_json) VALUES (?,?,?)
     ON CONFLICT(session_id,tour_id) DO UPDATE SET override_json=excluded.override_json,updated_at=CURRENT_TIMESTAMP`).bind(sessionId,current.id,JSON.stringify(patch)).run();
-  return getTourByIdOrSlug(env.DB,sessionId,current.id);
+  const next = await getTourByIdOrSlug(env.DB,sessionId,current.id);
+  await recordAudit(env,sessionId,'admin','Редактирование экскурсии','tour',current.id,current,next ?? patch);
+  return next;
 }
 
 export async function addTour(env: Env, sessionId: string, input: unknown) {
@@ -45,6 +49,7 @@ export async function addTour(env: Env, sessionId: string, input: unknown) {
   const d=parsed.data;
   const tour:Tour={id,slug,title:d.title,direction:d.direction,category:'DEMO',published:d.published,sourceUrl:'DEMO USER INPUT',priceMode:d.priceMode,pricingRules:{adultMinor:d.adultMinor,childRules:[]},requiredFields:['fullName'],scheduleMode:d.scheduleMode,description:d.description,program:[],included:[],extraCosts:[],whatToTake:[],images:d.images,badges:[],dataStatus:'userCreatedDemo',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
   await env.DB.prepare('INSERT INTO demo_user_created_tours(id,session_id,tour_json) VALUES (?,?,?)').bind(id,sessionId,JSON.stringify(tour)).run();
+  await recordAudit(env,sessionId,'admin','Создание экскурсии','tour',id,{},tour);
   return tour;
 }
 
@@ -54,8 +59,11 @@ export async function setAvailability(env: Env, sessionId:string, tourId:string,
   if (!parsed.success) throw new HttpError(400,'Некорректная demo-дата или статус','VALIDATION_ERROR');
   const labels = {available:'доступно',low:'мало мест',request:'по запросу'} as const;
   const { date, status } = parsed.data;
+  const before = await env.DB.prepare('SELECT date,status,label FROM demo_availability WHERE session_id=? AND tour_id=? AND date=?').bind(sessionId,tour.id,date).first<any>();
   await env.DB.prepare(`INSERT INTO demo_availability(session_id,tour_id,date,status,label) VALUES (?,?,?,?,?) ON CONFLICT(session_id,tour_id,date) DO UPDATE SET status=excluded.status,label=excluded.label,updated_at=CURRENT_TIMESTAMP`).bind(sessionId,tour.id,date,status,labels[status]).run();
-  return {date,status,label:labels[status],dataStatus:'demoAvailability'};
+  const after = {date,status,label:labels[status],dataStatus:'demoAvailability'};
+  await recordAudit(env,sessionId,'admin','Изменение расписания','availability',`${tour.id}:${date}`,before ?? {},after);
+  return after;
 }
 
 function inferPromoDiscount(value: string, explicitType: 'none'|'percent_bps'|'fixed_minor', explicitValue: number) {
@@ -74,10 +82,13 @@ export async function setPromo(env:Env,sessionId:string,tourId:string,input:unkn
   const tour=await getTourByIdOrSlug(env.DB,sessionId,tourId); if(!tour) throw new HttpError(404,'Экскурсия не найдена','TOUR_NOT_FOUND');
   const parsed = promoSchema.safeParse(input);
   if (!parsed.success) throw new HttpError(400,'Некорректные параметры DEMO-акции','VALIDATION_ERROR');
+  const before = await env.DB.prepare('SELECT enabled,label,value,discount_type,discount_value FROM demo_promotions WHERE session_id=? AND tour_id=?').bind(sessionId,tour.id).first<any>();
   const { enabled, label, value } = parsed.data;
   const discount = inferPromoDiscount(value, parsed.data.discountType, parsed.data.discountValue);
   await env.DB.prepare(`INSERT INTO demo_promotions(session_id,tour_id,enabled,label,value,discount_type,discount_value) VALUES (?,?,?,?,?,?,?) ON CONFLICT(session_id,tour_id) DO UPDATE SET enabled=excluded.enabled,label=excluded.label,value=excluded.value,discount_type=excluded.discount_type,discount_value=excluded.discount_value,updated_at=CURRENT_TIMESTAMP`).bind(sessionId,tour.id,enabled?1:0,label,value,discount.discountType,discount.discountValue).run();
-  return {enabled,label,value,...discount,dataStatus:'demoPromo'};
+  const after={enabled,label,value,...discount,dataStatus:'demoPromo'};
+  await recordAudit(env,sessionId,'admin','Изменение акции','promotion',tour.id,before ?? {},after);
+  return after;
 }
 
 export async function addDirection(env:Env,sessionId:string,input:any){
@@ -85,7 +96,9 @@ export async function addDirection(env:Env,sessionId:string,input:any){
   const current=await getDestinations(env.DB,sessionId); if(current.some(d=>d.name.toLowerCase()===name.toLowerCase())) throw new HttpError(409,'Такое направление уже есть','ALREADY_EXISTS');
   const id=`demo-dir-${crypto.randomUUID()}`;
   await env.DB.prepare('INSERT INTO demo_directions(id,session_id,name) VALUES (?,?,?)').bind(id,sessionId,name).run();
-  return {id,name,dataStatus:'userCreatedDemo'};
+  const result={id,name,dataStatus:'userCreatedDemo'};
+  await recordAudit(env,sessionId,'admin','Создание направления','direction',id,{},result);
+  return result;
 }
 
 export async function adminTours(env:Env,sessionId:string){ return getMergedTours(env.DB,sessionId); }
