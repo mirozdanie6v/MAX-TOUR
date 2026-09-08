@@ -1,54 +1,46 @@
-# MAX TOUR — Role workflow v2
+# MAX TOUR — Role workflow v3
 
 Updated: 2026-09-09
 
 ## Goal
 
-The demo now separates operational responsibilities instead of treating Manager/Admin/Owner as interchangeable dashboards. All mutable actions below are isolated to the current public demo session and stored in D1.
+The demo separates operational responsibilities instead of treating Manager/Admin/Owner as interchangeable dashboards. Mutable actions are isolated to the current public demo session and stored in D1.
 
 ## Tourist
 
 **Purpose:** complete the purchase path without a manager.
 
-Flow:
-1. Select excursion.
-2. Read the program, price, inclusions and details.
-3. Select DEMO availability date.
-4. Enter adults/children and required participant data.
-5. Enter hotel/transfer details.
-6. Receive server-authoritative quote.
-7. Create order.
-8. Complete simulated payment.
-9. See booking in My Trips.
+Flow: select excursion → review full program/photos/conditions → select DEMO date → add adults/children and participant data → hotel/transfer → server-authoritative quote → order → simulated payment → My Trips.
 
-Result: the same D1 order enters the Manager queue and Owner overview.
+Excursion galleries now open fullscreen. Mobile supports swipe; desktop supports arrows and Escape. The same D1 order enters Manager and Owner views.
 
 ## Manager
 
-**Purpose:** execute and confirm orders, not edit the commercial product.
+**Purpose:** execute and confirm orders, not rewrite the commercial product.
 
-Manager can now:
+Manager can:
 - filter the order queue;
-- open the order;
-- change order status: New / Paid / Confirmed;
-- assign a responsible manager;
+- open an order;
+- change status: New / Paid / Confirmed;
+- assign a responsible DEMO manager from the team selector;
 - edit pickup/transfer clarification;
-- add an internal operational note;
+- add an internal note;
 - mark that the customer was contacted;
-- see customer/contact, hotel, source, amount, paid and remaining.
+- see customer/contact, hotel, source, amount, paid and remaining;
+- open the DEMO CRM customer view, search customers, see repeat customers and their order history.
 
-Manager deliberately cannot change tour price/program. That belongs to Admin and avoids uncontrolled commercial changes during order processing.
+Manager deliberately cannot change tour price/program. That belongs to Admin and prevents uncontrolled commercial changes while processing a booking.
 
 ## Administrator
 
 **Purpose:** maintain the product sold through Telegram/site.
 
-Admin can now:
+Admin can:
 - create a new DEMO tour with a backend-valid payload;
-- edit an excursion title;
-- edit adult price;
-- edit description;
-- edit program items;
+- edit title and adult price;
+- edit description and program;
+- edit included items, extra costs and what-to-take;
+- edit the ordered gallery URL list;
 - publish/unpublish an excursion;
 - add/update DEMO availability;
 - create/update DEMO promotion;
@@ -61,23 +53,7 @@ Changes to verified tours are stored as session-scoped D1 overrides. Base verifi
 
 **Purpose:** control the business rather than process every individual booking.
 
-Owner panel now shows:
-- number of orders;
-- gross DEMO order volume;
-- paid amount;
-- outstanding amount;
-- conversion;
-- published tours / total tours;
-- order queue by status;
-- sources and order volume;
-- recent orders;
-- the Tourist → Manager → Admin → Owner workflow.
-
-Owner can edit DEMO operating rules:
-- manager response SLA in minutes;
-- whether manager notifications should be enabled;
-- owner digest frequency;
-- sales focus.
+Owner panel shows order volume, paid/outstanding amounts, conversion, catalog status, queue by status, source mix, recent orders and the role workflow. Owner can edit DEMO manager SLA, notification preference, digest frequency and sales focus.
 
 These settings demonstrate governance UX only. Actual notifications/SLA automation require production integrations.
 
@@ -88,9 +64,9 @@ Telegram Mini App / Tilda
           ↓
    Unified order model
           ↓
- Manager: execution + communication
+ Manager: execution + communication + CRM view
           ↕
- Admin: product + prices + schedule
+ Admin: product + prices + content + schedule
           ↓
  Owner: KPIs + queue + team rules
 ```
@@ -100,51 +76,53 @@ Telegram Mini App / Tilda
 | Domain | Tourist | Manager | Admin | Owner |
 |---|---:|---:|---:|---:|
 | Browse/book/pay demo | ✓ |  |  | view outcome |
+| Fullscreen excursion gallery | ✓ |  | edit source list |  |
 | Order status |  | edit |  | monitor |
 | Responsible manager / notes |  | edit |  | monitor |
+| Customer/order history | own trips | CRM view |  | recent orders |
 | Tour title/content |  |  | edit | monitor |
 | Price |  |  | edit | monitor |
+| Program/included/extras/what-to-take |  |  | edit | monitor |
+| Gallery order |  |  | edit URLs | monitor |
 | Schedule/promo/directions |  |  | edit | monitor |
 | Analytics | own journey | queue KPIs | source/product analytics | business overview |
 | Team operating rules |  | follow | follow | edit |
 
-This prevents the common anti-pattern where a manager can accidentally rewrite prices while processing a booking, while the owner is forced to work inside an administrator screen.
+## Integration placeholders now visible in the product
+
+The integration screen explicitly marks what is already implemented and what is waiting for credentials/provider decisions:
+- Telegram Bot transport: Mini App/WebView ready; placeholder for token, initData validation and webhook.
+- Tilda: unified order architecture ready; placeholder for webhook/API mapping.
+- Payment: quote/order/payment-state demo ready; placeholder for real provider and callbacks.
+- Live inventory: DEMO availability editor ready; placeholder for authoritative capacity and seat locking.
+- Notifications/SLA: owner rules ready; placeholder for notification transport and automation.
 
 ## Still not production-complete
 
-### P0 — external/live integrations
-1. Real Telegram bot transport, token, server-side initData validation and customer confirmations.
+### Integration-dependent P0
+1. Real Telegram bot transport and identity validation.
 2. Real Tilda → Worker/D1 synchronization.
-3. Real payment provider, callbacks/webhooks, reconciliation, retries and refunds.
-4. Authoritative live schedule, capacity and seat locking.
+3. Real payment provider, callbacks/webhooks, reconciliation, retries/refunds.
+4. Authoritative live schedule/capacity and seat locking.
 5. Real customer/manager notifications and SLA automation.
 
-### P1 — identity and operations
-6. Production authentication and RBAC for Manager/Admin/Owner. Public role switching is demo-only.
-7. Map assigned managers to actual staff accounts/team directory rather than free-text demo names.
-8. Full immutable audit history for manager/admin/owner edits.
-9. Full CRM/customer card: contact history, purchases, tasks, segmentation and notes.
-10. Cancellation/reschedule/refund/no-show operational workflows.
+### Identity/operations P1
+6. Production authentication + RBAC for Manager/Admin/Owner. Public role switching is demo-only.
+7. Map DEMO managers to actual staff accounts/team directory.
+8. Immutable actor/time/before/after audit history for all back-office edits.
+9. Extend CRM from order-derived customer cards to tasks/tags/segments/communication history if included.
+10. Add cancellation/reschedule/refund/no-show operational workflow; real refund execution depends on payment integration.
 
-### P1 — admin completeness
-11. Gallery upload/reorder and project-owned media management.
-12. Edit included/excluded items and what-to-take lists.
-13. Edit child pricing rules and private-tour pricing tiers safely.
-14. Edit pickup/transfer zones and commercial rules.
-15. Validation/preview before publishing complex pricing changes.
+### Content/media/QA P1
+11. Replace ordered image-URL editor with real file upload/reorder to project-owned storage.
+12. Move approved/licensed imagery into project-owned Cloudflare assets and WebP/AVIF.
+13. Obtain the client-approved original vector/high-resolution MAX TOUR logo.
+14. Add richer Owner reporting periods/targets/exports using production data.
+15. Complete Telegram WebView QA on Android/iOS at 360/390/430 px, safe areas, keyboard and slow-network fallbacks.
 
-### P1 — owner completeness
-16. Current Owner dashboard is intentionally current-demo-session scoped. Production Owner must aggregate all authorized business orders, not isolated browser demo sessions.
-17. Real reporting periods, comparison periods, exports and targets.
-18. Real notification/SLA performance and team accountability metrics.
+### Package dependent P2
+16. RU/EN/VI localization if included.
+17. Marketing attribution integrations if included.
+18. Full Tilda/site modernization if included beyond integration.
 
-### P1 — brand/content/QA
-19. Current header uses the corrected current-site MAX TOUR graphic. Obtain a client-approved original vector/high-resolution logo for production ownership.
-20. Move approved/licensed imagery into project-owned Cloudflare assets and WebP/AVIF.
-21. Give every catalog tour 4–6 semantically exact photos.
-22. Complete Telegram WebView QA on Android/iOS at 360/390/430 px, safe areas, keyboard and slow-network fallbacks.
-
-### P2 — final package dependent
-23. RU/EN/VI localization if included in signed scope.
-24. Marketing attribution integrations if promotion services are included.
-25. Full Tilda/site modernization if included beyond integration.
+For excursion-by-excursion source comparison see `docs/SITE_CONTENT_AUDIT_V3.md`.
