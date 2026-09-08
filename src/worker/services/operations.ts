@@ -2,6 +2,7 @@ import type { Env } from '../db/repository';
 import { getMergedTours, listOrders } from '../db/repository';
 import { getAnalytics } from './analytics';
 import { HttpError } from './booking';
+import { listAudit, recordAudit } from './internal-workflows';
 
 export interface ManagerOps {
   assignedManager: string;
@@ -31,6 +32,7 @@ export async function getManagerOps(env: Env, sessionId: string, displayId: stri
 export async function patchManagerOps(env: Env, sessionId: string, displayId: string, input: any): Promise<ManagerOps> {
   const order = await env.DB.prepare('SELECT id FROM orders WHERE session_id=? AND display_id=?').bind(sessionId, displayId).first<{id:string}>();
   if (!order) throw new HttpError(404, 'Заказ не найден', 'ORDER_NOT_FOUND');
+  const before = await getManagerOps(env, sessionId, displayId);
   const assignedManager = text(input?.assignedManager, 80);
   const pickupNote = text(input?.pickupNote, 180);
   const internalNote = text(input?.internalNote, 1200);
@@ -45,7 +47,9 @@ export async function patchManagerOps(env: Env, sessionId: string, displayId: st
       updated_at=CURRENT_TIMESTAMP`).bind(
         sessionId, order.id, assignedManager, pickupNote, internalNote, contacted ? new Date().toISOString() : null, contacted ? 1 : 0
       ).run();
-  return getManagerOps(env, sessionId, displayId);
+  const after = await getManagerOps(env, sessionId, displayId);
+  await recordAudit(env, sessionId, 'manager', contacted ? 'Контакт с клиентом / обновление заказа' : 'Обновление операционных данных', 'order', displayId, before, after);
+  return after;
 }
 
 export async function getOwnerOverview(env: Env, sessionId: string) {
@@ -60,6 +64,7 @@ export async function getOwnerOverview(env: Env, sessionId: string) {
   const byStatus = ['Новый','Оплачено','Подтверждено'].map(status => ({ status, count: orders.filter(o => o.status === status).length }));
   const grossMinor = orders.reduce((sum, order) => sum + order.totalMinor, 0);
   const paidMinor = orders.reduce((sum, order) => sum + order.paidMinor, 0);
+  const audit = await listAudit(env, sessionId, 16);
   return {
     demo: true,
     metrics: {
@@ -76,6 +81,7 @@ export async function getOwnerOverview(env: Env, sessionId: string) {
     sources: analytics.sources,
     funnel: analytics.funnel,
     recentOrders: orders.slice(0, 6),
+    audit,
     settings: {
       managerSlaMinutes: Number(settings?.manager_sla_minutes ?? 15),
       managerNotifications: Boolean(settings?.manager_notifications ?? 1),
@@ -85,14 +91,15 @@ export async function getOwnerOverview(env: Env, sessionId: string) {
     },
     workflow: [
       { role: 'Турист', action: 'Выбирает тур, дату, участников и создаёт заказ' },
-      { role: 'Менеджер', action: 'Получает заказ, связывается с клиентом, уточняет детали и подтверждает' },
-      { role: 'Администратор', action: 'Поддерживает каталог, цены, расписание, акции и направления' },
-      { role: 'Владелец', action: 'Контролирует показатели, очередь заказов и правила работы команды' },
+      { role: 'Менеджер', action: 'Получает заказ, ведёт клиента, уточняет детали, перенос/отмену и подтверждает' },
+      { role: 'Администратор', action: 'Поддерживает каталог, цены, контент, расписание, акции и направления' },
+      { role: 'Владелец', action: 'Контролирует показатели, журнал действий и правила работы команды' },
     ],
   };
 }
 
 export async function patchOwnerSettings(env: Env, sessionId: string, input: any) {
+  const current = await getOwnerOverview(env, sessionId);
   const managerSlaMinutes = Math.min(120, Math.max(5, Number(input?.managerSlaMinutes ?? 15)));
   const managerNotifications = input?.managerNotifications === false ? 0 : 1;
   const allowedDigest = ['Отключено','Ежедневно','Еженедельно'];
@@ -106,5 +113,7 @@ export async function patchOwnerSettings(env: Env, sessionId: string, input: any
       owner_digest=excluded.owner_digest,
       sales_focus=excluded.sales_focus,
       updated_at=CURRENT_TIMESTAMP`).bind(sessionId,managerSlaMinutes,managerNotifications,ownerDigest,salesFocus).run();
+  const after = { managerSlaMinutes, managerNotifications: Boolean(managerNotifications), ownerDigest, salesFocus };
+  await recordAudit(env, sessionId, 'owner', 'Изменение правил команды', 'settings', 'owner', current.settings, after);
   return getOwnerOverview(env, sessionId);
 }
