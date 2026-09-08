@@ -5,6 +5,9 @@ export interface Env {
   ASSETS: Fetcher;
   TELEGRAM_BOT_TOKEN?: string;
   TELEGRAM_WEBHOOK_SECRET?: string;
+  TELEGRAM_MANAGER_CHAT_ID?: string;
+  TELEGRAM_OWNER_CHAT_ID?: string;
+  TELEGRAM_MINIAPP_URL?: string;
 }
 
 type TourRow = {
@@ -64,11 +67,21 @@ export async function getMergedTours(db: D1Database, sessionId: string): Promise
     if (t) merged.push(t);
   }
 
-  const promos = await db.prepare('SELECT tour_id, enabled, label, value FROM demo_promotions WHERE session_id=?').bind(sessionId).all<{ tour_id: string; enabled: number; label: string; value: string }>();
-  const promoMap = new Map<string, { tour_id: string; enabled: number; label: string; value: string }>((promos.results ?? []).map(r => [r.tour_id, r] as [string, { tour_id: string; enabled: number; label: string; value: string }]));
+  const promos = await db.prepare('SELECT tour_id, enabled, label, value, discount_type, discount_value FROM demo_promotions WHERE session_id=?').bind(sessionId).all<{ tour_id: string; enabled: number; label: string; value: string; discount_type: 'none'|'percent_bps'|'fixed_minor'; discount_value: number }>();
+  const promoMap = new Map((promos.results ?? []).map(r => [r.tour_id, r] as const));
   return merged.map(t => {
     const p = promoMap.get(t.id);
-    return p ? { ...t, promo: { enabled: Boolean(p.enabled), label: p.label, value: p.value, dataStatus: 'demoPromo' } } : t;
+    return p ? {
+      ...t,
+      promo: {
+        enabled: Boolean(p.enabled),
+        label: p.label,
+        value: p.value,
+        discountType: p.discount_type,
+        discountValue: Number(p.discount_value ?? 0),
+        dataStatus: 'demoPromo',
+      }
+    } : t;
   });
 }
 
@@ -116,6 +129,11 @@ export function mapOrderRow(row: any): OrderSummary {
 
 export async function listOrders(db: D1Database, sessionId: string): Promise<OrderSummary[]> {
   const result = await db.prepare('SELECT * FROM orders WHERE session_id=? ORDER BY created_at DESC').bind(sessionId).all();
+  return (result.results ?? []).map(mapOrderRow);
+}
+
+export async function listCustomerOrders(db: D1Database, sessionId: string): Promise<OrderSummary[]> {
+  const result = await db.prepare('SELECT * FROM orders WHERE session_id=? AND customer_visible=1 ORDER BY created_at DESC').bind(sessionId).all();
   return (result.results ?? []).map(mapOrderRow);
 }
 
