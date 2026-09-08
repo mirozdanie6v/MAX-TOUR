@@ -1,0 +1,36 @@
+name: Apply site enrichment v3
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.apply-enrichment-v3'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply verified site enrichment
+        run: python tools/enrich_site_materials_v3.py
+      - name: Verify
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+          npm run build
+      - name: Commit enriched sources
+        run: |
+          git config user.name 'mirozdanie6v'
+          git config user.email '49186663+mirozdanie6v@users.noreply.github.com'
+          git add src seed
+          git commit -m 'feat: enrich tours from client site and add fullscreen galleries' || exit 0
+          git push
