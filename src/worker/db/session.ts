@@ -99,9 +99,8 @@ export async function ensureSession(request: Request, env: Env): Promise<{ id: s
 }
 
 export async function resetSession(env: Env, sessionId: string) {
-  const tables = ['demo_tour_overrides','demo_user_created_tours','demo_availability','demo_promotions','demo_directions','notification_outbox','demo_order_operations','demo_owner_settings','manager_status_history','payments','order_participants','orders','analytics_events'];
+  const tables = ['audit_log','demo_tour_overrides','demo_user_created_tours','demo_availability','demo_promotions','demo_directions','notification_outbox','demo_order_operations','demo_owner_settings','manager_status_history','payments','order_participants','orders','analytics_events'];
   for (const table of tables) {
-    // table names are fixed constants, never user-controlled.
     await env.DB.prepare(`DELETE FROM ${table} WHERE ${table === 'order_participants' ? 'order_id IN (SELECT id FROM orders WHERE session_id=?)' : 'session_id=?'}`).bind(sessionId).run();
   }
   await seedDemoSession(env, sessionId);
