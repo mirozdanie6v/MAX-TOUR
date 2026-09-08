@@ -12,27 +12,19 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Discover Firestorage API route
+      - name: Verify source bundle download
         shell: bash
         run: |
           set -euo pipefail
-          origin='https://firestorage.ai'
-          page="$origin/ja/f/7BHHEoPT_mIF"
-          curl -L -fsS "$page" -o /tmp/page
-          chunk=$(grep -o '/_next/static/chunks/app/(files)/ja/f/page-[^"<]*\.js' /tmp/page | head -n1 || true)
-          [ -n "$chunk" ] || chunk='/_next/static/chunks/4899-d89df949f2dbd5af.js'
-          curl -L -fsS "$origin$chunk" -o /tmp/chunk || true
-          curl -L -fsS "$origin/_next/static/chunks/4899-d89df949f2dbd5af.js" -o /tmp/chunk2 || true
-          cat /tmp/chunk /tmp/chunk2 > /tmp/alljs
-          python3 - <<'PY'
-          import re
-          s=open('/tmp/alljs',encoding='utf-8',errors='ignore').read()
-          print('URLS')
-          for u in sorted(set(re.findall(r'https?://[^"\'` ]+', s))):
-              if 'firestorage' in u.lower() or '/api' in u.lower(): print(u[:500])
-          print('API-LIKE STRINGS')
-          for pat in [r'[^"\']{0,80}/api[^"\']{0,180}', r'[^"\']{0,80}shares/[^"\']{0,180}', r'[^"\']{0,100}files\?maxResults[^"\']{0,100}']:
-              for x in re.findall(pat,s)[:50]: print(x[:500])
-          idx=s.find('async function v()')
-          if idx>=0: print('CONTEXT',s[max(0,idx-2500):idx+3500])
-          PY
+          base='https://api.firestorage.ai/dev/file'
+          share='7BHHEoPT_mIF'
+          curl -fsS "$base/shares/$share/files?maxResults=1000" -o /tmp/files.json
+          jq '{fileCount:(.files|length), files:[.files[]|{fileId,fileName,sizeBytes,contentType}]}' /tmp/files.json
+          file_id=$(jq -r '.files[] | select(.fileName=="max-tour-fullstack.tar.gz") | .fileId' /tmp/files.json | head -n1)
+          test -n "$file_id"
+          curl -fsS -X POST "$base/shares/$share/files/$file_id/download" -o /tmp/download.json
+          download_url=$(jq -r '.downloadUrl' /tmp/download.json)
+          test "$download_url" != "null"
+          curl -L -fsS "$download_url" -o /tmp/source.tar.gz
+          test "$(sha256sum /tmp/source.tar.gz | awk '{print $1}')" = '02a03c97d0ebf23ab956502b9b27fb42d1622fa881666e97bc9a33bdcba3e5c5'
+          tar -tzf /tmp/source.tar.gz | head -n 60
