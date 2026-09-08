@@ -32,6 +32,9 @@ jobs:
         run: |
           if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Typecheck
         run: npm run typecheck
 
@@ -61,6 +64,7 @@ jobs:
                    json_extract(pricing_rules_json,'$.childRules[1].priceMinor') AS childMinor
               FROM tours WHERE id='dalat-premium';
             SELECT COUNT(*) AS outboxTable FROM sqlite_master WHERE type='table' AND name='notification_outbox';
+            SELECT COUNT(*) AS tildaInboxTable FROM sqlite_master WHERE type='table' AND name='tilda_webhook_inbox';
             SELECT COUNT(*) AS customerVisibleColumn FROM pragma_table_info('orders') WHERE name='customer_visible';
             SELECT COUNT(*) AS promoDiscountColumns FROM pragma_table_info('demo_promotions') WHERE name IN ('discount_type','discount_value');
           ")
@@ -74,10 +78,11 @@ jobs:
           const tours=Number(find('tours')?.tours ?? 0);
           const price=find('adultMinor')||{};
           const outbox=Number(find('outboxTable')?.outboxTable ?? 0);
+          const tildaInbox=Number(find('tildaInboxTable')?.tildaInboxTable ?? 0);
           const customerVisible=Number(find('customerVisibleColumn')?.customerVisibleColumn ?? 0);
           const promoColumns=Number(find('promoDiscountColumns')?.promoDiscountColumns ?? 0);
-          if (destinations < 5 || tours < 8 || Number(price.adultMinor)!==5200 || Number(price.childMinor)!==3800 || outbox!==1 || customerVisible!==1 || promoColumns!==2) {
-            console.error({destinations,tours,price,outbox,customerVisible,promoColumns});
+          if (destinations < 5 || tours < 8 || Number(price.adultMinor)!==5200 || Number(price.childMinor)!==3800 || outbox!==1 || tildaInbox!==1 || customerVisible!==1 || promoColumns!==2) {
+            console.error({destinations,tours,price,outbox,tildaInbox,customerVisible,promoColumns});
             process.exit(1);
           }
           console.log('D1 verified baseline and integration schema OK');
