@@ -84,7 +84,7 @@ export async function demoPayment(env: Env, sessionId: string, displayId: string
   return getOrder(env.DB, sessionId, displayId);
 }
 
-export async function updateOrderStatus(env: Env, sessionId: string, displayId: string, status: OrderStatus) {
+export async function updateOrderStatus(env: Env, sessionId: string, displayId: string, status: OrderStatus, actorId = 'demo') {
   const order = await getOrder(env.DB, sessionId, displayId);
   if (!order) throw new HttpError(404, 'Заказ не найден', 'ORDER_NOT_FOUND');
   if (order.status === status) return order;
@@ -94,7 +94,7 @@ export async function updateOrderStatus(env: Env, sessionId: string, displayId: 
     env.DB.prepare('UPDATE orders SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND session_id=?').bind(status,order.raw.id,sessionId),
     env.DB.prepare('INSERT INTO analytics_events(session_id,event_type,source,tour_id,order_id,metadata_json,demo) VALUES (?,?,?,?,?,?,1)').bind(sessionId,'manager_status_changed',order.source,order.tourId,displayId,JSON.stringify({from:order.status,to:status}))
   ]);
-  await recordAudit(env, sessionId, 'manager', 'order.status.update', 'order', displayId, { status: order.status }, { status });
+  await recordAudit(env, sessionId, 'manager', 'order.status.update', 'order', displayId, { status: order.status }, { status }, {}, actorId);
 
   await bestEffortNotify(env, sessionId, 'owner', 'order_status_changed', order.raw.id, {
     displayId,
