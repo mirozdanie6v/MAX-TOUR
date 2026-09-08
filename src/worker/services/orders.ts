@@ -3,6 +3,7 @@ import type { Env } from '../db/repository';
 import { getOrder, listOrders } from '../db/repository';
 import { HttpError } from './booking';
 import { queueNotification, type NotificationAudience } from './notifications';
+import { recordAudit } from './audit';
 
 function participantSummary(draft: BookingDraft) {
   return `${draft.adults} взрослых${draft.children.length ? `, ${draft.children.length} ${draft.children.length === 1 ? 'ребёнок' : 'детей'}` : ''}`;
@@ -65,8 +66,6 @@ export async function demoPayment(env: Env, sessionId: string, displayId: string
   if (existing) return getOrder(env.DB, sessionId, displayId);
 
   const raw = order.raw;
-  // One DEMO payment completes the selected payment scenario. Different idempotency keys
-  // must not create duplicate charges or duplicate revenue analytics for the same order.
   if (Number(raw.paid_minor ?? 0) > 0) return order;
 
   const snap = JSON.parse(raw.pricing_snapshot_json || '{}');
@@ -95,6 +94,7 @@ export async function updateOrderStatus(env: Env, sessionId: string, displayId: 
     env.DB.prepare('UPDATE orders SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND session_id=?').bind(status,order.raw.id,sessionId),
     env.DB.prepare('INSERT INTO analytics_events(session_id,event_type,source,tour_id,order_id,metadata_json,demo) VALUES (?,?,?,?,?,?,1)').bind(sessionId,'manager_status_changed',order.source,order.tourId,displayId,JSON.stringify({from:order.status,to:status}))
   ]);
+  await recordAudit(env, sessionId, 'manager', 'order.status.update', 'order', displayId, { status: order.status }, { status });
 
   await bestEffortNotify(env, sessionId, 'owner', 'order_status_changed', order.raw.id, {
     displayId,
