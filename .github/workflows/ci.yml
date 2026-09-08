@@ -1,0 +1,45 @@
+name: MAX TOUR CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Cloudflare credential status
+        shell: bash
+        run: |
+          if [ -n "${CF_TOKEN:-}" ]; then echo 'CLOUDFLARE_API_TOKEN=configured'; else echo 'CLOUDFLARE_API_TOKEN=missing'; fi
+          if [ -n "${CF_ACCOUNT:-}" ]; then echo 'CLOUDFLARE_ACCOUNT_ID=configured'; else echo 'CLOUDFLARE_ACCOUNT_ID=missing'; fi
