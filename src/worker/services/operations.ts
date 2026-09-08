@@ -29,7 +29,7 @@ export async function getManagerOps(env: Env, sessionId: string, displayId: stri
   };
 }
 
-export async function patchManagerOps(env: Env, sessionId: string, displayId: string, input: any): Promise<ManagerOps> {
+export async function patchManagerOps(env: Env, sessionId: string, displayId: string, input: any, actorId = 'demo'): Promise<ManagerOps> {
   const order = await env.DB.prepare('SELECT id FROM orders WHERE session_id=? AND display_id=?').bind(sessionId, displayId).first<{id:string}>();
   if (!order) throw new HttpError(404, 'Заказ не найден', 'ORDER_NOT_FOUND');
   const before = await getManagerOps(env, sessionId, displayId);
@@ -48,7 +48,7 @@ export async function patchManagerOps(env: Env, sessionId: string, displayId: st
         sessionId, order.id, assignedManager, pickupNote, internalNote, contacted ? new Date().toISOString() : null, contacted ? 1 : 0
       ).run();
   const after = await getManagerOps(env, sessionId, displayId);
-  await recordAudit(env, sessionId, 'manager', 'order.operations.update', 'order', displayId, before, after, { markContacted: contacted });
+  await recordAudit(env, sessionId, 'manager', 'order.operations.update', 'order', displayId, before, after, { markContacted: contacted }, actorId);
   return after;
 }
 
@@ -96,7 +96,7 @@ export async function getOwnerOverview(env: Env, sessionId: string) {
   };
 }
 
-export async function patchOwnerSettings(env: Env, sessionId: string, input: any) {
+export async function patchOwnerSettings(env: Env, sessionId: string, input: any, actorId = 'demo') {
   const beforeRow = await env.DB.prepare('SELECT manager_sla_minutes,manager_notifications,owner_digest,sales_focus FROM demo_owner_settings WHERE session_id=?').bind(sessionId).first<any>();
   const before = beforeRow ? {
     managerSlaMinutes: Number(beforeRow.manager_sla_minutes),
@@ -118,6 +118,6 @@ export async function patchOwnerSettings(env: Env, sessionId: string, input: any
       sales_focus=excluded.sales_focus,
       updated_at=CURRENT_TIMESTAMP`).bind(sessionId,managerSlaMinutes,managerNotifications,ownerDigest,salesFocus).run();
   const result = await getOwnerOverview(env, sessionId);
-  await recordAudit(env, sessionId, 'owner', 'owner.settings.update', 'owner_settings', sessionId, before, result.settings);
+  await recordAudit(env, sessionId, 'owner', 'owner.settings.update', 'owner_settings', sessionId, before, result.settings, {}, actorId);
   return result;
 }
