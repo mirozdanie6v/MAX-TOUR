@@ -5,6 +5,7 @@ import { formatUsd } from '../shared/money';
 export function OwnerPage() {
   const [data,setData]=useState<any>(null);
   const [integration,setIntegration]=useState<any>(null);
+  const [tilda,setTilda]=useState<any>(null);
   const [webhook,setWebhook]=useState<any>(null);
   const [integrationMessage,setIntegrationMessage]=useState('');
   const [saving,setSaving]=useState(false);
@@ -12,8 +13,8 @@ export function OwnerPage() {
   const [connecting,setConnecting]=useState(false);
   const [settings,setSettings]=useState({managerSlaMinutes:15,managerNotifications:true,ownerDigest:'Ежедневно',salesFocus:'Премиум экскурсии'});
   const load=async()=>{
-    const [overview,status]=await Promise.all([api.ownerOverview(),api.telegramStatus()]);
-    setData(overview);setSettings(overview.settings);setIntegration(status);
+    const [overview,status,tildaStatus]=await Promise.all([api.ownerOverview(),api.telegramStatus(),api.tildaStatus()]);
+    setData(overview);setSettings(overview.settings);setIntegration(status);setTilda(tildaStatus);
     if(status?.telegram?.botTokenConfigured){
       try{setWebhook(await api.telegramWebhookInfo())}catch{setWebhook(null)}
     }
@@ -48,6 +49,10 @@ export function OwnerPage() {
     <section className="px-owner-grid">
       <article className="px-owner-panel"><span className="px-kicker">TELEGRAM INTEGRATION</span><h3>Готовность уведомлений</h3><div className="px-owner-statuses"><div><span>Bot token</span><b>{tg?.botTokenConfigured?'OK':'—'}</b></div><div><span>Webhook secret</span><b>{tg?.webhookSecretConfigured?'OK':'—'}</b></div><div><span>Manager chat</span><b>{tg?.managerChatConfigured?'OK':'—'}</b></div><div><span>Owner chat</span><b>{tg?.ownerChatConfigured?'OK':'—'}</b></div></div><p>Бизнес-события уже пишутся в D1 outbox. Пока секреты не заданы, очередь сохраняется и ничего не отправляет наружу.</p><button className="px-button px-button-dark px-block" onClick={connectWebhook} disabled={!canConnectWebhook||connecting}>{connecting?'Подключаем…':webhook?.url?'Переподключить Telegram webhook':'Подключить Telegram webhook'}</button>{webhook?.url&&<p className="px-form-note">Webhook: {webhook.url}</p>}<button className="px-button px-button-dark px-block" onClick={flush} disabled={flushing}>{flushing?'Проверяем очередь…':'Отправить очередь, если Telegram настроен'}</button>{integrationMessage&&<p className="px-form-note">{integrationMessage}</p>}</article>
       <article className="px-owner-panel"><span className="px-kicker">NOTIFICATION OUTBOX</span><h3>Очередь событий</h3><div className="px-owner-statuses"><div><span>Ожидают</span><b>{integration?.outbox?.queued??0}</b></div><div><span>Отправлено</span><b>{integration?.outbox?.sent??0}</b></div><div><span>Ошибки</span><b>{integration?.outbox?.failed??0}</b></div></div><p>{integration?.readyForDelivery?'Telegram готов к доставке сообщений.':'Для реальной доставки останется добавить Telegram secrets/chat IDs. Код, webhook и очередь уже готовы.'}</p></article>
+    </section>
+    <section className="px-owner-grid">
+      <article className="px-owner-panel"><span className="px-kicker">TILDA INTEGRATION</span><h3>Входящий канал сайта</h3><div className="px-owner-statuses"><div><span>Webhook guard</span><b>{tilda?.configured?'OK':'—'}</b></div><div><span>Получено</span><b>{tilda?.inbox?.received??0}</b></div><div><span>Сопоставлено</span><b>{tilda?.inbox?.mapped??0}</b></div><div><span>Ошибки</span><b>{tilda?.inbox?.failed??0}</b></div></div><p>Приём форм Tilda уже реализован и защищён от повторной записи через уникальный lead ID. Для реального подключения останется задать webhook secret в Cloudflare и включить URL в настройках форм Tilda.</p></article>
+      <article className="px-owner-panel"><span className="px-kicker">INTEGRATION BOUNDARY</span><h3>Что не подменяем демо-логикой</h3><p>Произвольный лид Tilda не превращается автоматически в экскурсионный заказ, пока MAX TOUR не подтвердит реальные поля форм и hidden ID тура. Реальный эквайринг и live inventory также подключаются только к выбранным бизнес-источникам.</p></article>
     </section>
   </>;
 }
