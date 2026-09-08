@@ -42,6 +42,7 @@ export const adminTourPatchSchema = z.object({
   program: z.array(z.string()).optional(),
   included: z.array(z.string()).optional(),
   extraCosts: z.array(z.string()).optional(),
+  whatToTake: z.array(z.string()).optional(),
   images: z.array(z.string()).optional(),
 });
 
