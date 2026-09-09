@@ -5,6 +5,7 @@ import { createGroupDepartureSchema, groupDepartureAdminSchema, joinGroupDepartu
 import { HttpError } from './booking';
 import { recordAudit } from './internal-workflows';
 import { queueNotification } from './notifications';
+import { prepareGroupCancellationCampaign } from './admin-crm';
 
 function contactOf(member: GroupMemberInput) {
   return [member.phone, member.telegram].filter(Boolean).join(' · ');
@@ -120,6 +121,21 @@ export async function joinGroupDeparture(env: Env, sessionId: string, id: string
   return after;
 }
 
+async function createGroupRefundCase(env:Env,sessionId:string,departure:GroupDepartureSummary,reason:string){
+  const lower=reason.toLowerCase();
+  const notFormed=/не\s*(собрал|набрал)|группа.*не.*(собрал|набрал)/i.test(lower);
+  const existing=await env.DB.prepare(`SELECT id FROM demo_refund_cases WHERE session_id=? AND group_departure_id=? AND status NOT IN ('completed','cancelled') LIMIT 1`).bind(sessionId,departure.id).first<any>();
+  const ruleCode=notFormed?'GROUP_NOT_FORMED_FULL_DEPOSIT_REFUND':'FORCE_MAJEURE_MANAGER_REVIEW';
+  const note=notFormed?'Группа не набрана: по правилам MAX TOUR внесённый депозит возвращается 100%. Реальный refund ожидает подключения платёжного провайдера.':'Отмена организатором: возврат или перенос требует решения менеджера согласно опубликованным условиям и фактической оплате.';
+  if(existing){
+    await env.DB.prepare(`UPDATE demo_refund_cases SET reason=?,rule_code=?,retention_percent=?,requested_refund_minor=NULL,note=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND session_id=?`).bind(reason,ruleCode,notFormed?0:null,note,existing.id,sessionId).run();
+    return existing.id;
+  }
+  const id=crypto.randomUUID();
+  await env.DB.prepare(`INSERT INTO demo_refund_cases(id,session_id,group_departure_id,reason,rule_code,retention_percent,requested_refund_minor,status,note) VALUES (?,?,?,?,?,?,NULL,'manager_review',?)`).bind(id,sessionId,departure.id,reason,ruleCode,notFormed?0:null,note).run();
+  return id;
+}
+
 export async function adminPatchGroupDeparture(env: Env, sessionId: string, id: string, input: unknown, actorId='demo') {
   const parsed = groupDepartureAdminSchema.safeParse(input);
   if (!parsed.success) throw new HttpError(400,'Некорректный статус группового выезда','VALIDATION_ERROR');
@@ -128,9 +144,12 @@ export async function adminPatchGroupDeparture(env: Env, sessionId: string, id: 
     .bind(parsed.data.status,parsed.data.cancellationReason ?? '',sessionId,id).run();
   const after = await fetchDeparture(env,sessionId,id);
   await recordAudit(env,sessionId,'admin','Изменение группового выезда','group_departure',id,before,after,actorId);
-  if (after.status === 'cancelled') {
+  if (before.status !== 'cancelled' && after.status === 'cancelled') {
+    const reason=after.cancellationReason || 'Отмена администратором';
+    const refundCaseId=await createGroupRefundCase(env,sessionId,after,reason);
+    const campaign=await prepareGroupCancellationCampaign(env,sessionId,id,after.tourId,after.tourTitle,reason,actorId);
     try {
-      const payload={groupDepartureId:id,tourTitle:after.tourTitle,departureDate:after.departureDate,reason:after.cancellationReason};
+      const payload={groupDepartureId:id,tourTitle:after.tourTitle,departureDate:after.departureDate,reason,refundCaseId,campaignId:campaign.id};
       await queueNotification(env,sessionId,'manager','group_departure_cancelled',null,payload);
       await queueNotification(env,sessionId,'owner','group_departure_cancelled',null,payload);
     } catch {}
