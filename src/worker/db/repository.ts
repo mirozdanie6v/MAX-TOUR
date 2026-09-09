@@ -9,6 +9,7 @@ export interface Env {
   TELEGRAM_OWNER_CHAT_ID?: string;
   TELEGRAM_MINIAPP_URL?: string;
   TILDA_WEBHOOK_SECRET?: string;
+  AUTH_MODE?: 'demo' | 'telegram';
 }
 
 type TourRow = {
