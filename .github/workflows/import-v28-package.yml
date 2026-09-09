@@ -1,0 +1,33 @@
+name: Import MAX TOUR v28 package
+
+on:
+  push:
+    branches:
+      - demo/max-tour-demo
+    paths:
+      - .github/workflows/import-v28-package.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  inspect-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect temporary package share
+        env:
+          SHARE_URL: https://firestorage.ai/ja/f/TquebyQrZbER
+          EXPECTED_SHA256: fda7975b9b76bc5923577cabf92891a6ed83399c8c9913c838be6369cfd1fedd
+        run: |
+          set -euo pipefail
+          curl -L --fail --silent --show-error -D /tmp/headers.txt "$SHARE_URL" -o /tmp/body
+          echo '--- headers ---'
+          cat /tmp/headers.txt
+          echo '--- downloaded type/size ---'
+          file /tmp/body
+          wc -c /tmp/body
+          echo '--- candidate URLs / references ---'
+          strings /tmp/body | grep -Eio 'https?://[^"<> ]+|[^"<> ]*(download|file|storage|zip)[^"<> ]*' | head -n 100 || true
+          echo '--- references to uploaded IDs ---'
+          strings /tmp/body | grep -E '01a086c19ec3752ca1589b186dbea317|8ZLMujdRI0q2FY6Z|standalone-v28-source.zip' | head -n 100 || true
