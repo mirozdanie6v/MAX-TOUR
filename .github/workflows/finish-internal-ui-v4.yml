@@ -1,0 +1,42 @@
+name: Finish internal UI v4
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.finish-internal-ui-v4'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  finish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply final internal UI
+        run: python tools/finish_internal_ui_v4.py
+      - name: Verify internal completion wiring
+        run: |
+          grep -q 'patchOrderWorkflow' src/worker/index.ts
+          grep -q 'demo_audit_log' migrations/0006_internal_workflows.sql
+          grep -q 'px-order-workflow' src/client/PremiumApp.tsx
+          grep -q 'INTERNAL_COMPLETION_UI_V4' src/client/styles/premium.css
+      - name: Verify project
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+          npm run build
+      - name: Commit final UI
+        run: |
+          git config user.name 'mirozdanie6v'
+          git config user.email '49186663+mirozdanie6v@users.noreply.github.com'
+          git add src/client/PremiumApp.tsx src/client/styles/premium.css
+          git commit -m 'feat: finish manager reschedule cancellation workflow UI' || exit 0
+          git push
