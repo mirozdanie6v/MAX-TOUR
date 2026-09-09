@@ -4,6 +4,7 @@ import { getMergedTours, getTourByIdOrSlug, getDestinations } from '../db/reposi
 import type { Env } from '../db/repository';
 import { HttpError } from './booking';
 import { recordAudit } from './internal-workflows';
+import { queueSiteSync } from './site-sync';
 
 export async function patchTour(env: Env, sessionId: string, tourId: string, input: unknown, actorId = 'demo') {
   const parsed = adminTourPatchSchema.safeParse(input);
@@ -20,6 +21,7 @@ export async function patchTour(env: Env, sessionId: string, tourId: string, inp
     };
     await env.DB.prepare('UPDATE demo_user_created_tours SET tour_json=?, updated_at=CURRENT_TIMESTAMP WHERE session_id=? AND id=?').bind(JSON.stringify(next),sessionId,current.id).run();
     await recordAudit(env,sessionId,'admin','Редактирование экскурсии','tour',current.id,current,next,actorId);
+    await queueSiteSync(env,sessionId,'tour',current.id,'upsert',next);
     return next;
   }
   const existing = await env.DB.prepare('SELECT override_json FROM demo_tour_overrides WHERE session_id=? AND tour_id=?').bind(sessionId,current.id).first<{override_json:string}>();
@@ -34,6 +36,7 @@ export async function patchTour(env: Env, sessionId: string, tourId: string, inp
     ON CONFLICT(session_id,tour_id) DO UPDATE SET override_json=excluded.override_json,updated_at=CURRENT_TIMESTAMP`).bind(sessionId,current.id,JSON.stringify(patch)).run();
   const next = await getTourByIdOrSlug(env.DB,sessionId,current.id);
   await recordAudit(env,sessionId,'admin','Редактирование экскурсии','tour',current.id,current,next ?? patch,actorId);
+  await queueSiteSync(env,sessionId,'tour',current.id,'upsert',next ?? patch);
   return next;
 }
 
@@ -50,6 +53,7 @@ export async function addTour(env: Env, sessionId: string, input: unknown, actor
   const tour:Tour={id,slug,title:d.title,direction:d.direction,category:'DEMO',published:d.published,sourceUrl:'DEMO USER INPUT',priceMode:d.priceMode,pricingRules:{adultMinor:d.adultMinor,childRules:[]},requiredFields:['fullName'],scheduleMode:d.scheduleMode,description:d.description,program:[],included:[],extraCosts:[],whatToTake:[],images:d.images,badges:[],dataStatus:'userCreatedDemo',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
   await env.DB.prepare('INSERT INTO demo_user_created_tours(id,session_id,tour_json) VALUES (?,?,?)').bind(id,sessionId,JSON.stringify(tour)).run();
   await recordAudit(env,sessionId,'admin','Создание экскурсии','tour',id,{},tour,actorId);
+  await queueSiteSync(env,sessionId,'tour',id,'create',tour);
   return tour;
 }
 
@@ -63,6 +67,7 @@ export async function setAvailability(env: Env, sessionId:string, tourId:string,
   await env.DB.prepare(`INSERT INTO demo_availability(session_id,tour_id,date,status,label) VALUES (?,?,?,?,?) ON CONFLICT(session_id,tour_id,date) DO UPDATE SET status=excluded.status,label=excluded.label,updated_at=CURRENT_TIMESTAMP`).bind(sessionId,tour.id,date,status,labels[status]).run();
   const after = {date,status,label:labels[status],dataStatus:'demoAvailability'};
   await recordAudit(env,sessionId,'admin','Изменение расписания','availability',`${tour.id}:${date}`,before ?? {},after,actorId);
+  await queueSiteSync(env,sessionId,'availability',`${tour.id}:${date}`,'upsert',{tourId:tour.id,...after});
   return after;
 }
 
@@ -88,6 +93,7 @@ export async function setPromo(env:Env,sessionId:string,tourId:string,input:unkn
   await env.DB.prepare(`INSERT INTO demo_promotions(session_id,tour_id,enabled,label,value,discount_type,discount_value) VALUES (?,?,?,?,?,?,?) ON CONFLICT(session_id,tour_id) DO UPDATE SET enabled=excluded.enabled,label=excluded.label,value=excluded.value,discount_type=excluded.discount_type,discount_value=excluded.discount_value,updated_at=CURRENT_TIMESTAMP`).bind(sessionId,tour.id,enabled?1:0,label,value,discount.discountType,discount.discountValue).run();
   const after={enabled,label,value,...discount,dataStatus:'demoPromo'};
   await recordAudit(env,sessionId,'admin','Изменение акции','promotion',tour.id,before ?? {},after,actorId);
+  await queueSiteSync(env,sessionId,'promotion',tour.id,'upsert',{tourId:tour.id,...after});
   return after;
 }
 
@@ -98,6 +104,7 @@ export async function addDirection(env:Env,sessionId:string,input:any, actorId =
   await env.DB.prepare('INSERT INTO demo_directions(id,session_id,name) VALUES (?,?,?)').bind(id,sessionId,name).run();
   const result={id,name,dataStatus:'userCreatedDemo'};
   await recordAudit(env,sessionId,'admin','Создание направления','direction',id,{},result,actorId);
+  await queueSiteSync(env,sessionId,'direction',id,'create',result);
   return result;
 }
 
