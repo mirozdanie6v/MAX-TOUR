@@ -7,6 +7,8 @@ export class ApiError extends Error {
 async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body && !headers.has('content-type')) headers.set('content-type','application/json');
+  const initData = typeof window !== 'undefined' ? String((window as any).Telegram?.WebApp?.initData ?? '') : '';
+  if (initData && !headers.has('X-Telegram-Init-Data')) headers.set('X-Telegram-Init-Data', initData);
   const response = await fetch(url,{...init,headers,credentials:'same-origin'});
   const data:any = await response.json().catch(()=>({}));
   if(!response.ok) throw new ApiError(data?.error?.message ?? 'Ошибка API',response.status,data?.error?.code);
@@ -17,6 +19,8 @@ export const api = {
   session:()=>request<{ok:boolean}>('/api/session'),
   health:()=>request<any>('/api/health'),
   reset:()=>request<{ok:boolean}>('/api/demo/reset',{method:'POST',body:'{}'}),
+  authReadiness:()=>request<any>('/api/auth/readiness'),
+  authenticateTelegram:()=>request<any>('/api/auth/telegram',{method:'POST',body:JSON.stringify({initData:String((window as any).Telegram?.WebApp?.initData??'')})}),
   destinations:()=>request<{items:Destination[]}>('/api/destinations'),
   tours:(admin=false)=>request<{items:Tour[]}>(`/api/tours${admin?'?admin=1':''}`),
   tour:(id:string)=>request<{item:Tour}>(`/api/tours/${encodeURIComponent(id)}`),
