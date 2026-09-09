@@ -28,7 +28,7 @@ export function CatalogV6Page(){
   const [error,setError]=useState('');
   useEffect(()=>{
     Promise.all([
-      fetch('/site-catalog.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('Каталог сайта ещё синхронизируется');return r.json()}),
+      fetch('/site-catalog.json',{cache:'no-store'}).then(async r=>{if(!r.ok)throw new Error('Каталог сайта ещё синхронизируется');return await r.json() as SiteCatalog}),
       api.tours(),
     ]).then(([catalog,tours])=>{setSite(catalog);setNativeTours(tours.items)}).catch(e=>setError(e.message||'Не удалось загрузить каталог'));
   },[]);
