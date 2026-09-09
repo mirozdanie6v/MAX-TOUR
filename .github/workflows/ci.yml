@@ -28,6 +28,21 @@ jobs:
         with:
           node-version: 22
 
+      - name: Apply final manager UI patch once
+        if: github.event_name == 'push' && github.ref_name == 'main'
+        shell: bash
+        run: |
+          if [ -f tools/finish_staff_noshow_v5.py ] && ! grep -q "api.managerStaff()" src/client/PremiumApp.tsx; then
+            python tools/finish_staff_noshow_v5.py
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add src/client/PremiumApp.tsx
+            git commit -m 'feat: wire staff directory and no-show manager UI'
+            git push origin HEAD:main
+          else
+            echo 'Final manager UI patch already applied or patch file absent.'
+          fi
+
       - name: Refresh lockfile metadata
         run: npm install --package-lock-only --ignore-scripts
 
