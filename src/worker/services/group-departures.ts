@@ -39,6 +39,16 @@ async function fetchDeparture(env: Env, sessionId: string, id: string) {
   return mapDeparture(row);
 }
 
+async function addMember(env: Env, sessionId: string, departureId: string, member: GroupMemberInput) {
+  const seats = member.adults + member.children.length;
+  const id = crypto.randomUUID();
+  await env.DB.prepare(`INSERT INTO demo_group_members(id,departure_id,session_id,customer_name,contact,telegram_username,adults,children_json,seats,status)
+    VALUES (?,?,?,?,?,?,?,?,?,'waiting')`).bind(
+      id,departureId,sessionId,member.customerName,contactOf(member),member.telegram ?? '',member.adults,JSON.stringify(member.children),seats
+    ).run();
+  return { id, seats };
+}
+
 async function ensureDemoDepartures(env: Env, sessionId: string, tourId: string) {
   const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM demo_group_departures WHERE session_id=? AND tour_id=? AND status='gathering'").bind(sessionId,tourId).first<{n:number}>();
   if (Number(count?.n ?? 0) > 0) return;
@@ -77,16 +87,6 @@ export async function listGroupDepartures(env: Env, sessionId: string, tourId?: 
   return (rows.results ?? []).map(mapDeparture);
 }
 
-async function addMember(env: Env, sessionId: string, departureId: string, member: GroupMemberInput) {
-  const seats = member.adults + member.children.length;
-  const id = crypto.randomUUID();
-  await env.DB.prepare(`INSERT INTO demo_group_members(id,departure_id,session_id,customer_name,contact,telegram_username,adults,children_json,seats,status)
-    VALUES (?,?,?,?,?,?,?,?,?,'waiting')`).bind(
-      id,departureId,sessionId,member.customerName,contactOf(member),member.telegram ?? '',member.adults,JSON.stringify(member.children),seats
-    ).run();
-  return { id, seats };
-}
-
 export async function createGroupDeparture(env: Env, sessionId: string, input: unknown, actorId='demo') {
   const parsed = createGroupDepartureSchema.safeParse(input);
   if (!parsed.success) throw new HttpError(400,'Проверьте данные группового выезда','VALIDATION_ERROR');
@@ -101,7 +101,7 @@ export async function createGroupDeparture(env: Env, sessionId: string, input: u
   const departure = await fetchDeparture(env,sessionId,id);
   await recordAudit(env,sessionId,'tourist','Создание группового выезда','group_departure',id,{},departure,actorId);
   try {
-    await queueNotification(env,sessionId,'manager','group_departure_created',id,{tourTitle:tour.title,departureDate:departure.departureDate,seats:departure.seats});
+    await queueNotification(env,sessionId,'manager','group_departure_created',null,{groupDepartureId:id,tourTitle:tour.title,departureDate:departure.departureDate,seats:departure.seats});
   } catch {}
   return departure;
 }
@@ -115,7 +115,7 @@ export async function joinGroupDeparture(env: Env, sessionId: string, id: string
   const after = await fetchDeparture(env,sessionId,id);
   await recordAudit(env,sessionId,'tourist','Присоединение к групповому выезду','group_departure',id,current,after,actorId);
   try {
-    await queueNotification(env,sessionId,'manager','group_departure_joined',id,{tourTitle:after.tourTitle,departureDate:after.departureDate,seats:after.seats});
+    await queueNotification(env,sessionId,'manager','group_departure_joined',null,{groupDepartureId:id,tourTitle:after.tourTitle,departureDate:after.departureDate,seats:after.seats});
   } catch {}
   return after;
 }
@@ -130,8 +130,9 @@ export async function adminPatchGroupDeparture(env: Env, sessionId: string, id: 
   await recordAudit(env,sessionId,'admin','Изменение группового выезда','group_departure',id,before,after,actorId);
   if (after.status === 'cancelled') {
     try {
-      await queueNotification(env,sessionId,'manager','group_departure_cancelled',id,{tourTitle:after.tourTitle,departureDate:after.departureDate,reason:after.cancellationReason});
-      await queueNotification(env,sessionId,'owner','group_departure_cancelled',id,{tourTitle:after.tourTitle,departureDate:after.departureDate,reason:after.cancellationReason});
+      const payload={groupDepartureId:id,tourTitle:after.tourTitle,departureDate:after.departureDate,reason:after.cancellationReason};
+      await queueNotification(env,sessionId,'manager','group_departure_cancelled',null,payload);
+      await queueNotification(env,sessionId,'owner','group_departure_cancelled',null,payload);
     } catch {}
   }
   return after;
