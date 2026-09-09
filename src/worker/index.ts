@@ -11,6 +11,7 @@ import { flushTelegramOutbox, getIntegrationStatus, handleTelegramWebhook } from
 import { configureTelegramWebhook, getTelegramWebhookInfo } from './services/telegram-config';
 import { getTildaIntegrationStatus, receiveTildaWebhook } from './services/tilda';
 import { authenticateTelegramStaff, getAuthReadiness, listAssignableStaff, listStaffAccounts, requireStaffRole, upsertStaffAccount } from './services/telegram-auth';
+import { adminPatchGroupDeparture, createGroupDeparture, joinGroupDeparture, listGroupDepartures } from './services/group-departures';
 import { managerStatusSchema } from '../shared/schemas';
 
 function json(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
@@ -140,6 +141,11 @@ export default {
         return finish(json({ item: tour }));
       }
 
+      if (path === '/api/group-departures' && request.method === 'GET') return finish(json({ items: await listGroupDepartures(env, session.id, url.searchParams.get('tourId') ?? undefined) }));
+      if (path === '/api/group-departures' && request.method === 'POST') return finish(json({ item: await createGroupDeparture(env, session.id, await body(request)) }, 201));
+      m = match(path, /^\/api\/group-departures\/([^/]+)\/join$/);
+      if (m && request.method === 'POST') return finish(json({ item: await joinGroupDeparture(env, session.id, m[0], await body(request)) }));
+
       if (path === '/api/booking/quote' && request.method === 'POST') {
         const input = await body(request);
         const result = await quoteBooking(env, session.id, input);
@@ -214,6 +220,10 @@ export default {
       if (path === '/api/owner/audit' && request.method === 'GET') return finish(json({ items: await listAudit(env, session.id, Number(url.searchParams.get('limit') ?? 30)) }));
       if (path === '/api/owner/staff' && request.method === 'GET') return finish(json(await listStaffAccounts(env)));
       if (path === '/api/owner/staff' && request.method === 'PUT') return finish(json({ item: await upsertStaffAccount(env, session.id, await body(request), actorId) }));
+
+      if (path === '/api/admin/group-departures' && request.method === 'GET') return finish(json({ items: await listGroupDepartures(env, session.id) }));
+      m = match(path, /^\/api\/admin\/group-departures\/([^/]+)$/);
+      if (m && request.method === 'PATCH') return finish(json({ item: await adminPatchGroupDeparture(env, session.id, m[0], await body(request), actorId) }));
 
       if (path === '/api/admin/tours' && request.method === 'GET') return finish(json({ items: await adminTours(env, session.id) }));
       if (path === '/api/admin/tours' && request.method === 'POST') return finish(json({ item: await addTour(env, session.id, await body(request), actorId) }, 201));
