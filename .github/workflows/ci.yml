@@ -74,6 +74,9 @@ jobs:
             SELECT COUNT(*) AS groupDeparturesTable FROM sqlite_master WHERE type='table' AND name='demo_group_departures';
             SELECT COUNT(*) AS groupMembersTable FROM sqlite_master WHERE type='table' AND name='demo_group_members';
             SELECT COUNT(*) AS refundCasesTable FROM sqlite_master WHERE type='table' AND name='demo_refund_cases';
+            SELECT COUNT(*) AS campaignsTable FROM sqlite_master WHERE type='table' AND name='demo_broadcast_campaigns';
+            SELECT COUNT(*) AS recipientsTable FROM sqlite_master WHERE type='table' AND name='demo_broadcast_recipients';
+            SELECT COUNT(*) AS siteSyncTable FROM sqlite_master WHERE type='table' AND name='demo_site_sync_outbox';
             SELECT COUNT(*) AS auditActorColumns FROM pragma_table_info('demo_audit_log') WHERE name IN ('actor_id','metadata_json');
             SELECT COUNT(*) AS customerVisibleColumn FROM pragma_table_info('orders') WHERE name='customer_visible';
             SELECT COUNT(*) AS promoDiscountColumns FROM pragma_table_info('demo_promotions') WHERE name IN ('discount_type','discount_value');
@@ -85,9 +88,39 @@ jobs:
           const data=JSON.parse(fs.readFileSync('/tmp/d1-check.json','utf8'));
           const rows=data.flatMap(x=>x.results||[]);
           const find=(k)=>rows.find(r=>Object.prototype.hasOwnProperty.call(r,k));
-          const values={destinations:Number(find('destinations')?.destinations??0),tours:Number(find('tours')?.tours??0),price:find('adultMinor')||{},outbox:Number(find('outboxTable')?.outboxTable??0),tildaInbox:Number(find('tildaInboxTable')?.tildaInboxTable??0),audit:Number(find('auditTable')?.auditTable??0),workflows:Number(find('workflowTable')?.workflowTable??0),customers:Number(find('customerRecordTable')?.customerRecordTable??0),staff:Number(find('staffAccountsTable')?.staffAccountsTable??0),groupDepartures:Number(find('groupDeparturesTable')?.groupDeparturesTable??0),groupMembers:Number(find('groupMembersTable')?.groupMembersTable??0),refundCases:Number(find('refundCasesTable')?.refundCasesTable??0),auditActorColumns:Number(find('auditActorColumns')?.auditActorColumns??0),customerVisible:Number(find('customerVisibleColumn')?.customerVisibleColumn??0),promoColumns:Number(find('promoDiscountColumns')?.promoDiscountColumns??0),ownerTargetColumn:Number(find('ownerTargetColumn')?.ownerTargetColumn??0)};
-          if(values.destinations<5||values.tours<8||Number(values.price.adultMinor)!==5200||Number(values.price.childMinor)!==3800||values.outbox!==1||values.tildaInbox!==1||values.audit!==1||values.workflows!==1||values.customers!==1||values.staff!==1||values.groupDepartures!==1||values.groupMembers!==1||values.refundCases!==1||values.auditActorColumns!==2||values.customerVisible!==1||values.promoColumns!==2||values.ownerTargetColumn!==1){console.error(values);process.exit(1)}
-          console.log('D1 baseline + commerce v6 group/refund schema OK');
+          const values={
+            destinations:Number(find('destinations')?.destinations??0),
+            tours:Number(find('tours')?.tours??0),
+            price:find('adultMinor')||{},
+            outbox:Number(find('outboxTable')?.outboxTable??0),
+            tildaInbox:Number(find('tildaInboxTable')?.tildaInboxTable??0),
+            audit:Number(find('auditTable')?.auditTable??0),
+            workflows:Number(find('workflowTable')?.workflowTable??0),
+            customers:Number(find('customerRecordTable')?.customerRecordTable??0),
+            staff:Number(find('staffAccountsTable')?.staffAccountsTable??0),
+            groupDepartures:Number(find('groupDeparturesTable')?.groupDeparturesTable??0),
+            groupMembers:Number(find('groupMembersTable')?.groupMembersTable??0),
+            refundCases:Number(find('refundCasesTable')?.refundCasesTable??0),
+            campaigns:Number(find('campaignsTable')?.campaignsTable??0),
+            recipients:Number(find('recipientsTable')?.recipientsTable??0),
+            siteSync:Number(find('siteSyncTable')?.siteSyncTable??0),
+            auditActorColumns:Number(find('auditActorColumns')?.auditActorColumns??0),
+            customerVisible:Number(find('customerVisibleColumn')?.customerVisibleColumn??0),
+            promoColumns:Number(find('promoDiscountColumns')?.promoDiscountColumns??0),
+            ownerTargetColumn:Number(find('ownerTargetColumn')?.ownerTargetColumn??0)
+          };
+          if(
+            values.destinations<5||values.tours<8||
+            Number(values.price.adultMinor)!==5200||Number(values.price.childMinor)!==3800||
+            values.outbox!==1||values.tildaInbox!==1||values.audit!==1||values.workflows!==1||
+            values.customers!==1||values.staff!==1||values.groupDepartures!==1||values.groupMembers!==1||
+            values.refundCases!==1||values.campaigns!==1||values.recipients!==1||values.siteSync!==1||
+            values.auditActorColumns!==2||values.customerVisible!==1||values.promoColumns!==2||values.ownerTargetColumn!==1
+          ){
+            console.error(values);
+            process.exit(1);
+          }
+          console.log('D1 baseline + group/refund + unified CRM/site-sync schema OK');
           NODE
 
       - name: Validate Wrangler production bundle
