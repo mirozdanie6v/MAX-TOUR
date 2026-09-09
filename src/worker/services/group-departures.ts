@@ -59,12 +59,15 @@ async function addMember(env: Env, sessionId: string, departureId: string, membe
   return { id, seats };
 }
 
-async function ensureDemoDepartures(env: Env, sessionId: string, tourId: string) {
-  const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM demo_group_departures WHERE session_id=? AND tour_id=? AND status='gathering'").bind(sessionId,tourId).first<{n:number}>();
-  if (Number(count?.n ?? 0) > 0) return;
-  const tour = await resolveGroupTour(env,sessionId,tourId);
-  if (!tour) return;
-  const availability = tour.structured ? await getAvailability(env.DB,sessionId,tour.id).catch(()=>[] as any[]) : [];
+async function ensureDemoDepartures(env: Env, sessionId: string, requestedTourId: string) {
+  const tour = await resolveGroupTour(env,sessionId,requestedTourId);
+  if (!tour) return null;
+
+  const canonicalTourId = tour.id;
+  const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM demo_group_departures WHERE session_id=? AND tour_id=? AND status='gathering'").bind(sessionId,canonicalTourId).first<{n:number}>();
+  if (Number(count?.n ?? 0) > 0) return canonicalTourId;
+
+  const availability = tour.structured ? await getAvailability(env.DB,sessionId,canonicalTourId).catch(()=>[] as any[]) : [];
   const dates = availability.slice(0,2).map((x:any)=>String(x.date)).filter(Boolean);
   if (!dates.length) {
     const base = new Date();
@@ -76,15 +79,20 @@ async function ensureDemoDepartures(env: Env, sessionId: string, tourId: string)
   for (const departureDate of dates) {
     const id=crypto.randomUUID();
     await env.DB.prepare(`INSERT INTO demo_group_departures(id,session_id,tour_id,tour_title,departure_date,status,target_people,min_people,created_by,data_status)
-      VALUES (?,?,?,?,?,'gathering',NULL,NULL,'system_demo','demoInput')`).bind(id,sessionId,tour.id,tour.title,departureDate).run();
+      VALUES (?,?,?,?,?,'gathering',NULL,NULL,'system_demo','demoInput')`).bind(id,sessionId,canonicalTourId,tour.title,departureDate).run();
     const demoMember: GroupMemberInput = {customerName:'DEMO заявка',telegram:'@demo_guest',adults:2,children:[]};
     await addMember(env,sessionId,id,demoMember);
   }
+  return canonicalTourId;
 }
 
 export async function listGroupDepartures(env: Env, sessionId: string, tourId?: string) {
-  if (tourId) await ensureDemoDepartures(env,sessionId,tourId);
-  const where = tourId ? 'WHERE d.session_id=? AND d.tour_id=?' : 'WHERE d.session_id=?';
+  let canonicalTourId: string | null = null;
+  if (tourId) {
+    canonicalTourId = await ensureDemoDepartures(env,sessionId,tourId);
+    if (!canonicalTourId) return [];
+  }
+  const where = canonicalTourId ? 'WHERE d.session_id=? AND d.tour_id=?' : 'WHERE d.session_id=?';
   const stmt = env.DB.prepare(`SELECT d.*,
     COALESCE(SUM(CASE WHEN m.status<>'cancelled' THEN m.seats ELSE 0 END),0) AS seats,
     COUNT(CASE WHEN m.status<>'cancelled' THEN 1 END) AS members
@@ -93,7 +101,7 @@ export async function listGroupDepartures(env: Env, sessionId: string, tourId?: 
     ${where}
     GROUP BY d.id
     ORDER BY d.departure_date, d.created_at`);
-  const rows = tourId ? await stmt.bind(sessionId,tourId).all<any>() : await stmt.bind(sessionId).all<any>();
+  const rows = canonicalTourId ? await stmt.bind(sessionId,canonicalTourId).all<any>() : await stmt.bind(sessionId).all<any>();
   return (rows.results ?? []).map(mapDeparture);
 }
 
