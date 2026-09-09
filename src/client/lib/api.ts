@@ -1,4 +1,4 @@
-import type { AnalyticsResponse, AvailabilityDate, BookingDraft, Destination, OrderSummary, Quote, Tour } from '../../shared/types';
+import type { AnalyticsResponse, AvailabilityDate, BookingDraft, Destination, GroupDepartureSummary, GroupMemberInput, OrderSummary, Quote, Tour } from '../../shared/types';
 
 export class ApiError extends Error {
   constructor(message: string, public status: number, public code?: string) { super(message); }
@@ -28,6 +28,11 @@ export const api = {
   quote:(draft:BookingDraft)=>request<{quote:Quote}>('/api/booking/quote',{method:'POST',body:JSON.stringify(draft)}),
   createOrder:(draft:BookingDraft,key:string)=>request<{order:OrderSummary}>('/api/orders',{method:'POST',headers:{'Idempotency-Key':key},body:JSON.stringify(draft)}),
   pay:(orderId:string,key:string)=>request<{order:OrderSummary}>('/api/payments/demo',{method:'POST',headers:{'Idempotency-Key':key},body:JSON.stringify({orderId})}),
+  groupDepartures:(tourId?:string)=>request<{items:GroupDepartureSummary[]}>(`/api/group-departures${tourId?`?tourId=${encodeURIComponent(tourId)}`:''}`),
+  createGroupDeparture:(tourId:string,departureDate:string,member:GroupMemberInput,targetPeople?:number|null)=>request<{item:GroupDepartureSummary}>('/api/group-departures',{method:'POST',body:JSON.stringify({tourId,departureDate,targetPeople:targetPeople??null,member})}),
+  joinGroupDeparture:(id:string,member:GroupMemberInput)=>request<{item:GroupDepartureSummary}>(`/api/group-departures/${encodeURIComponent(id)}/join`,{method:'POST',body:JSON.stringify({member})}),
+  adminGroupDepartures:()=>request<{items:GroupDepartureSummary[]}>('/api/admin/group-departures'),
+  adminPatchGroupDeparture:(id:string,data:{status:string;cancellationReason?:string})=>request<{item:GroupDepartureSummary}>(`/api/admin/group-departures/${encodeURIComponent(id)}`,{method:'PATCH',body:JSON.stringify(data)}),
   trips:()=>request<{items:OrderSummary[]}>('/api/my-trips'),
   order:(id:string)=>request<{order:OrderSummary}>(`/api/orders/${encodeURIComponent(id)}`),
   managerStaff:()=>request<{mode:string;items:Array<{telegramUserId:string;role:string;displayName:string;active:boolean}>}>('/api/manager/staff'),
