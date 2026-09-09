@@ -15,11 +15,17 @@ jobs:
   inspect-package:
     runs-on: ubuntu-latest
     steps:
-      - name: List share client chunks
-        env:
-          SHARE_URL: https://firestorage.ai/ja/f/TquebyQrZbER
+      - name: Inspect firestorage application chunks
         run: |
           set -euo pipefail
-          curl --max-time 10 -LfsS "$SHARE_URL" -o /tmp/page.html
-          echo '--- chunks ---'
-          grep -o '/_next/static/chunks/[^"<]*\.js' /tmp/page.html | sort -u
+          for path in \
+            '/_next/static/chunks/4899-d89df949f2dbd5af.js' \
+            '/_next/static/chunks/5841-1160578ba9bb4f3e.js' \
+            '/_next/static/chunks/3794-56f19dc9e2f95fcd.js' \
+            '/_next/static/chunks/8500-f4d7bfbe7500f274.js' \
+            '/_next/static/chunks/8437-d65cc193dc908afa.js'; do
+            out="/tmp/$(basename "$path")"
+            curl --max-time 12 -LfsS "https://firestorage.ai${path}" -o "$out"
+            echo "=== $path ($(wc -c < "$out") bytes) ==="
+            grep -Eo '.{0,120}(fetch|/api/|download|share|publicId|public_id|fileId|file_id|signed|presign).{0,220}' "$out" | head -n 100 || true
+          done
