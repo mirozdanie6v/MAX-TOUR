@@ -31,6 +31,7 @@ export const api = {
   trips:()=>request<{items:OrderSummary[]}>('/api/my-trips'),
   order:(id:string)=>request<{order:OrderSummary}>(`/api/orders/${encodeURIComponent(id)}`),
   managerOrders:()=>request<{items:OrderSummary[]}>('/api/manager/orders'),
+  managerStaff:()=>request<{mode:string;items:Array<{telegramUserId:string;role:string;displayName:string}>}>('/api/manager/staff'),
   managerOrder:(id:string)=>request<{order:OrderSummary}>(`/api/manager/orders/${encodeURIComponent(id)}`),
   managerStatus:(id:string,status:OrderSummary['status'])=>request<{order:OrderSummary}>(`/api/manager/orders/${encodeURIComponent(id)}/status`,{method:'PATCH',body:JSON.stringify({status})}),
   managerOps:(id:string)=>request<{ops:{assignedManager:string;pickupNote:string;internalNote:string;lastContactAt:string|null;updatedAt:string|null}}>(`/api/manager/orders/${encodeURIComponent(id)}/ops`),
