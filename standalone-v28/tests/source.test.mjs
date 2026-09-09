@@ -1,0 +1,50 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { gunzipSync } from 'node:zlib';
+import { createHash } from 'node:crypto';
+
+const root = resolve(import.meta.dirname, '..');
+const sourceDir = resolve(root,'source');
+const manifest = JSON.parse(await readFile(resolve(sourceDir,'manifest.json'),'utf8'));
+async function restore(entry){
+  const b64=(await Promise.all(entry.parts.map(p=>readFile(resolve(sourceDir,p),'ascii')))).join('');
+  const raw=gunzipSync(Buffer.from(b64,'base64'));
+  assert.equal(raw.length,entry.size_bytes);
+  assert.equal(createHash('sha256').update(raw).digest('hex'),entry.sha256);
+  return raw;
+}
+const html = (await restore(manifest.html)).toString('utf8');
+const catalog = JSON.parse((await restore(manifest.catalog)).toString('utf8'));
+const runtime = await readFile(resolve(root,'src/runtime-api.js'),'utf8');
+
+test('exact supplied v28 sources restore by checksum', () => {
+  assert.equal(manifest.html.sha256,'be7cceb157e1169f869ad11ead32bdc012f076d7aeddf5a36adf10fe25ca9472');
+  assert.equal(manifest.catalog.sha256,'fc380915d882e9ed27b55a957c86dbba5dbcedb2e8be4892593b1bb5a427c1d4');
+});
+
+test('v28 source identity markers are present', () => {
+  assert.match(html, /MaxTour Mini App Prototype v28/);
+  for (const fn of ['renderHome','renderCatalog','renderTour','renderBooking','renderTrips','renderAdmin']) assert.match(html,new RegExp(`function ${fn}\\(`));
+});
+
+test('canonical v28 catalog is complete', () => {
+  assert.equal(catalog.length,15);
+  assert.ok(catalog.every(t=>t.id&&t.title&&t.city));
+  assert.ok(catalog.some(t=>t.id==='dalat-premium'));
+});
+
+test('traveler flow remains exactly in prototype source', () => {
+  assert.match(html,/ФИО и дата рождения обязательны для каждого участника/);
+  assert.match(html,/Основной путешественник/);
+  assert.match(html,/Попутчики/);
+  assert.match(html,/function validateTravelers\(/);
+});
+
+test('runtime adds persistence without replacing visual renderers', () => {
+  assert.match(runtime,/\/api\/bootstrap/);
+  assert.match(runtime,/persistTrip/);
+  assert.match(runtime,/original\.renderCatalog/);
+  assert.doesNotMatch(runtime,/Ваш лучший отдых во Вьетнаме/);
+});
