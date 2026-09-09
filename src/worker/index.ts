@@ -10,6 +10,7 @@ import { getCustomerRecord, getOrderWorkflow, listAudit, patchCustomerRecord, pa
 import { flushTelegramOutbox, getIntegrationStatus, handleTelegramWebhook } from './services/notifications';
 import { configureTelegramWebhook, getTelegramWebhookInfo } from './services/telegram-config';
 import { getTildaIntegrationStatus, receiveTildaWebhook } from './services/tilda';
+import { authenticateTelegramStaff, getAuthReadiness, requireStaffRole } from './services/telegram-auth';
 import { managerStatusSchema } from '../shared/schemas';
 
 function json(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
@@ -88,12 +89,25 @@ export default {
         await resetSession(env, session.id);
         return finish(json({ ok: true, reset: true }));
       }
+      if (path === '/api/auth/readiness' && request.method === 'GET') return finish(json(await getAuthReadiness(env)));
+      if (path === '/api/auth/telegram' && request.method === 'POST') {
+        const input: any = await body(request);
+        const initData = String(input?.initData ?? '').trim();
+        if (!initData) throw new HttpError(400, 'Не передан Telegram initData', 'TELEGRAM_INITDATA_REQUIRED');
+        return finish(json(await authenticateTelegramStaff(env, initData)));
+      }
 
       if (path === '/api/integrations/telegram/status' && request.method === 'GET') return finish(json(await getIntegrationStatus(env, session.id)));
       if (path === '/api/integrations/telegram/flush' && request.method === 'POST') return finish(json(await flushTelegramOutbox(env, session.id)));
       if (path === '/api/integrations/telegram/webhook' && request.method === 'POST') return finish(json(await configureTelegramWebhook(env, url.origin)));
       if (path === '/api/integrations/telegram/webhook' && request.method === 'GET') return finish(json(await getTelegramWebhookInfo(env)));
       if (path === '/api/integrations/tilda/status' && request.method === 'GET') return finish(json(await getTildaIntegrationStatus(env)));
+
+      let staffActor: Awaited<ReturnType<typeof requireStaffRole>> | null = null;
+      if (path.startsWith('/api/manager/')) staffActor = await requireStaffRole(env, request, 'manager');
+      else if (path.startsWith('/api/admin/')) staffActor = await requireStaffRole(env, request, 'admin');
+      else if (path.startsWith('/api/owner/')) staffActor = await requireStaffRole(env, request, 'owner');
+      const actorId = staffActor?.telegramUserId ?? 'demo';
 
       if (path === '/api/destinations' && request.method === 'GET') return finish(json({ items: await getDestinations(env.DB, session.id) }));
       if (path === '/api/tours' && request.method === 'GET') {
@@ -159,7 +173,7 @@ export default {
       if (m && request.method === 'PATCH') {
         const parsed = managerStatusSchema.safeParse(await body(request));
         if (!parsed.success) throw new HttpError(400, 'Некорректный статус', 'VALIDATION_ERROR');
-        const order = await updateOrderStatus(env, session.id, m[0], parsed.data.status);
+        const order = await updateOrderStatus(env, session.id, m[0], parsed.data.status, actorId);
         if (!order) throw new HttpError(404, 'Заказ не найден', 'ORDER_NOT_FOUND');
         const { raw: _raw, ...safe } = order;
         return finish(json({ order: safe }));
@@ -167,33 +181,33 @@ export default {
 
       m = match(path, /^\/api\/manager\/orders\/([^/]+)\/ops$/);
       if (m && request.method === 'GET') return finish(json({ ops: await getManagerOps(env, session.id, m[0]) }));
-      if (m && request.method === 'PATCH') return finish(json({ ops: await patchManagerOps(env, session.id, m[0], await body(request)) }));
+      if (m && request.method === 'PATCH') return finish(json({ ops: await patchManagerOps(env, session.id, m[0], await body(request), actorId) }));
       m = match(path, /^\/api\/manager\/orders\/([^/]+)\/workflow$/);
       if (m && request.method === 'GET') return finish(json({ workflow: await getOrderWorkflow(env, session.id, m[0]) }));
-      if (m && request.method === 'PATCH') return finish(json({ workflow: await patchOrderWorkflow(env, session.id, m[0], await body(request)) }));
+      if (m && request.method === 'PATCH') return finish(json({ workflow: await patchOrderWorkflow(env, session.id, m[0], await body(request), actorId) }));
 
       if (path === '/api/manager/customer-record' && request.method === 'GET') {
         return finish(json({ record: await getCustomerRecord(env, session.id, url.searchParams.get('key') ?? '') }));
       }
       if (path === '/api/manager/customer-record' && request.method === 'PATCH') {
         const input: any = await body(request);
-        return finish(json({ record: await patchCustomerRecord(env, session.id, String(input?.customerKey ?? ''), input) }));
+        return finish(json({ record: await patchCustomerRecord(env, session.id, String(input?.customerKey ?? ''), input, actorId) }));
       }
 
       if (path === '/api/owner/overview' && request.method === 'GET') return finish(json(await getOwnerOverview(env, session.id)));
-      if (path === '/api/owner/settings' && request.method === 'PATCH') return finish(json(await patchOwnerSettings(env, session.id, await body(request))));
+      if (path === '/api/owner/settings' && request.method === 'PATCH') return finish(json(await patchOwnerSettings(env, session.id, await body(request), actorId)));
       if (path === '/api/owner/audit' && request.method === 'GET') return finish(json({ items: await listAudit(env, session.id, Number(url.searchParams.get('limit') ?? 30)) }));
 
       if (path === '/api/admin/tours' && request.method === 'GET') return finish(json({ items: await adminTours(env, session.id) }));
-      if (path === '/api/admin/tours' && request.method === 'POST') return finish(json({ item: await addTour(env, session.id, await body(request)) }, 201));
+      if (path === '/api/admin/tours' && request.method === 'POST') return finish(json({ item: await addTour(env, session.id, await body(request), actorId) }, 201));
       m = match(path, /^\/api\/admin\/tours\/([^/]+)$/);
-      if (m && request.method === 'PATCH') return finish(json({ item: await patchTour(env, session.id, m[0], await body(request)) }));
+      if (m && request.method === 'PATCH') return finish(json({ item: await patchTour(env, session.id, m[0], await body(request), actorId) }));
       m = match(path, /^\/api\/admin\/tours\/([^/]+)\/schedule$/);
-      if (m && (request.method === 'POST' || request.method === 'PATCH')) return finish(json({ item: await setAvailability(env, session.id, m[0], await body(request)) }));
+      if (m && (request.method === 'POST' || request.method === 'PATCH')) return finish(json({ item: await setAvailability(env, session.id, m[0], await body(request), actorId) }));
       m = match(path, /^\/api\/admin\/tours\/([^/]+)\/promo$/);
-      if (m && (request.method === 'POST' || request.method === 'PATCH')) return finish(json({ item: await setPromo(env, session.id, m[0], await body(request)) }));
+      if (m && (request.method === 'POST' || request.method === 'PATCH')) return finish(json({ item: await setPromo(env, session.id, m[0], await body(request), actorId) }));
       if (path === '/api/admin/directions' && request.method === 'GET') return finish(json({ items: await getDestinations(env.DB, session.id) }));
-      if (path === '/api/admin/directions' && request.method === 'POST') return finish(json({ item: await addDirection(env, session.id, await body(request)) }, 201));
+      if (path === '/api/admin/directions' && request.method === 'POST') return finish(json({ item: await addDirection(env, session.id, await body(request), actorId) }, 201));
       if (path === '/api/admin/analytics' && request.method === 'GET') return finish(json(await getAnalytics(env, session.id, url.searchParams)));
 
       if (path === '/api/analytics/event' && request.method === 'POST') {

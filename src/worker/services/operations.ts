@@ -29,7 +29,7 @@ export async function getManagerOps(env: Env, sessionId: string, displayId: stri
   };
 }
 
-export async function patchManagerOps(env: Env, sessionId: string, displayId: string, input: any): Promise<ManagerOps> {
+export async function patchManagerOps(env: Env, sessionId: string, displayId: string, input: any, actorId = 'demo'): Promise<ManagerOps> {
   const order = await env.DB.prepare('SELECT id FROM orders WHERE session_id=? AND display_id=?').bind(sessionId, displayId).first<{id:string}>();
   if (!order) throw new HttpError(404, 'Заказ не найден', 'ORDER_NOT_FOUND');
   const before = await getManagerOps(env, sessionId, displayId);
@@ -48,7 +48,7 @@ export async function patchManagerOps(env: Env, sessionId: string, displayId: st
         sessionId, order.id, assignedManager, pickupNote, internalNote, contacted ? new Date().toISOString() : null, contacted ? 1 : 0
       ).run();
   const after = await getManagerOps(env, sessionId, displayId);
-  await recordAudit(env, sessionId, 'manager', contacted ? 'Контакт с клиентом / обновление заказа' : 'Обновление операционных данных', 'order', displayId, before, after);
+  await recordAudit(env, sessionId, 'manager', contacted ? 'Контакт с клиентом / обновление заказа' : 'Обновление операционных данных', 'order', displayId, before, after, actorId);
   return after;
 }
 
@@ -98,7 +98,7 @@ export async function getOwnerOverview(env: Env, sessionId: string) {
   };
 }
 
-export async function patchOwnerSettings(env: Env, sessionId: string, input: any) {
+export async function patchOwnerSettings(env: Env, sessionId: string, input: any, actorId = 'demo') {
   const current = await getOwnerOverview(env, sessionId);
   const managerSlaMinutes = Math.min(120, Math.max(5, Number(input?.managerSlaMinutes ?? 15)));
   const managerNotifications = input?.managerNotifications === false ? 0 : 1;
@@ -114,6 +114,6 @@ export async function patchOwnerSettings(env: Env, sessionId: string, input: any
       sales_focus=excluded.sales_focus,
       updated_at=CURRENT_TIMESTAMP`).bind(sessionId,managerSlaMinutes,managerNotifications,ownerDigest,salesFocus).run();
   const after = { managerSlaMinutes, managerNotifications: Boolean(managerNotifications), ownerDigest, salesFocus };
-  await recordAudit(env, sessionId, 'owner', 'Изменение правил команды', 'settings', 'owner', current.settings, after);
+  await recordAudit(env, sessionId, 'owner', 'Изменение правил команды', 'settings', 'owner', current.settings, after, actorId);
   return getOwnerOverview(env, sessionId);
 }
