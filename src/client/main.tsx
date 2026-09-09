@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { PremiumApp } from './PremiumApp';
 import './styles/premium.css';
+import './styles/commerce-v6.css';
 
 declare global {
   interface Window { Telegram?: { WebApp?: { ready?:()=>void; expand?:()=>void; BackButton?:any; MainButton?:any } } }
