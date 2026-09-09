@@ -1,5 +1,5 @@
 import type { Env } from '../db/repository';
-import { getTourByIdOrSlug } from '../db/repository';
+import { getAvailability, getTourByIdOrSlug } from '../db/repository';
 import type { GroupDepartureSummary, GroupMemberInput } from '../../shared/types';
 import { createGroupDepartureSchema, groupDepartureAdminSchema, joinGroupDepartureSchema } from '../../shared/schemas';
 import { HttpError } from './booking';
@@ -39,7 +39,31 @@ async function fetchDeparture(env: Env, sessionId: string, id: string) {
   return mapDeparture(row);
 }
 
+async function ensureDemoDepartures(env: Env, sessionId: string, tourId: string) {
+  const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM demo_group_departures WHERE session_id=? AND tour_id=? AND status='gathering'").bind(sessionId,tourId).first<{n:number}>();
+  if (Number(count?.n ?? 0) > 0) return;
+  const tour = await getTourByIdOrSlug(env.DB,sessionId,tourId);
+  if (!tour || !tour.published) return;
+  const availability = await getAvailability(env.DB,sessionId,tour.id).catch(()=>[] as any[]);
+  const dates = availability.slice(0,2).map((x:any)=>String(x.date)).filter(Boolean);
+  if (!dates.length) {
+    const base = new Date();
+    for (const offset of [7,14]) {
+      const d = new Date(base.getTime()+offset*86400000);
+      dates.push(d.toISOString().slice(0,10));
+    }
+  }
+  for (const departureDate of dates) {
+    const id=crypto.randomUUID();
+    await env.DB.prepare(`INSERT INTO demo_group_departures(id,session_id,tour_id,tour_title,departure_date,status,target_people,min_people,created_by,data_status)
+      VALUES (?,?,?,?,?,'gathering',NULL,NULL,'system_demo','demoInput')`).bind(id,sessionId,tour.id,tour.title,departureDate).run();
+    const demoMember: GroupMemberInput = {customerName:'DEMO заявка',telegram:'@demo_guest',adults:2,children:[]};
+    await addMember(env,sessionId,id,demoMember);
+  }
+}
+
 export async function listGroupDepartures(env: Env, sessionId: string, tourId?: string) {
+  if (tourId) await ensureDemoDepartures(env,sessionId,tourId);
   const where = tourId ? 'WHERE d.session_id=? AND d.tour_id=?' : 'WHERE d.session_id=?';
   const stmt = env.DB.prepare(`SELECT d.*,
     COALESCE(SUM(CASE WHEN m.status<>'cancelled' THEN m.seats ELSE 0 END),0) AS seats,
@@ -107,6 +131,7 @@ export async function adminPatchGroupDeparture(env: Env, sessionId: string, id: 
   if (after.status === 'cancelled') {
     try {
       await queueNotification(env,sessionId,'manager','group_departure_cancelled',id,{tourTitle:after.tourTitle,departureDate:after.departureDate,reason:after.cancellationReason});
+      await queueNotification(env,sessionId,'owner','group_departure_cancelled',id,{tourTitle:after.tourTitle,departureDate:after.departureDate,reason:after.cancellationReason});
     } catch {}
   }
   return after;
