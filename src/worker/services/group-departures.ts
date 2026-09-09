@@ -138,9 +138,13 @@ export async function joinGroupDeparture(env: Env, sessionId: string, id: string
   return after;
 }
 
+export function isGroupNotFormedReason(reason:string){
+  const normalized=reason.toLowerCase().replace(/ё/g,'е');
+  return /(?:группа.{0,120})?не\s*(?:собра|набра)/i.test(normalized);
+}
+
 async function createGroupRefundCase(env:Env,sessionId:string,departure:GroupDepartureSummary,reason:string){
-  const lower=reason.toLowerCase();
-  const notFormed=/не\s*(собрал|набрал)|группа.*не.*(собрал|набрал)/i.test(lower);
+  const notFormed=isGroupNotFormedReason(reason);
   const existing=await env.DB.prepare(`SELECT id FROM demo_refund_cases WHERE session_id=? AND group_departure_id=? AND status NOT IN ('completed','cancelled') LIMIT 1`).bind(sessionId,departure.id).first<any>();
   const ruleCode=notFormed?'GROUP_NOT_FORMED_FULL_DEPOSIT_REFUND':'FORCE_MAJEURE_MANAGER_REVIEW';
   const note=notFormed?'Группа не набрана: по правилам MAX TOUR внесённый депозит возвращается 100%. Реальный refund ожидает подключения платёжного провайдера.':'Отмена организатором: возврат или перенос требует решения менеджера согласно опубликованным условиям и фактической оплате.';
