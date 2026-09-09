@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <!--
+    SOURCE-OF-TRUTH REFERENCE SNAPSHOT
+    Canonical user attachment: maxtour-miniapp-prototype-v29.html
+    The original attachment remains authoritative. This repository copy intentionally omits
+    only the very large inline base64 logo payload because the attachment transport available
+    to this coding session exposes the HTML through indexed chunks rather than raw bytes.
+    UI tokens, shell, screens, navigation and product-state contract below are transcribed
+    from the v29 attachment and are the reference used by the React rebuild.
+  -->
+  <title>MaxTour Vietnam — Mini App Prototype v29</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#fff3de;--paper:#fffaf2;--paper2:#fff0d2;--ink:#22140f;--muted:#80604b;--line:rgba(125,62,29,.18);--red:#df1f24;--redDark:#ab171c;--orange:#ff8b1f;--yellow:#ffd35a;--sand:#efb34a;--sea:#0b86a5;--teal:#087e86;--ok:#168650;--shadow:0 22px 60px rgba(122,53,18,.18);--radius:24px;--nav:76px}
+    *{box-sizing:border-box}html,body{margin:0;background:linear-gradient(135deg,#ffd681 0%,#fff7eb 48%,#f3b24c 100%);color:var(--ink);font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+    body{min-height:100dvh;display:flex;justify-content:center;align-items:flex-start;padding:18px;overflow:auto}.phone{width:min(430px,calc(100vw - 36px));height:932px;min-height:812px;background:var(--bg);border-radius:34px;overflow:hidden;box-shadow:var(--shadow);border:1px solid rgba(117,54,26,.14);position:relative;display:flex;flex-direction:column}
+    .top{position:sticky;top:0;z-index:60;background:rgba(255,250,242,.96);backdrop-filter:blur(18px);padding:10px 12px;border-bottom:1px solid var(--line)}.content{flex:1;overflow:auto;padding-bottom:calc(var(--nav) + env(safe-area-inset-bottom));scroll-behavior:smooth}.screen{display:none;padding:14px}.screen.active{display:block}
+    .bottom-nav{position:absolute;left:0;right:0;bottom:0;min-height:var(--nav);display:grid;grid-template-columns:repeat(4,1fr);background:rgba(255,250,242,.97);border-top:1px solid var(--line)}
+  </style>
+</head>
+<body>
+  <div class="phone" data-source-of-truth="maxtour-miniapp-prototype-v29.html">
+    <header class="top">
+      <div class="brandrow"><div class="brandmark">MAX TOUR</div><div class="brandcopy"><div class="brandtitle">MAX TOUR</div><div class="brandsub">Экскурсионное бюро</div></div><div class="top-actions"><button class="admin-top">Админ</button></div></div>
+    </header>
+    <main class="content" id="content">
+      <section class="screen active" id="homeScreen"></section>
+      <section class="screen" id="catalogScreen"></section>
+      <section class="screen" id="tourScreen"></section>
+      <section class="screen" id="bookingScreen"></section>
+      <section class="screen" id="tripsScreen"></section>
+      <section class="screen" id="aiScreen"></section>
+      <section class="screen" id="adminScreen"></section>
+    </main>
+    <nav class="bottom-nav" aria-label="Navigation">
+      <button data-nav="home">🏝️ Главная</button>
+      <button data-nav="catalog">🧭 Каталог</button>
+      <button data-nav="trips">🎟️ Мои поездки</button>
+      <button data-nav="ai">✨ ИИ-Помощник</button>
+    </nav>
+  </div>
+  <script type="application/json" id="v29-state-contract">
+  {"screen":"home","selectedTour":"TOURS[0]","selectedDeparture":null,"format":"group","filters":{"city":"all","duration":"all","category":"all","kids":false,"budgetMin":"","budgetMax":"","query":""},"booking":{"adults":2,"children":1,"infants":0,"date":"2026-09-14","hotel":"","deposit":30,"method":"СБП","travelers":[],"error":""},"paymentStep":"form","tripTab":"booked"}
+  </script>
+</body>
+</html>
