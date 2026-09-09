@@ -3,7 +3,11 @@ import { HttpError } from './booking';
 import { recordAudit } from './internal-workflows';
 
 function clean(value: unknown, max=500) { return String(value ?? '').trim().slice(0,max); }
-function keyOf(name:string, contact:string) { return (contact || name).trim().toLowerCase(); }
+function keyOf(name:string, contact:string) {
+  const normalizedName = clean(name,180).toLowerCase();
+  const normalizedContact = clean(contact,220).toLowerCase();
+  return `${normalizedName}|${normalizedContact}`;
+}
 
 export type CampaignSegment = 'all' | 'paid' | 'repeat' | 'group';
 
