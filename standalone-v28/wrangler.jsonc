@@ -1,0 +1,23 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "max-tour-demo-v28",
+  "main": "./src/worker.js",
+  "compatibility_date": "2026-09-09",
+  "vars": {
+    "APP_ENV": "demo-v28",
+    "APP_URL": "https://max-tour-demo.viiversion.com"
+  },
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "max-tour-demo-v28-db",
+      "database_id": "REPLACED_BY_SHARED_DEPLOY"
+    }
+  ]
+}
