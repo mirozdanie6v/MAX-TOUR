@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "max-tour-demo-v28",
-  "main": "./src/worker.js",
+  "main": "./src/worker-profile.js",
   "compatibility_date": "2026-09-09",
   "vars": {
     "APP_ENV": "demo-v28",
