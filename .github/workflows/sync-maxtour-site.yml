@@ -28,13 +28,14 @@ jobs:
           node - <<'NODE'
           const fs=require('fs');
           const x=JSON.parse(fs.readFileSync('seed/site-catalog.generated.json','utf8'));
-          if(x.pagesScanned<10||x.uniqueOfficialImageUrls<10){console.error(x);process.exit(1)}
-          console.log({pages:x.pagesScanned,tourPages:x.likelyTourPages,images:x.uniqueOfficialImageUrls,errors:x.errors.length});
+          const pub=JSON.parse(fs.readFileSync('public/site-catalog.json','utf8'));
+          if(x.pagesScanned<10||x.tourDetailPages<5||x.uniqueTourPhotoUrls<10||pub.tours.length!==x.tourDetailPages){console.error({pages:x.pagesScanned,tours:x.tourDetailPages,photos:x.uniqueTourPhotoUrls,publicTours:pub.tours.length});process.exit(1)}
+          console.log({pages:x.pagesScanned,tourPages:x.tourDetailPages,photos:x.uniqueTourPhotoUrls,errors:x.errors.length});
           NODE
       - name: Commit refreshed catalog manifest
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add seed/site-catalog.generated.json docs/SITE_CATALOG_SYNC_SUMMARY.md
+          git add seed/site-catalog.generated.json public/site-catalog.json docs/SITE_CATALOG_SYNC_SUMMARY.md
           git commit -m 'data: refresh MAX TOUR official site catalog manifest' || exit 0
           git push origin HEAD:main
