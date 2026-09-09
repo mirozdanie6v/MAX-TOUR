@@ -34,7 +34,7 @@ export async function listAudit(env: Env, sessionId: string, limit = 30) {
 }
 
 async function resolveOrder(env: Env, sessionId: string, displayId: string) {
-  const row = await env.DB.prepare('SELECT id,display_id,selected_date,status,total_minor,paid_minor FROM orders WHERE session_id=? AND display_id=?').bind(sessionId, displayId).first<any>();
+  const row = await env.DB.prepare('SELECT id,display_id,selected_date,status,total_minor,paid_minor,pricing_snapshot_json FROM orders WHERE session_id=? AND display_id=?').bind(sessionId, displayId).first<any>();
   if (!row) throw new HttpError(404, 'Заказ не найден', 'ORDER_NOT_FOUND');
   return row;
 }
