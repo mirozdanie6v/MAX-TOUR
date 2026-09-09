@@ -2,7 +2,7 @@ name: MAX TOUR CI
 
 on:
   push:
-    branches: [main, integration-completion, production-hardening, ops-hardening-v2]
+    branches: [main, integration-completion, production-hardening]
   pull_request:
     branches: [main]
   workflow_dispatch:
