@@ -11,6 +11,8 @@ import { flushTelegramOutbox, getIntegrationStatus, handleTelegramWebhook } from
 import { configureTelegramWebhook, getTelegramWebhookInfo } from './services/telegram-config';
 import { getTildaIntegrationStatus, receiveTildaWebhook } from './services/tilda';
 import { authenticateTelegramStaff, getAuthReadiness, listAssignableStaff, listStaffAccounts, requireStaffRole, upsertStaffAccount } from './services/telegram-auth';
+import { getProductionReadiness } from './services/readiness';
+import { assertTrustedMutationRequest } from './services/request-security';
 import { managerStatusSchema } from '../shared/schemas';
 
 function json(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
@@ -77,6 +79,8 @@ export default {
     }
 
     try {
+      assertTrustedMutationRequest(request, url.origin, path);
+
       if (path === '/api/health' && request.method === 'GET') {
         const probe = await env.DB.prepare('SELECT 1 AS ok').first<{ok:number}>();
         return json({ ok: probe?.ok === 1, service: 'max-tour-demo', database: 'D1', time: new Date().toISOString() });
@@ -209,6 +213,7 @@ export default {
         return finish(json({ record: await patchCustomerRecord(env, session.id, String(input?.customerKey ?? ''), input, actorId) }));
       }
 
+      if (path === '/api/owner/readiness' && request.method === 'GET') return finish(json(await getProductionReadiness(env, session.id)));
       if (path === '/api/owner/overview' && request.method === 'GET') return finish(json(await getOwnerOverview(env, session.id)));
       if (path === '/api/owner/settings' && request.method === 'PATCH') return finish(json(await patchOwnerSettings(env, session.id, await body(request), actorId)));
       if (path === '/api/owner/audit' && request.method === 'GET') return finish(json({ items: await listAudit(env, session.id, Number(url.searchParams.get('limit') ?? 30)) }));
