@@ -28,6 +28,21 @@ jobs:
         with:
           node-version: 22
 
+      - name: Apply commerce v6 wiring once
+        if: github.event_name == 'push' && github.ref_name == 'main'
+        shell: bash
+        run: |
+          if [ -f tools/apply_commerce_v6.py ] && ! grep -q "BookingV2Page" src/client/PremiumApp.tsx; then
+            python tools/apply_commerce_v6.py
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add src/client/PremiumApp.tsx src/worker/index.ts
+            git commit -m 'feat: wire booking v6 and group departures into app'
+            git push origin HEAD:main
+          else
+            echo 'Commerce v6 wiring already applied or patch file absent.'
+          fi
+
       - name: Refresh lockfile metadata
         run: npm install --package-lock-only --ignore-scripts
 
@@ -71,6 +86,9 @@ jobs:
             SELECT COUNT(*) AS workflowTable FROM sqlite_master WHERE type='table' AND name='demo_order_workflows';
             SELECT COUNT(*) AS customerRecordTable FROM sqlite_master WHERE type='table' AND name='demo_customer_records';
             SELECT COUNT(*) AS staffAccountsTable FROM sqlite_master WHERE type='table' AND name='staff_accounts';
+            SELECT COUNT(*) AS groupDeparturesTable FROM sqlite_master WHERE type='table' AND name='demo_group_departures';
+            SELECT COUNT(*) AS groupMembersTable FROM sqlite_master WHERE type='table' AND name='demo_group_members';
+            SELECT COUNT(*) AS refundCasesTable FROM sqlite_master WHERE type='table' AND name='demo_refund_cases';
             SELECT COUNT(*) AS auditActorColumns FROM pragma_table_info('demo_audit_log') WHERE name IN ('actor_id','metadata_json');
             SELECT COUNT(*) AS customerVisibleColumn FROM pragma_table_info('orders') WHERE name='customer_visible';
             SELECT COUNT(*) AS promoDiscountColumns FROM pragma_table_info('demo_promotions') WHERE name IN ('discount_type','discount_value');
@@ -82,24 +100,9 @@ jobs:
           const data=JSON.parse(fs.readFileSync('/tmp/d1-check.json','utf8'));
           const rows=data.flatMap(x=>x.results||[]);
           const find=(k)=>rows.find(r=>Object.prototype.hasOwnProperty.call(r,k));
-          const destinations=Number(find('destinations')?.destinations ?? 0);
-          const tours=Number(find('tours')?.tours ?? 0);
-          const price=find('adultMinor')||{};
-          const outbox=Number(find('outboxTable')?.outboxTable ?? 0);
-          const tildaInbox=Number(find('tildaInboxTable')?.tildaInboxTable ?? 0);
-          const audit=Number(find('auditTable')?.auditTable ?? 0);
-          const workflows=Number(find('workflowTable')?.workflowTable ?? 0);
-          const customers=Number(find('customerRecordTable')?.customerRecordTable ?? 0);
-          const staff=Number(find('staffAccountsTable')?.staffAccountsTable ?? 0);
-          const auditActorColumns=Number(find('auditActorColumns')?.auditActorColumns ?? 0);
-          const customerVisible=Number(find('customerVisibleColumn')?.customerVisibleColumn ?? 0);
-          const promoColumns=Number(find('promoDiscountColumns')?.promoDiscountColumns ?? 0);
-          const ownerTargetColumn=Number(find('ownerTargetColumn')?.ownerTargetColumn ?? 0);
-          if (destinations < 5 || tours < 8 || Number(price.adultMinor)!==5200 || Number(price.childMinor)!==3800 || outbox!==1 || tildaInbox!==1 || audit!==1 || workflows!==1 || customers!==1 || staff!==1 || auditActorColumns!==2 || customerVisible!==1 || promoColumns!==2 || ownerTargetColumn!==1) {
-            console.error({destinations,tours,price,outbox,tildaInbox,audit,workflows,customers,staff,auditActorColumns,customerVisible,promoColumns,ownerTargetColumn});
-            process.exit(1);
-          }
-          console.log('D1 verified baseline, CRM/workflow, audit, staff RBAC and Owner target schema OK');
+          const values={destinations:Number(find('destinations')?.destinations??0),tours:Number(find('tours')?.tours??0),price:find('adultMinor')||{},outbox:Number(find('outboxTable')?.outboxTable??0),tildaInbox:Number(find('tildaInboxTable')?.tildaInboxTable??0),audit:Number(find('auditTable')?.auditTable??0),workflows:Number(find('workflowTable')?.workflowTable??0),customers:Number(find('customerRecordTable')?.customerRecordTable??0),staff:Number(find('staffAccountsTable')?.staffAccountsTable??0),groupDepartures:Number(find('groupDeparturesTable')?.groupDeparturesTable??0),groupMembers:Number(find('groupMembersTable')?.groupMembersTable??0),refundCases:Number(find('refundCasesTable')?.refundCasesTable??0),auditActorColumns:Number(find('auditActorColumns')?.auditActorColumns??0),customerVisible:Number(find('customerVisibleColumn')?.customerVisibleColumn??0),promoColumns:Number(find('promoDiscountColumns')?.promoDiscountColumns??0),ownerTargetColumn:Number(find('ownerTargetColumn')?.ownerTargetColumn??0)};
+          if(values.destinations<5||values.tours<8||Number(values.price.adultMinor)!==5200||Number(values.price.childMinor)!==3800||values.outbox!==1||values.tildaInbox!==1||values.audit!==1||values.workflows!==1||values.customers!==1||values.staff!==1||values.groupDepartures!==1||values.groupMembers!==1||values.refundCases!==1||values.auditActorColumns!==2||values.customerVisible!==1||values.promoColumns!==2||values.ownerTargetColumn!==1){console.error(values);process.exit(1)}
+          console.log('D1 baseline + commerce v6 group/refund schema OK');
           NODE
 
       - name: Validate Wrangler production bundle
