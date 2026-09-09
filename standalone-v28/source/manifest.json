@@ -1,0 +1,21 @@
+{
+  "html": {
+    "sha256": "be7cceb157e1169f869ad11ead32bdc012f076d7aeddf5a36adf10fe25ca9472",
+    "parts": [
+      "html.gz.b64.part01",
+      "html.gz.b64.part02",
+      "html.gz.b64.part03",
+      "html.gz.b64.part04"
+    ],
+    "original_name": "maxtour-miniapp-prototype-v28.html",
+    "size_bytes": 399601
+  },
+  "catalog": {
+    "sha256": "fc380915d882e9ed27b55a957c86dbba5dbcedb2e8be4892593b1bb5a427c1d4",
+    "parts": [
+      "catalog.gz.b64.part01"
+    ],
+    "original_name": "maxtour-demo-catalog-v28.json",
+    "size_bytes": 58318
+  }
+}
