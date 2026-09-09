@@ -1,4 +1,5 @@
 import type { Env } from './repository';
+import { cleanupExpiredDemoSessions } from '../services/maintenance';
 
 const COOKIE = 'max_tour_demo_session';
 const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
@@ -98,6 +99,7 @@ export async function ensureSession(request: Request, env: Env): Promise<{ id: s
     if (exists) await env.DB.prepare('DELETE FROM demo_sessions WHERE id=?').bind(candidate).run();
   }
 
+  await cleanupExpiredDemoSessions(env);
   const id = crypto.randomUUID();
   await env.DB.prepare('INSERT INTO demo_sessions(id,expires_at) VALUES (?,?)').bind(id,nextExpiry).run();
   await seedDemoSession(env, id);

@@ -50,6 +50,8 @@ export const api = {
   ownerOverview:()=>request<any>('/api/owner/overview'),
   ownerSettings:(data:any)=>request<any>('/api/owner/settings',{method:'PATCH',body:JSON.stringify(data)}),
   ownerAudit:(limit=30)=>request<{items:any[]}>(`/api/owner/audit?limit=${limit}`),
+  ownerStaff:()=>request<{mode:string;items:any[];managementEnabled:boolean}>('/api/owner/staff'),
+  saveStaff:(data:any)=>request<{item:any}>('/api/owner/staff',{method:'PUT',body:JSON.stringify(data)}),
   telegramStatus:()=>request<any>('/api/integrations/telegram/status'),
   telegramWebhookInfo:()=>request<any>('/api/integrations/telegram/webhook'),
   configureTelegramWebhook:()=>request<any>('/api/integrations/telegram/webhook',{method:'POST',body:'{}'}),
