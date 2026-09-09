@@ -89,12 +89,14 @@ export async function getOwnerOverview(env: Env, sessionId: string) {
   const orders = await listOrders(env.DB, sessionId);
   const analytics = await getAnalytics(env, sessionId, new URLSearchParams());
   const tours = await getMergedTours(env.DB, sessionId);
-  const settingsRow = await env.DB.prepare('SELECT manager_sla_minutes,manager_notifications,owner_digest,sales_focus,updated_at FROM demo_owner_settings WHERE session_id=?').bind(sessionId).first<any>();
+  const selectSettings = 'SELECT manager_sla_minutes,manager_notifications,owner_digest,sales_focus,sales_target_minor,updated_at FROM demo_owner_settings WHERE session_id=?';
+  const settingsRow = await env.DB.prepare(selectSettings).bind(sessionId).first<any>();
   if (!settingsRow) {
     await env.DB.prepare('INSERT OR IGNORE INTO demo_owner_settings(session_id) VALUES (?)').bind(sessionId).run();
   }
-  const settings = settingsRow ?? await env.DB.prepare('SELECT manager_sla_minutes,manager_notifications,owner_digest,sales_focus,updated_at FROM demo_owner_settings WHERE session_id=?').bind(sessionId).first<any>();
+  const settings = settingsRow ?? await env.DB.prepare(selectSettings).bind(sessionId).first<any>();
   const managerSlaMinutes = Number(settings?.manager_sla_minutes ?? 15);
+  const salesTargetMinor = Math.max(0, Number(settings?.sales_target_minor ?? 500000));
   const byStatus = ['Новый','Оплачено','Подтверждено'].map(status => ({ status, count: orders.filter(o => o.status === status).length }));
   const grossMinor = orders.reduce((sum, order) => sum + order.totalMinor, 0);
   const paidMinor = orders.reduce((sum, order) => sum + order.paidMinor, 0);
@@ -111,6 +113,8 @@ export async function getOwnerOverview(env: Env, sessionId: string) {
       tours: tours.length,
       publishedTours: tours.filter(t => t.published).length,
       slaOverdueOrders: sla.overdueOrders,
+      salesTargetMinor,
+      targetProgressPercent: salesTargetMinor > 0 ? Math.min(999, Math.round((paidMinor / salesTargetMinor) * 1000) / 10) : 0,
     },
     statuses: byStatus,
     sources: analytics.sources,
@@ -123,13 +127,14 @@ export async function getOwnerOverview(env: Env, sessionId: string) {
       managerNotifications: Boolean(settings?.manager_notifications ?? 1),
       ownerDigest: String(settings?.owner_digest ?? 'Ежедневно'),
       salesFocus: String(settings?.sales_focus ?? 'Премиум экскурсии'),
+      salesTargetMinor,
       updatedAt: settings?.updated_at ?? null,
     },
     workflow: [
       { role: 'Турист', action: 'Выбирает тур, дату, участников и создаёт заказ' },
-      { role: 'Менеджер', action: 'Получает заказ, ведёт клиента, уточняет детали, перенос/отмену и подтверждает' },
+      { role: 'Менеджер', action: 'Получает заказ, ведёт клиента, уточняет детали, перенос/отмену/неявку и подтверждает' },
       { role: 'Администратор', action: 'Поддерживает каталог, цены, контент, расписание, акции и направления' },
-      { role: 'Владелец', action: 'Контролирует показатели, SLA, журнал действий и правила работы команды' },
+      { role: 'Владелец', action: 'Контролирует показатели, SLA, план продаж, журнал действий и правила работы команды' },
     ],
   };
 }
@@ -141,15 +146,17 @@ export async function patchOwnerSettings(env: Env, sessionId: string, input: any
   const allowedDigest = ['Отключено','Ежедневно','Еженедельно'];
   const ownerDigest = allowedDigest.includes(String(input?.ownerDigest)) ? String(input.ownerDigest) : 'Ежедневно';
   const salesFocus = text(input?.salesFocus, 120) || 'Премиум экскурсии';
-  await env.DB.prepare(`INSERT INTO demo_owner_settings(session_id,manager_sla_minutes,manager_notifications,owner_digest,sales_focus,updated_at)
-    VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)
+  const salesTargetMinor = Math.min(100000000, Math.max(0, Math.round(Number(input?.salesTargetMinor ?? current.settings.salesTargetMinor ?? 500000))));
+  await env.DB.prepare(`INSERT INTO demo_owner_settings(session_id,manager_sla_minutes,manager_notifications,owner_digest,sales_focus,sales_target_minor,updated_at)
+    VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)
     ON CONFLICT(session_id) DO UPDATE SET
       manager_sla_minutes=excluded.manager_sla_minutes,
       manager_notifications=excluded.manager_notifications,
       owner_digest=excluded.owner_digest,
       sales_focus=excluded.sales_focus,
-      updated_at=CURRENT_TIMESTAMP`).bind(sessionId,managerSlaMinutes,managerNotifications,ownerDigest,salesFocus).run();
-  const after = { managerSlaMinutes, managerNotifications: Boolean(managerNotifications), ownerDigest, salesFocus };
+      sales_target_minor=excluded.sales_target_minor,
+      updated_at=CURRENT_TIMESTAMP`).bind(sessionId,managerSlaMinutes,managerNotifications,ownerDigest,salesFocus,salesTargetMinor).run();
+  const after = { managerSlaMinutes, managerNotifications: Boolean(managerNotifications), ownerDigest, salesFocus, salesTargetMinor };
   await recordAudit(env, sessionId, 'owner', 'Изменение правил команды', 'settings', 'owner', current.settings, after, actorId);
   return getOwnerOverview(env, sessionId);
 }
