@@ -37,7 +37,15 @@ export async function createOrder(env: Env, sessionId: string, draft: BookingDra
   const displayId = await nextDisplayId(env, sessionId);
   const contact = [draft.contact.phone, draft.contact.telegram].filter(Boolean).join(' · ');
   const paymentState = 'Ожидает DEMO-оплату';
-  const snapshot = JSON.stringify({ quote, tourPricing: tour.pricingRules, paymentChoice: draft.paymentChoice, children: draft.children, promo: tour.promo ?? null });
+  const snapshot = JSON.stringify({
+    quote,
+    tourPricing: tour.pricingRules,
+    tourPickup: tour.pickup ?? '',
+    tourBack: tour.back ?? '',
+    paymentChoice: draft.paymentChoice,
+    children: draft.children,
+    promo: tour.promo ?? null,
+  });
   await env.DB.prepare(`INSERT INTO orders(id,display_id,session_id,idempotency_key,tour_id,tour_title,selected_date,participants_summary,pricing_snapshot_json,hotel,transfer_minor,total_minor,paid_minor,remaining_minor,payment_choice,payment_method,payment_state,status,source,customer,contact,participant_data_json,data_status,customer_visible)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)`).bind(
     id,displayId,sessionId,idempotencyKey,tour.id,tour.title,draft.date,participantSummary(draft),snapshot,draft.hotel,quote.transferMinor,quote.totalMinor,0,quote.totalMinor,draft.paymentChoice,draft.paymentMethod,paymentState,'Новый',draft.source,draft.contact.name,contact,JSON.stringify(draft.participants),'demoInput'
