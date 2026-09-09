@@ -1,5 +1,6 @@
 import type { Env } from '../db/repository';
 import { HttpError } from './booking';
+import { upsertRefundCase } from './refund-policy';
 
 function text(value: unknown, max: number) {
   return String(value ?? '').trim().slice(0, max);
@@ -33,7 +34,7 @@ export async function listAudit(env: Env, sessionId: string, limit = 30) {
 }
 
 async function resolveOrder(env: Env, sessionId: string, displayId: string) {
-  const row = await env.DB.prepare('SELECT id,display_id,selected_date,status FROM orders WHERE session_id=? AND display_id=?').bind(sessionId, displayId).first<any>();
+  const row = await env.DB.prepare('SELECT id,display_id,selected_date,status,total_minor,paid_minor FROM orders WHERE session_id=? AND display_id=?').bind(sessionId, displayId).first<any>();
   if (!row) throw new HttpError(404, 'Заказ не найден', 'ORDER_NOT_FOUND');
   return row;
 }
@@ -66,8 +67,12 @@ export async function patchOrderWorkflow(env: Env, sessionId: string, displayId:
     ON CONFLICT(session_id,order_id) DO UPDATE SET operation_type=excluded.operation_type,requested_date=excluded.requested_date,reason=excluded.reason,manager_note=excluded.manager_note,workflow_status=excluded.workflow_status,updated_at=CURRENT_TIMESTAMP`)
     .bind(sessionId, order.id, operationType, requestedDate, reason, managerNote, workflowStatus).run();
   const after = await getOrderWorkflow(env, sessionId, displayId);
-  await recordAudit(env, sessionId, 'manager', operationType === 'cancel' ? 'Запрос отмены' : operationType === 'reschedule' ? 'Запрос переноса' : operationType === 'no_show' ? 'Фиксация неявки' : 'Сброс операции', 'order', displayId, before, after, actorId);
-  return after;
+  let refundCase: any = null;
+  if ((operationType === 'cancel' || operationType === 'no_show') && Number(order.paid_minor ?? 0) > 0) {
+    refundCase = await upsertRefundCase(env, sessionId, order, operationType, reason);
+  }
+  await recordAudit(env, sessionId, 'manager', operationType === 'cancel' ? 'Запрос отмены' : operationType === 'reschedule' ? 'Запрос переноса' : operationType === 'no_show' ? 'Фиксация неявки' : 'Сброс операции', 'order', displayId, before, { ...after, refundCase }, actorId);
+  return { ...after, refundCase };
 }
 
 export async function getCustomerRecord(env: Env, sessionId: string, customerKey: string) {
