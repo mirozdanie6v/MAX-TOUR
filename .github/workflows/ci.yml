@@ -2,7 +2,7 @@ name: MAX TOUR CI
 
 on:
   push:
-    branches: [main, integration-completion]
+    branches: [main, integration-completion, production-hardening]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -67,6 +67,11 @@ jobs:
               FROM tours WHERE id='dalat-premium';
             SELECT COUNT(*) AS outboxTable FROM sqlite_master WHERE type='table' AND name='notification_outbox';
             SELECT COUNT(*) AS tildaInboxTable FROM sqlite_master WHERE type='table' AND name='tilda_webhook_inbox';
+            SELECT COUNT(*) AS auditTable FROM sqlite_master WHERE type='table' AND name='demo_audit_log';
+            SELECT COUNT(*) AS workflowTable FROM sqlite_master WHERE type='table' AND name='demo_order_workflows';
+            SELECT COUNT(*) AS customerRecordTable FROM sqlite_master WHERE type='table' AND name='demo_customer_records';
+            SELECT COUNT(*) AS staffAccountsTable FROM sqlite_master WHERE type='table' AND name='staff_accounts';
+            SELECT COUNT(*) AS auditActorColumns FROM pragma_table_info('demo_audit_log') WHERE name IN ('actor_id','metadata_json');
             SELECT COUNT(*) AS customerVisibleColumn FROM pragma_table_info('orders') WHERE name='customer_visible';
             SELECT COUNT(*) AS promoDiscountColumns FROM pragma_table_info('demo_promotions') WHERE name IN ('discount_type','discount_value');
           ")
@@ -81,13 +86,18 @@ jobs:
           const price=find('adultMinor')||{};
           const outbox=Number(find('outboxTable')?.outboxTable ?? 0);
           const tildaInbox=Number(find('tildaInboxTable')?.tildaInboxTable ?? 0);
+          const audit=Number(find('auditTable')?.auditTable ?? 0);
+          const workflows=Number(find('workflowTable')?.workflowTable ?? 0);
+          const customers=Number(find('customerRecordTable')?.customerRecordTable ?? 0);
+          const staff=Number(find('staffAccountsTable')?.staffAccountsTable ?? 0);
+          const auditActorColumns=Number(find('auditActorColumns')?.auditActorColumns ?? 0);
           const customerVisible=Number(find('customerVisibleColumn')?.customerVisibleColumn ?? 0);
           const promoColumns=Number(find('promoDiscountColumns')?.promoDiscountColumns ?? 0);
-          if (destinations < 5 || tours < 8 || Number(price.adultMinor)!==5200 || Number(price.childMinor)!==3800 || outbox!==1 || tildaInbox!==1 || customerVisible!==1 || promoColumns!==2) {
-            console.error({destinations,tours,price,outbox,tildaInbox,customerVisible,promoColumns});
+          if (destinations < 5 || tours < 8 || Number(price.adultMinor)!==5200 || Number(price.childMinor)!==3800 || outbox!==1 || tildaInbox!==1 || audit!==1 || workflows!==1 || customers!==1 || staff!==1 || auditActorColumns!==2 || customerVisible!==1 || promoColumns!==2) {
+            console.error({destinations,tours,price,outbox,tildaInbox,audit,workflows,customers,staff,auditActorColumns,customerVisible,promoColumns});
             process.exit(1);
           }
-          console.log('D1 verified baseline and integration schema OK');
+          console.log('D1 verified baseline, CRM/workflow, audit actor and staff RBAC schema OK');
           NODE
 
       - name: Validate Wrangler production bundle
