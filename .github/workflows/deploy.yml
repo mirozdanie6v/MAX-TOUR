@@ -2,6 +2,10 @@ name: MAX TOUR Deploy
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.deploy-production'
 
 permissions:
   contents: read
@@ -62,6 +66,8 @@ jobs:
           jar=/tmp/max-tour-cookies.txt
           curl -L -fsS --retry 5 --retry-delay 3 --connect-timeout 5 --max-time 30 "$base/" -o /tmp/home.html
           grep -q 'MAX TOUR' /tmp/home.html
+          grep -q 'telegram-web-app.js?63' /tmp/home.html
+          grep -q 'dashboard.viiversion.com/tracker.js' /tmp/home.html
           curl -L -fsS --retry 5 --retry-delay 3 --connect-timeout 5 --max-time 30 "$base/api/health" -o /tmp/health.json
           jq -e '.ok == true and .database == "D1"' /tmp/health.json >/dev/null
           curl -L -fsS -c "$jar" -b "$jar" "$base/api/session" -o /tmp/session.json
