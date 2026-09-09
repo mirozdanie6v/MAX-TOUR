@@ -74,6 +74,7 @@ jobs:
             SELECT COUNT(*) AS auditActorColumns FROM pragma_table_info('demo_audit_log') WHERE name IN ('actor_id','metadata_json');
             SELECT COUNT(*) AS customerVisibleColumn FROM pragma_table_info('orders') WHERE name='customer_visible';
             SELECT COUNT(*) AS promoDiscountColumns FROM pragma_table_info('demo_promotions') WHERE name IN ('discount_type','discount_value');
+            SELECT COUNT(*) AS ownerTargetColumn FROM pragma_table_info('demo_owner_settings') WHERE name='sales_target_minor';
           ")
           printf '%s\n' "$out" > /tmp/d1-check.json
           node - <<'NODE'
@@ -93,11 +94,12 @@ jobs:
           const auditActorColumns=Number(find('auditActorColumns')?.auditActorColumns ?? 0);
           const customerVisible=Number(find('customerVisibleColumn')?.customerVisibleColumn ?? 0);
           const promoColumns=Number(find('promoDiscountColumns')?.promoDiscountColumns ?? 0);
-          if (destinations < 5 || tours < 8 || Number(price.adultMinor)!==5200 || Number(price.childMinor)!==3800 || outbox!==1 || tildaInbox!==1 || audit!==1 || workflows!==1 || customers!==1 || staff!==1 || auditActorColumns!==2 || customerVisible!==1 || promoColumns!==2) {
-            console.error({destinations,tours,price,outbox,tildaInbox,audit,workflows,customers,staff,auditActorColumns,customerVisible,promoColumns});
+          const ownerTargetColumn=Number(find('ownerTargetColumn')?.ownerTargetColumn ?? 0);
+          if (destinations < 5 || tours < 8 || Number(price.adultMinor)!==5200 || Number(price.childMinor)!==3800 || outbox!==1 || tildaInbox!==1 || audit!==1 || workflows!==1 || customers!==1 || staff!==1 || auditActorColumns!==2 || customerVisible!==1 || promoColumns!==2 || ownerTargetColumn!==1) {
+            console.error({destinations,tours,price,outbox,tildaInbox,audit,workflows,customers,staff,auditActorColumns,customerVisible,promoColumns,ownerTargetColumn});
             process.exit(1);
           }
-          console.log('D1 verified baseline, CRM/workflow, audit actor and staff RBAC schema OK');
+          console.log('D1 verified baseline, CRM/workflow, audit, staff RBAC and Owner target schema OK');
           NODE
 
       - name: Validate Wrangler production bundle
