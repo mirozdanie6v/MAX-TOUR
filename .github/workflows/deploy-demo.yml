@@ -1,22 +1,28 @@
-name: MAX TOUR Demo Validate
+name: MAX TOUR Standalone v28 Validate
 
 on:
   workflow_dispatch:
   push:
     branches:
       - demo/max-tour-demo
+    paths:
+      - 'standalone-v28/**'
+      - '.github/workflows/deploy-demo.yml'
 
 permissions:
   contents: read
 
 concurrency:
-  group: max-tour-demo-validation
+  group: max-tour-demo-v28-validation
   cancel-in-progress: true
 
 jobs:
-  validate-demo:
+  validate-standalone-v28:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: standalone-v28
     steps:
       - name: Checkout demo branch
         uses: actions/checkout@v5
@@ -25,24 +31,28 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install standalone dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund --package-lock=false
 
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Unit tests
+      - name: Verify exact supplied v28 sources
         run: npm test
 
-      - name: Build client and Worker
+      - name: Build exact v28 + runtime adapter
         run: npm run build
 
-      - name: Validate Cloudflare bundle without credentials
-        run: npx wrangler deploy --dry-run --config wrangler.demo.jsonc --outdir .wrangler-dry-run
+      - name: Verify built v28 identity
+        run: |
+          set -euo pipefail
+          grep -Fq 'MaxTour Mini App Prototype v28' dist/index.html
+          grep -Fq 'runtime-api.js' dist/index.html
+          test "$(node -e "console.log(JSON.parse(require('fs').readFileSync('dist/catalog.v28.json','utf8')).length)")" = "15"
+
+      - name: Validate standalone Cloudflare bundle
+        run: npx wrangler deploy --dry-run --config wrangler.jsonc --outdir .wrangler-dry-run
 
       - name: Deployment routing note
         run: |
-          echo 'Validation complete.'
-          echo 'Deployment to max-tour-demo.viiversion.com is performed by the authorized VIIVERSION runner in mirozdanie6v/rusinfocenter (.github/workflows/deploy-max-tour-demo-shared.yml).'
+          echo 'Standalone v28 validation complete.'
+          echo 'The repository-root React application was not built or used.'
+          echo 'Live deployment is delegated to the authorized VIIVERSION runner in mirozdanie6v/rusinfocenter.'
