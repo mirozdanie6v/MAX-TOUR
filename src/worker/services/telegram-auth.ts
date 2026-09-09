@@ -145,6 +145,18 @@ export async function listStaffAccounts(env: Env) {
   return { mode:'telegram' as const, items:(rows.results ?? []).map(mapStaff), managementEnabled:true };
 }
 
+export async function listAssignableStaff(env: Env) {
+  if ((env.AUTH_MODE ?? 'demo') !== 'telegram') {
+    return { mode:'demo' as const, items:[
+      { telegramUserId:'demo-manager-1', role:'manager' as const, displayName:'Менеджер 1' },
+      { telegramUserId:'demo-manager-2', role:'manager' as const, displayName:'Менеджер 2' },
+      { telegramUserId:'demo-manager-3', role:'manager' as const, displayName:'Менеджер 3' },
+    ] };
+  }
+  const rows = await env.DB.prepare("SELECT telegram_user_id,role,display_name FROM staff_accounts WHERE active=1 AND role IN ('manager','admin','owner') ORDER BY CASE role WHEN 'manager' THEN 1 WHEN 'admin' THEN 2 ELSE 3 END, display_name").all<any>();
+  return { mode:'telegram' as const, items:(rows.results ?? []).map((row:any)=>({ telegramUserId:String(row.telegram_user_id), role:row.role as StaffRole, displayName:String(row.display_name ?? '') })) };
+}
+
 export async function upsertStaffAccount(env: Env, sessionId: string, input: any, actorId: string) {
   if ((env.AUTH_MODE ?? 'demo') !== 'telegram') throw new HttpError(409,'Управление сотрудниками включается вместе с Telegram авторизацией','STAFF_MANAGEMENT_REQUIRES_TELEGRAM_MODE');
   const telegramUserId = String(input?.telegramUserId ?? '').trim();
