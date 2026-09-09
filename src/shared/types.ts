@@ -3,7 +3,9 @@ export type BookingFormat = 'group' | 'private';
 export type SourceChannel = 'Telegram' | 'Сайт' | 'Реклама' | 'Другие каналы';
 export type OrderStatus = 'Новый' | 'Оплачено' | 'Подтверждено';
 export type PaymentChoice = 'deposit' | 'full';
+export type PaymentMethod = 'card' | 'sbp' | 'kaspi' | 'vnpay' | 'transfer' | 'cash' | 'other';
 export type PromoDiscountType = 'none' | 'percent_bps' | 'fixed_minor';
+export type GroupDepartureStatus = 'gathering' | 'confirmed' | 'cancelled' | 'completed';
 
 export interface ChildRule {
   type: 'height' | 'age';
@@ -105,7 +107,7 @@ export interface BookingDraft {
   participants: ParticipantInput[];
   contact: ContactInput;
   paymentChoice: PaymentChoice;
-  paymentMethod: 'card' | 'sbp' | 'transfer' | 'cash';
+  paymentMethod: PaymentMethod;
   source: SourceChannel;
 }
 
@@ -150,6 +152,29 @@ export interface OrderSummary {
   dataStatus: 'demoInput';
   children?: BookingChildInput[];
   participantData?: ParticipantInput[];
+}
+
+export interface GroupMemberInput {
+  customerName: string;
+  phone?: string;
+  telegram?: string;
+  adults: number;
+  children: BookingChildInput[];
+}
+
+export interface GroupDepartureSummary {
+  id: string;
+  tourId: string;
+  tourTitle: string;
+  departureDate: string;
+  status: GroupDepartureStatus;
+  targetPeople: number | null;
+  minPeople: number | null;
+  seats: number;
+  members: number;
+  cancellationReason: string;
+  dataStatus: 'demoInput';
+  createdAt: string;
 }
 
 export interface AnalyticsResponse {
