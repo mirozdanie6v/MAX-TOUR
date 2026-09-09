@@ -1,0 +1,36 @@
+name: MAX TOUR Pre-External Exact Patch
+
+on:
+  push:
+    branches: [ops-hardening-v2]
+    paths:
+      - 'tools/apply_pre_external_hardening.py'
+      - '.github/workflows/preexternal-autopatch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ops-hardening-v2
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Apply exact hardening patch
+        run: python tools/apply_pre_external_hardening.py
+      - name: Commit generated source changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/worker/index.ts src/client/OwnerPage.tsx src/client/PremiumApp.tsx migrations/0010_owner_sales_target.sql .github/workflows/ci.yml
+          git commit -m 'feat: complete token-independent production hardening'
+          git push origin HEAD:ops-hardening-v2
