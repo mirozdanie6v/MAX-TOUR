@@ -52,6 +52,39 @@ export async function patchManagerOps(env: Env, sessionId: string, displayId: st
   return after;
 }
 
+async function getSlaQueue(env: Env, sessionId: string, managerSlaMinutes: number) {
+  const rows = await env.DB.prepare(`SELECT o.display_id,o.tour_title,o.customer,o.source,o.created_at,
+      ops.assigned_manager,ops.last_contact_at
+    FROM orders o
+    LEFT JOIN demo_order_operations ops ON ops.session_id=o.session_id AND ops.order_id=o.id
+    WHERE o.session_id=? AND o.status='Новый'
+    ORDER BY datetime(o.created_at) ASC`).bind(sessionId).all<any>();
+  const now = Date.now();
+  const queue = (rows.results ?? []).map((row:any) => {
+    const createdMs = Date.parse(String(row.created_at ?? ''));
+    const waitingMinutes = Number.isFinite(createdMs) ? Math.max(0, Math.floor((now - createdMs) / 60000)) : 0;
+    const contacted = Boolean(row.last_contact_at);
+    return {
+      orderId: String(row.display_id),
+      tourTitle: String(row.tour_title ?? ''),
+      customer: String(row.customer ?? ''),
+      source: String(row.source ?? ''),
+      assignedManager: String(row.assigned_manager ?? ''),
+      lastContactAt: row.last_contact_at ?? null,
+      waitingMinutes,
+      overdue: !contacted && waitingMinutes > managerSlaMinutes,
+    };
+  });
+  return {
+    managerSlaMinutes,
+    newOrders: queue.length,
+    overdueOrders: queue.filter(item => item.overdue).length,
+    uncontactedOrders: queue.filter(item => !item.lastContactAt).length,
+    oldestWaitingMinutes: queue.reduce((max,item)=>Math.max(max,item.waitingMinutes),0),
+    queue: queue.slice(0,12),
+  };
+}
+
 export async function getOwnerOverview(env: Env, sessionId: string) {
   const orders = await listOrders(env.DB, sessionId);
   const analytics = await getAnalytics(env, sessionId, new URLSearchParams());
@@ -61,10 +94,11 @@ export async function getOwnerOverview(env: Env, sessionId: string) {
     await env.DB.prepare('INSERT OR IGNORE INTO demo_owner_settings(session_id) VALUES (?)').bind(sessionId).run();
   }
   const settings = settingsRow ?? await env.DB.prepare('SELECT manager_sla_minutes,manager_notifications,owner_digest,sales_focus,updated_at FROM demo_owner_settings WHERE session_id=?').bind(sessionId).first<any>();
+  const managerSlaMinutes = Number(settings?.manager_sla_minutes ?? 15);
   const byStatus = ['Новый','Оплачено','Подтверждено'].map(status => ({ status, count: orders.filter(o => o.status === status).length }));
   const grossMinor = orders.reduce((sum, order) => sum + order.totalMinor, 0);
   const paidMinor = orders.reduce((sum, order) => sum + order.paidMinor, 0);
-  const audit = await listAudit(env, sessionId, 16);
+  const [audit,sla] = await Promise.all([listAudit(env, sessionId, 16), getSlaQueue(env,sessionId,managerSlaMinutes)]);
   return {
     demo: true,
     metrics: {
@@ -76,14 +110,16 @@ export async function getOwnerOverview(env: Env, sessionId: string) {
       averageOrderMinor: analytics.metrics.averageOrderMinor,
       tours: tours.length,
       publishedTours: tours.filter(t => t.published).length,
+      slaOverdueOrders: sla.overdueOrders,
     },
     statuses: byStatus,
     sources: analytics.sources,
     funnel: analytics.funnel,
     recentOrders: orders.slice(0, 6),
     audit,
+    sla,
     settings: {
-      managerSlaMinutes: Number(settings?.manager_sla_minutes ?? 15),
+      managerSlaMinutes,
       managerNotifications: Boolean(settings?.manager_notifications ?? 1),
       ownerDigest: String(settings?.owner_digest ?? 'Ежедневно'),
       salesFocus: String(settings?.sales_focus ?? 'Премиум экскурсии'),
@@ -93,7 +129,7 @@ export async function getOwnerOverview(env: Env, sessionId: string) {
       { role: 'Турист', action: 'Выбирает тур, дату, участников и создаёт заказ' },
       { role: 'Менеджер', action: 'Получает заказ, ведёт клиента, уточняет детали, перенос/отмену и подтверждает' },
       { role: 'Администратор', action: 'Поддерживает каталог, цены, контент, расписание, акции и направления' },
-      { role: 'Владелец', action: 'Контролирует показатели, журнал действий и правила работы команды' },
+      { role: 'Владелец', action: 'Контролирует показатели, SLA, журнал действий и правила работы команды' },
     ],
   };
 }
