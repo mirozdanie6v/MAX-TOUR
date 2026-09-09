@@ -30,6 +30,7 @@ export const api = {
   pay:(orderId:string,key:string)=>request<{order:OrderSummary}>('/api/payments/demo',{method:'POST',headers:{'Idempotency-Key':key},body:JSON.stringify({orderId})}),
   trips:()=>request<{items:OrderSummary[]}>('/api/my-trips'),
   order:(id:string)=>request<{order:OrderSummary}>(`/api/orders/${encodeURIComponent(id)}`),
+  managerStaff:()=>request<{mode:string;items:Array<{telegramUserId:string;role:string;displayName:string;active:boolean}>}>('/api/manager/staff'),
   managerOrders:()=>request<{items:OrderSummary[]}>('/api/manager/orders'),
   managerOrder:(id:string)=>request<{order:OrderSummary}>(`/api/manager/orders/${encodeURIComponent(id)}`),
   managerStatus:(id:string,status:OrderSummary['status'])=>request<{order:OrderSummary}>(`/api/manager/orders/${encodeURIComponent(id)}/status`,{method:'PATCH',body:JSON.stringify({status})}),
