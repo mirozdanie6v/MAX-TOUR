@@ -13,6 +13,7 @@ import { getTildaIntegrationStatus, receiveTildaWebhook } from './services/tilda
 import { authenticateTelegramStaff, getAuthReadiness, listAssignableStaff, listStaffAccounts, requireStaffRole, upsertStaffAccount } from './services/telegram-auth';
 import { getProductionReadiness } from './services/readiness';
 import { assertTrustedMutationRequest } from './services/request-security';
+import { cleanupExpiredDemoSessions } from './services/maintenance';
 import { managerStatusSchema } from '../shared/schemas';
 
 function json(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
@@ -243,5 +244,13 @@ export default {
       console.error('Unhandled worker error', error instanceof Error ? error.message : 'unknown');
       return json({ error: { code: 'INTERNAL_ERROR', message: 'Временная ошибка сервиса. Повторите попытку.' } }, 500);
     }
+  },
+
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(
+      cleanupExpiredDemoSessions(env)
+        .then(result => console.log('scheduled_demo_cleanup', JSON.stringify(result)))
+        .catch(error => console.error('scheduled_demo_cleanup_failed', error instanceof Error ? error.message : 'unknown')),
+    );
   }
 } satisfies ExportedHandler<Env>;
