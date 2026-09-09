@@ -107,9 +107,36 @@ export async function ensureSession(request: Request, env: Env): Promise<{ id: s
 }
 
 export async function resetSession(env: Env, sessionId: string) {
-  const tables = ['demo_tour_overrides','demo_user_created_tours','demo_availability','demo_promotions','demo_directions','notification_outbox','demo_order_workflows','demo_customer_records','demo_audit_log','demo_order_operations','demo_owner_settings','manager_status_history','payments','order_participants','orders','analytics_events'];
+  // Delete child tables before their parents. All names are fixed constants, never user-controlled.
+  const tables = [
+    'demo_broadcast_recipients',
+    'demo_broadcast_campaigns',
+    'demo_site_sync_outbox',
+    'demo_refund_cases',
+    'demo_group_members',
+    'demo_group_departures',
+    'demo_tour_overrides',
+    'demo_user_created_tours',
+    'demo_availability',
+    'demo_promotions',
+    'demo_directions',
+    'notification_outbox',
+    'demo_order_workflows',
+    'demo_customer_records',
+    'demo_audit_log',
+    'demo_order_operations',
+    'demo_owner_settings',
+    'manager_status_history',
+    'payments',
+    'order_participants',
+    'orders',
+    'analytics_events',
+  ];
   for (const table of tables) {
-    await env.DB.prepare(`DELETE FROM ${table} WHERE ${table === 'order_participants' ? 'order_id IN (SELECT id FROM orders WHERE session_id=?)' : 'session_id=?'}`).bind(sessionId).run();
+    const predicate = table === 'order_participants'
+      ? 'order_id IN (SELECT id FROM orders WHERE session_id=?)'
+      : 'session_id=?';
+    await env.DB.prepare(`DELETE FROM ${table} WHERE ${predicate}`).bind(sessionId).run();
   }
   await seedDemoSession(env, sessionId);
 }
