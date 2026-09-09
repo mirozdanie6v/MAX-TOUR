@@ -28,8 +28,34 @@ export const bookingDraftSchema = z.object({
     message: 'Укажите телефон или Telegram',
   }),
   paymentChoice: z.enum(['deposit', 'full']),
-  paymentMethod: z.enum(['card', 'sbp', 'transfer', 'cash']),
+  paymentMethod: z.enum(['card', 'sbp', 'kaspi', 'vnpay', 'transfer', 'cash', 'other']),
   source: z.enum(['Telegram', 'Сайт', 'Реклама', 'Другие каналы']),
+});
+
+export const groupMemberSchema = z.object({
+  customerName: z.string().trim().min(2).max(160),
+  phone: z.string().trim().max(40).optional(),
+  telegram: z.string().trim().max(80).optional(),
+  adults: z.number().int().min(1).max(20),
+  children: z.array(bookingChildSchema).max(20),
+}).refine((value) => Boolean(value.phone || value.telegram), {
+  message: 'Укажите телефон или Telegram',
+});
+
+export const createGroupDepartureSchema = z.object({
+  tourId: z.string().min(1),
+  departureDate: z.iso.date(),
+  targetPeople: z.number().int().min(2).max(40).nullable().optional(),
+  member: groupMemberSchema,
+});
+
+export const joinGroupDepartureSchema = z.object({
+  member: groupMemberSchema,
+});
+
+export const groupDepartureAdminSchema = z.object({
+  status: z.enum(['gathering', 'confirmed', 'cancelled', 'completed']),
+  cancellationReason: z.string().trim().max(500).optional().default(''),
 });
 
 export const managerStatusSchema = z.object({
