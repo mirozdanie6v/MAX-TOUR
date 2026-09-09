@@ -28,9 +28,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git restore .github/workflows/ci.yml
           git diff --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/worker/index.ts src/client/OwnerPage.tsx src/client/PremiumApp.tsx migrations/0010_owner_sales_target.sql .github/workflows/ci.yml
+          git add src/worker/index.ts src/client/OwnerPage.tsx src/client/PremiumApp.tsx migrations/0010_owner_sales_target.sql
           git commit -m 'feat: complete token-independent production hardening'
           git push origin HEAD:ops-hardening-v2
