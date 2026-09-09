@@ -1,10 +1,10 @@
 # MAX TOUR site catalog sync
 
-Generated: 2026-09-09T06:12:07.127Z
+Generated: 2026-09-09T06:31:00.292Z
 
-- Pages scanned: 41
-- Likely tour/detail pages: 39
-- Unique MAX TOUR/Tilda image URLs: 1255
-- Crawl errors: 0
+- Pages scanned: 11
+- Tour detail pages: 9
+- Unique page-specific tour photo URLs: 336
+- Crawl errors: 8
 
-The manifest is source-derived and does not infer unpublished prices, gender targeting or operational capacity.
+Only raster Tilda assets are counted as photos; shared header/footer assets and tiny 20px placeholders are excluded. The manifest is source-derived and does not infer unpublished prices, gender targeting or operational capacity.
