@@ -28,21 +28,6 @@ jobs:
         with:
           node-version: 22
 
-      - name: Apply commerce v6 wiring once
-        if: github.event_name == 'push' && github.ref_name == 'main'
-        shell: bash
-        run: |
-          if [ -f tools/apply_commerce_v6.py ] && ! grep -q "BookingV2Page" src/client/PremiumApp.tsx; then
-            python tools/apply_commerce_v6.py
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add src/client/PremiumApp.tsx src/worker/index.ts
-            git commit -m 'feat: wire booking v6 and group departures into app'
-            git push origin HEAD:main
-          else
-            echo 'Commerce v6 wiring already applied or patch file absent.'
-          fi
-
       - name: Refresh lockfile metadata
         run: npm install --package-lock-only --ignore-scripts
 
