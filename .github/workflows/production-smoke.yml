@@ -35,15 +35,14 @@ jobs:
           jq -e '.items | length >= 8' /tmp/tours.json >/dev/null
           jq -e '.items[] | select(.id == "dalat-premium") | .pricingRules.adultMinor == 5200 and (.pricingRules.privateTiers | length) >= 1' /tmp/tours.json >/dev/null
           curl -L -fsS -c "$jar" -b "$jar" "$base/api/site-catalog" -o /tmp/site-catalog.json
-          jq -e '.catalog.items | length > 0' /tmp/site-catalog.json >/dev/null
+          jq -e '.catalog.tours | length > 0' /tmp/site-catalog.json >/dev/null
           node - <<'NODE'
           const fs=require('fs');
           const d=JSON.parse(fs.readFileSync('/tmp/site-catalog.json','utf8'));
-          const item=d.catalog.items[0];
-          const p=String(item.path||'').replace(/^\/+|\/+$/g,'');
-          const normalized=p.replace(/[^a-z0-9а-яё_-]+/gi,'-').replace(/^-+|-+$/g,'').toLowerCase();
-          if(!normalized) process.exit(1);
-          fs.writeFileSync('/tmp/source-tour-id',`site-${normalized}`);
+          const item=d.catalog.tours[0];
+          const id=String(item.path||'').replace(/^\/+|\/+$/g,'');
+          if(!id) process.exit(1);
+          fs.writeFileSync('/tmp/source-tour-id',id);
           NODE
           source_tour_id=$(cat /tmp/source-tour-id)
 
