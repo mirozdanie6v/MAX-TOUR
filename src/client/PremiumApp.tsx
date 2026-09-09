@@ -7,6 +7,9 @@ import { CustomersPage } from './CustomersPage';
 import { BookingV2Page } from './BookingV2Page';
 import { GroupDeparturesPage } from './GroupDeparturesPage';
 import { AdminGroupsPage } from './AdminGroupsPage';
+import { CatalogV6Page } from './CatalogV6Page';
+import { SiteTourPage } from './SiteTourPage';
+import { AdminCrmPage } from './AdminCrmPage';
 import { formatUsd } from '../shared/money';
 import type { AnalyticsResponse, AvailabilityDate, BookingDraft, Destination, OrderSummary, Quote, Tour } from '../shared/types';
 
@@ -72,8 +75,9 @@ function AppRoutes() {
   return <Routes>
     <Route path="/bot" element={<Navigate to="/" replace />} />
     <Route path="/" element={<TouristShell><HomePage /></TouristShell>} />
-    <Route path="/catalog" element={<TouristShell><CatalogPage /></TouristShell>} />
+    <Route path="/catalog" element={<TouristShell><CatalogV6Page /></TouristShell>} />
     <Route path="/tour/:id" element={<TouristShell><TourPage /></TouristShell>} />
+    <Route path="/site-tour/:slug" element={<TouristShell><SiteTourPage /></TouristShell>} />
     <Route path="/booking" element={<TouristShell><BookingV2Page /></TouristShell>} />
     <Route path="/groups/:tourId" element={<TouristShell><GroupDeparturesPage /></TouristShell>} />
     <Route path="/booking/*" element={<Navigate to="/booking" replace />} />
@@ -89,6 +93,7 @@ function AppRoutes() {
     <Route path="/admin/tours/:id" element={<BackofficeShell title="Экскурсия" role="admin"><AdminTourPage /></BackofficeShell>} />
     <Route path="/admin/schedule" element={<BackofficeShell title="Расписание и акции" role="admin"><SchedulePage /></BackofficeShell>} />
     <Route path="/admin/groups" element={<BackofficeShell title="Групповые заявки" role="admin"><AdminGroupsPage /></BackofficeShell>} />
+    <Route path="/admin/crm" element={<BackofficeShell title="CRM и рассылки" role="admin"><AdminCrmPage /></BackofficeShell>} />
     <Route path="/admin/analytics" element={<BackofficeShell title="Аналитика" role="admin"><AnalyticsPage /></BackofficeShell>} />
     <Route path="/admin/directions" element={<BackofficeShell title="Направления" role="admin"><DirectionsPage /></BackofficeShell>} />
     <Route path="*" element={<Navigate to="/" replace />} />
@@ -116,7 +121,7 @@ function TouristShell({ children }: { children: React.ReactNode }) {
 function BackofficeShell({ title, role, children }: { title: string; role: Role; children: React.ReactNode }) {
   const navigate = useNavigate();
   const roleLabel = role === 'manager' ? 'MANAGER DEMO' : role === 'admin' ? 'ADMIN DEMO' : 'OWNER DEMO';
-  const tabs = role === 'manager' ? <><button onClick={() => navigate('/manager')}>Заказы</button><button onClick={() => navigate('/manager-customers')}>Клиенты</button><button onClick={() => navigate('/channels')}>Интеграции</button></> : role === 'admin' ? <><button onClick={() => navigate('/admin')}>Каталог</button><button onClick={() => navigate('/admin/schedule')}>Расписание</button><button onClick={() => navigate('/admin/groups')}>Группы</button><button onClick={() => navigate('/admin/analytics')}>Аналитика</button><button onClick={() => navigate('/admin/directions')}>Направления</button></> : <><button onClick={() => navigate('/owner')}>Обзор</button><button onClick={() => navigate('/manager')}>Очередь менеджера</button><button onClick={() => navigate('/admin')}>Управление продуктом</button><button onClick={() => navigate('/channels')}>Каналы продаж</button></>;
+  const tabs = role === 'manager' ? <><button onClick={() => navigate('/manager')}>Заказы</button><button onClick={() => navigate('/manager-customers')}>Клиенты</button><button onClick={() => navigate('/channels')}>Интеграции</button></> : role === 'admin' ? <><button onClick={() => navigate('/admin')}>Каталог</button><button onClick={() => navigate('/admin/schedule')}>Расписание</button><button onClick={() => navigate('/admin/groups')}>Группы</button><button onClick={() => navigate('/admin/crm')}>CRM</button><button onClick={() => navigate('/admin/analytics')}>Аналитика</button><button onClick={() => navigate('/admin/directions')}>Направления</button></> : <><button onClick={() => navigate('/owner')}>Обзор</button><button onClick={() => navigate('/manager')}>Очередь менеджера</button><button onClick={() => navigate('/admin')}>Управление продуктом</button><button onClick={() => navigate('/channels')}>Каналы продаж</button></>;
   return <div className="px-app px-backoffice"><Header title={title} /><main className="px-content px-wide"><section className="px-office-hero"><div><span className="px-kicker">MAX TOUR · {roleLabel}</span><h1>{title}</h1></div><span className="px-demo-pill">ДЕМО-ДАННЫЕ</span></section><nav className="px-office-tabs">{tabs}</nav>{children}</main></div>;
 }
 

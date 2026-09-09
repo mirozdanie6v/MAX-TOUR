@@ -6,9 +6,18 @@ import { HttpError } from './booking';
 import { recordAudit } from './internal-workflows';
 import { queueNotification } from './notifications';
 import { prepareGroupCancellationCampaign } from './admin-crm';
+import { findSourceSiteTour, sourceTourId } from '../../shared/site-catalog';
 
 function contactOf(member: GroupMemberInput) {
   return [member.phone, member.telegram].filter(Boolean).join(' · ');
+}
+
+async function resolveGroupTour(env:Env,sessionId:string,tourId:string){
+  const structured=await getTourByIdOrSlug(env.DB,sessionId,tourId);
+  if(structured?.published) return {id:structured.id,title:structured.title,structured:true};
+  const source=findSourceSiteTour(tourId);
+  if(source) return {id:sourceTourId(source.path),title:source.title,structured:false};
+  return null;
 }
 
 function mapDeparture(row: any): GroupDepartureSummary {
@@ -53,9 +62,9 @@ async function addMember(env: Env, sessionId: string, departureId: string, membe
 async function ensureDemoDepartures(env: Env, sessionId: string, tourId: string) {
   const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM demo_group_departures WHERE session_id=? AND tour_id=? AND status='gathering'").bind(sessionId,tourId).first<{n:number}>();
   if (Number(count?.n ?? 0) > 0) return;
-  const tour = await getTourByIdOrSlug(env.DB,sessionId,tourId);
-  if (!tour || !tour.published) return;
-  const availability = await getAvailability(env.DB,sessionId,tour.id).catch(()=>[] as any[]);
+  const tour = await resolveGroupTour(env,sessionId,tourId);
+  if (!tour) return;
+  const availability = tour.structured ? await getAvailability(env.DB,sessionId,tour.id).catch(()=>[] as any[]) : [];
   const dates = availability.slice(0,2).map((x:any)=>String(x.date)).filter(Boolean);
   if (!dates.length) {
     const base = new Date();
@@ -91,8 +100,8 @@ export async function listGroupDepartures(env: Env, sessionId: string, tourId?: 
 export async function createGroupDeparture(env: Env, sessionId: string, input: unknown, actorId='demo') {
   const parsed = createGroupDepartureSchema.safeParse(input);
   if (!parsed.success) throw new HttpError(400,'Проверьте данные группового выезда','VALIDATION_ERROR');
-  const tour = await getTourByIdOrSlug(env.DB, sessionId, parsed.data.tourId);
-  if (!tour || !tour.published) throw new HttpError(404,'Экскурсия не найдена','TOUR_NOT_FOUND');
+  const tour = await resolveGroupTour(env, sessionId, parsed.data.tourId);
+  if (!tour) throw new HttpError(404,'Экскурсия не найдена','TOUR_NOT_FOUND');
   const id = crypto.randomUUID();
   await env.DB.prepare(`INSERT INTO demo_group_departures(id,session_id,tour_id,tour_title,departure_date,status,target_people,min_people,created_by,data_status)
     VALUES (?,?,?,?,?,'gathering',?,NULL,'tourist','demoInput')`).bind(

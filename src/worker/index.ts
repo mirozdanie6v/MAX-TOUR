@@ -12,6 +12,10 @@ import { configureTelegramWebhook, getTelegramWebhookInfo } from './services/tel
 import { getTildaIntegrationStatus, receiveTildaWebhook } from './services/tilda';
 import { authenticateTelegramStaff, getAuthReadiness, listAssignableStaff, listStaffAccounts, requireStaffRole, upsertStaffAccount } from './services/telegram-auth';
 import { adminPatchGroupDeparture, createGroupDeparture, joinGroupDeparture, listGroupDepartures } from './services/group-departures';
+import { campaignRecipients, createCampaign, listAdminCustomers, listCampaigns } from './services/admin-crm';
+import { listRefundCases } from './services/refund-policy';
+import { listSiteSyncOutbox } from './services/site-sync';
+import { sourceSiteCatalog } from '../shared/site-catalog';
 import { managerStatusSchema } from '../shared/schemas';
 
 function json(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
@@ -125,6 +129,7 @@ export default {
       const actorId = staffActor?.telegramUserId ?? 'demo';
 
       if (path === '/api/destinations' && request.method === 'GET') return finish(json({ items: await getDestinations(env.DB, session.id) }));
+      if (path === '/api/site-catalog' && request.method === 'GET') return finish(json({ catalog: sourceSiteCatalog() }));
       if (path === '/api/tours' && request.method === 'GET') {
         const all = await getMergedTours(env.DB, session.id);
         const publishedOnly = url.searchParams.get('admin') !== '1';
@@ -224,6 +229,13 @@ export default {
       if (path === '/api/admin/group-departures' && request.method === 'GET') return finish(json({ items: await listGroupDepartures(env, session.id) }));
       m = match(path, /^\/api\/admin\/group-departures\/([^/]+)$/);
       if (m && request.method === 'PATCH') return finish(json({ item: await adminPatchGroupDeparture(env, session.id, m[0], await body(request), actorId) }));
+      if (path === '/api/admin/customers' && request.method === 'GET') return finish(json({ items: await listAdminCustomers(env, session.id) }));
+      if (path === '/api/admin/campaigns' && request.method === 'GET') return finish(json({ items: await listCampaigns(env, session.id) }));
+      if (path === '/api/admin/campaigns' && request.method === 'POST') return finish(json({ item: await createCampaign(env, session.id, await body(request), actorId) }, 201));
+      m = match(path, /^\/api\/admin\/campaigns\/([^/]+)\/recipients$/);
+      if (m && request.method === 'GET') return finish(json({ items: await campaignRecipients(env, session.id, m[0]) }));
+      if (path === '/api/admin/refunds' && request.method === 'GET') return finish(json({ items: await listRefundCases(env, session.id) }));
+      if (path === '/api/admin/site-sync' && request.method === 'GET') return finish(json({ items: await listSiteSyncOutbox(env, session.id) }));
 
       if (path === '/api/admin/tours' && request.method === 'GET') return finish(json({ items: await adminTours(env, session.id) }));
       if (path === '/api/admin/tours' && request.method === 'POST') return finish(json({ item: await addTour(env, session.id, await body(request), actorId) }, 201));
