@@ -7,6 +7,7 @@ export function OwnerPage() {
   const [integration,setIntegration]=useState<any>(null);
   const [tilda,setTilda]=useState<any>(null);
   const [auth,setAuth]=useState<any>(null);
+  const [readiness,setReadiness]=useState<any>(null);
   const [staff,setStaff]=useState<any>({mode:'demo',items:[],managementEnabled:false});
   const [webhook,setWebhook]=useState<any>(null);
   const [integrationMessage,setIntegrationMessage]=useState('');
@@ -18,8 +19,8 @@ export function OwnerPage() {
   const [settings,setSettings]=useState({managerSlaMinutes:15,managerNotifications:true,ownerDigest:'Ежедневно',salesFocus:'Премиум экскурсии',salesTargetMinor:500000});
   const [staffDraft,setStaffDraft]=useState({telegramUserId:'',displayName:'',role:'manager',active:true});
   const load=async()=>{
-    const [overview,status,tildaStatus,authStatus,staffStatus]=await Promise.all([api.ownerOverview(),api.telegramStatus(),api.tildaStatus(),api.authReadiness(),api.ownerStaff()]);
-    setData(overview);setSettings(overview.settings);setIntegration(status);setTilda(tildaStatus);setAuth(authStatus);setStaff(staffStatus);
+    const [overview,status,tildaStatus,authStatus,staffStatus,readinessStatus]=await Promise.all([api.ownerOverview(),api.telegramStatus(),api.tildaStatus(),api.authReadiness(),api.ownerStaff(),api.ownerReadiness()]);
+    setData(overview);setSettings(overview.settings);setIntegration(status);setTilda(tildaStatus);setAuth(authStatus);setStaff(staffStatus);setReadiness(readinessStatus);
     if(status?.telegram?.botTokenConfigured){
       try{setWebhook(await api.telegramWebhookInfo())}catch{setWebhook(null)}
     }
@@ -65,6 +66,7 @@ export function OwnerPage() {
       <article className="px-owner-panel"><span className="px-kicker">NOTIFICATION OUTBOX</span><h3>Очередь событий</h3><div className="px-owner-statuses"><div><span>Ожидают</span><b>{integration?.outbox?.queued??0}</b></div><div><span>Отправлено</span><b>{integration?.outbox?.sent??0}</b></div><div><span>Ошибки</span><b>{integration?.outbox?.failed??0}</b></div></div><p>{integration?.readyForDelivery?'Telegram готов к доставке сообщений.':'Для реальной доставки останется добавить Telegram secrets/chat IDs. Код, webhook и очередь уже готовы.'}</p></article>
       <article className="px-owner-panel"><span className="px-kicker">TILDA INTEGRATION</span><h3>Входящий канал сайта</h3><div className="px-owner-statuses"><div><span>Webhook guard</span><b>{tilda?.configured?'OK':'—'}</b></div><div><span>Получено</span><b>{tilda?.inbox?.received??0}</b></div><div><span>Сопоставлено</span><b>{tilda?.inbox?.mapped??0}</b></div><div><span>Ошибки</span><b>{tilda?.inbox?.failed??0}</b></div></div><p>Приём форм Tilda уже реализован и защищён от повторной записи через уникальный lead ID. Для реального подключения останется задать webhook secret в Cloudflare и включить URL в настройках форм Tilda.</p></article>
     </section>
+    <section className="px-owner-panel"><span className="px-kicker">PRODUCTION READINESS</span><h3>Что готово до внешних подключений</h3><div className="px-owner-statuses"><div><span>Внутренняя схема</span><b>{readiness?.preExternalImplementationComplete?'OK':'CHECK'}</b></div><div><span>D1 таблицы</span><b>{readiness?.database?.healthy?'OK':'CHECK'}</b></div><div><span>Внешних блокеров</span><b>{readiness?.externalBlockerCount??'—'}</b></div></div><div className="px-owner-orders">{(readiness?.externalBlockers??[]).map((item:any)=><div key={item.key}><div><b>{item.area}</b><span>{item.required}</span></div><div><small>ВНЕШНЯЯ НАСТРОЙКА</small></div></div>)}</div><p>{readiness?.preExternalImplementationComplete?'Код, внутренняя D1-схема, workflow и deployment-контур готовы. Список выше содержит только данные/системы, которые должны прийти от MAX TOUR или выбранного провайдера.':'Есть внутренний технический блокер — перед production activation его нужно устранить.'}</p></section>
     <section className="px-owner-panel"><span className="px-kicker">INTEGRATION BOUNDARY</span><h3>Что не подменяем демо-логикой</h3><p>Произвольный лид Tilda не превращается автоматически в экскурсионный заказ, пока MAX TOUR не подтвердит реальные поля форм и hidden ID тура. Реальный эквайринг и live inventory также подключаются только к выбранным бизнес-источникам.</p></section>
   </>;
 }

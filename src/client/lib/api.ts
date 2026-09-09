@@ -48,6 +48,7 @@ export const api = {
   directions:()=>request<{items:Destination[]}>('/api/admin/directions'),
   addDirection:(name:string)=>request('/api/admin/directions',{method:'POST',body:JSON.stringify({name})}),
   analytics:(params:URLSearchParams)=>request<AnalyticsResponse>(`/api/admin/analytics?${params.toString()}`),
+  ownerReadiness:()=>request<any>('/api/owner/readiness'),
   ownerOverview:()=>request<any>('/api/owner/overview'),
   ownerSettings:(data:any)=>request<any>('/api/owner/settings',{method:'PATCH',body:JSON.stringify(data)}),
   ownerAudit:(limit=30)=>request<{items:any[]}>(`/api/owner/audit?limit=${limit}`),

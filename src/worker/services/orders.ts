@@ -14,6 +14,13 @@ async function nextDisplayId(env: Env, sessionId: string) {
   return `MT-DEMO-${Math.max(1047, Number(row?.n ?? 0)) + 1}`;
 }
 
+export async function shouldNotifyManager(env: Env, sessionId: string) {
+  const row = await env.DB.prepare('SELECT manager_notifications FROM demo_owner_settings WHERE session_id=?')
+    .bind(sessionId)
+    .first<{manager_notifications:number}>();
+  return row ? Number(row.manager_notifications) !== 0 : true;
+}
+
 async function bestEffortNotify(
   env: Env,
   sessionId: string,
@@ -54,7 +61,9 @@ export async function createOrder(env: Env, sessionId: string, draft: BookingDra
   await recordAudit(env, sessionId, 'tourist', 'Создание заказа', 'order', displayId, {}, { tour: tour.title, date: draft.date, totalMinor: quote.totalMinor, source: draft.source });
 
   const notificationPayload = { displayId, tourTitle: tour.title, customer: draft.contact.name, amountMinor: quote.totalMinor, selectedDate: draft.date };
-  await bestEffortNotify(env, sessionId, 'manager', 'order_created', id, notificationPayload);
+  if (await shouldNotifyManager(env, sessionId)) {
+    await bestEffortNotify(env, sessionId, 'manager', 'order_created', id, notificationPayload);
+  }
   await bestEffortNotify(env, sessionId, 'owner', 'order_created', id, notificationPayload);
 
   return getOrder(env.DB, sessionId, displayId);
@@ -80,7 +89,9 @@ export async function demoPayment(env: Env, sessionId: string, displayId: string
   await recordAudit(env, sessionId, 'tourist', 'DEMO-оплата', 'order', displayId, { paidMinor: 0 }, { paidMinor: amountMinor, remainingMinor: remaining, paymentState });
 
   const notificationPayload = { displayId, tourTitle: raw.tour_title, customer: raw.customer, amountMinor };
-  await bestEffortNotify(env, sessionId, 'manager', 'demo_payment_completed', raw.id, notificationPayload);
+  if (await shouldNotifyManager(env, sessionId)) {
+    await bestEffortNotify(env, sessionId, 'manager', 'demo_payment_completed', raw.id, notificationPayload);
+  }
   await bestEffortNotify(env, sessionId, 'owner', 'demo_payment_completed', raw.id, notificationPayload);
 
   return getOrder(env.DB, sessionId, displayId);
