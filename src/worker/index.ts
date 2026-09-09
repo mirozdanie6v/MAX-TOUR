@@ -10,7 +10,7 @@ import { getCustomerRecord, getOrderWorkflow, listAudit, patchCustomerRecord, pa
 import { flushTelegramOutbox, getIntegrationStatus, handleTelegramWebhook } from './services/notifications';
 import { configureTelegramWebhook, getTelegramWebhookInfo } from './services/telegram-config';
 import { getTildaIntegrationStatus, receiveTildaWebhook } from './services/tilda';
-import { authenticateTelegramStaff, getAuthReadiness, listStaffAccounts, requireStaffRole, upsertStaffAccount } from './services/telegram-auth';
+import { authenticateTelegramStaff, getAuthReadiness, listAssignableStaff, listStaffAccounts, requireStaffRole, upsertStaffAccount } from './services/telegram-auth';
 import { managerStatusSchema } from '../shared/schemas';
 
 function json(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
@@ -161,6 +161,7 @@ export default {
         return finish(json({ order: safe }));
       }
 
+      if (path === '/api/manager/staff' && request.method === 'GET') return finish(json(await listAssignableStaff(env)));
       if (path === '/api/manager/orders' && request.method === 'GET') return finish(json({ items: await listOrders(env.DB, session.id) }));
       m = match(path, /^\/api\/manager\/orders\/([^/]+)$/);
       if (m && request.method === 'GET') {
