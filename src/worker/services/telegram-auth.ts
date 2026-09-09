@@ -1,5 +1,6 @@
 import type { Env } from '../db/repository';
 import { HttpError } from './booking';
+import { recordAudit } from './internal-workflows';
 
 export type StaffRole = 'manager' | 'admin' | 'owner';
 
@@ -11,6 +12,15 @@ export interface TelegramIdentity {
   authDate: number;
   role: StaffRole | null;
   staffDisplayName: string;
+}
+
+export interface StaffAccount {
+  telegramUserId: string;
+  role: StaffRole;
+  displayName: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const MAX_AUTH_AGE_SECONDS = 60 * 60;
@@ -32,6 +42,14 @@ async function hmac(key: BufferSource, data: string) {
   return crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(data));
 }
 
+function bootstrapOwnerId(env: Env) {
+  return String((env as any).BOOTSTRAP_OWNER_TELEGRAM_ID ?? '').trim();
+}
+
+function bootstrapOwnerName(env: Env) {
+  return String((env as any).BOOTSTRAP_OWNER_NAME ?? '').trim().slice(0,120);
+}
+
 export async function validateTelegramInitData(initData: string, botToken: string, nowSeconds = Math.floor(Date.now()/1000)) {
   const params = new URLSearchParams(initData);
   const receivedHash = params.get('hash')?.toLowerCase() ?? '';
@@ -47,8 +65,6 @@ export async function validateTelegramInitData(initData: string, botToken: strin
     .map(([key,value]) => `${key}=${value}`)
     .join('\n');
 
-  // Telegram Mini Apps: secret_key = HMAC_SHA256(bot_token, key="WebAppData")
-  // then hash = HMAC_SHA256(data_check_string, key=secret_key).
   const secretKey = await hmac(encoder.encode('WebAppData'), botToken);
   const calculatedHash = hex(await hmac(secretKey, checkString));
   if (!timingSafeEqualHex(calculatedHash, receivedHash)) throw new HttpError(401,'Подпись Telegram initData не прошла проверку','TELEGRAM_INITDATA_INVALID');
@@ -66,10 +82,23 @@ export async function validateTelegramInitData(initData: string, botToken: strin
   };
 }
 
+async function maybeBootstrapFirstOwner(env: Env, identity: {telegramUserId:string;firstName:string;lastName:string;username:string}) {
+  const configuredId = bootstrapOwnerId(env);
+  if (!configuredId || configuredId !== identity.telegramUserId) return false;
+  const counts = await env.DB.prepare('SELECT COUNT(*) AS total FROM staff_accounts').first<{total:number}>();
+  if (Number(counts?.total ?? 0) !== 0) return false;
+  const fallbackName = [identity.firstName, identity.lastName].filter(Boolean).join(' ') || identity.username || `Telegram ${identity.telegramUserId}`;
+  const displayName = bootstrapOwnerName(env) || fallbackName.slice(0,120);
+  await env.DB.prepare(`INSERT OR IGNORE INTO staff_accounts(telegram_user_id,role,display_name,active,updated_at)
+    VALUES (?,'owner',?,1,CURRENT_TIMESTAMP)`).bind(identity.telegramUserId, displayName).run();
+  return true;
+}
+
 export async function authenticateTelegramStaff(env: Env, initData: string): Promise<TelegramIdentity> {
   const token = env.TELEGRAM_BOT_TOKEN?.trim();
   if (!token) throw new HttpError(503,'Telegram Bot Token ещё не настроен','TELEGRAM_NOT_CONFIGURED');
   const identity = await validateTelegramInitData(initData, token);
+  await maybeBootstrapFirstOwner(env, identity);
   const staff = await env.DB.prepare('SELECT role,display_name,active FROM staff_accounts WHERE telegram_user_id=?').bind(identity.telegramUserId).first<{role:StaffRole;display_name:string;active:number}>();
   return {
     ...identity,
@@ -97,17 +126,69 @@ export async function requireStaffRole(env: Env, request: Request, requiredRole:
   return { mode:'telegram' as const, ...identity };
 }
 
+function mapStaff(row: any): StaffAccount {
+  return {
+    telegramUserId: String(row.telegram_user_id),
+    role: row.role as StaffRole,
+    displayName: String(row.display_name ?? ''),
+    active: Number(row.active) === 1,
+    createdAt: String(row.created_at ?? ''),
+    updatedAt: String(row.updated_at ?? ''),
+  };
+}
+
+export async function listStaffAccounts(env: Env) {
+  if ((env.AUTH_MODE ?? 'demo') !== 'telegram') {
+    return { mode:'demo' as const, items:[] as StaffAccount[], managementEnabled:false };
+  }
+  const rows = await env.DB.prepare('SELECT telegram_user_id,role,display_name,active,created_at,updated_at FROM staff_accounts ORDER BY CASE role WHEN \'owner\' THEN 1 WHEN \'admin\' THEN 2 ELSE 3 END, display_name, telegram_user_id').all<any>();
+  return { mode:'telegram' as const, items:(rows.results ?? []).map(mapStaff), managementEnabled:true };
+}
+
+export async function upsertStaffAccount(env: Env, sessionId: string, input: any, actorId: string) {
+  if ((env.AUTH_MODE ?? 'demo') !== 'telegram') throw new HttpError(409,'Управление сотрудниками включается вместе с Telegram авторизацией','STAFF_MANAGEMENT_REQUIRES_TELEGRAM_MODE');
+  const telegramUserId = String(input?.telegramUserId ?? '').trim();
+  const role = String(input?.role ?? '') as StaffRole;
+  const displayName = String(input?.displayName ?? '').trim().slice(0,120);
+  const active = input?.active !== false;
+  if (!/^\d+$/.test(telegramUserId)) throw new HttpError(400,'Нужен корректный Telegram user ID','VALIDATION_ERROR');
+  if (!['manager','admin','owner'].includes(role)) throw new HttpError(400,'Некорректная роль сотрудника','VALIDATION_ERROR');
+  if (displayName.length < 2) throw new HttpError(400,'Укажите имя сотрудника','VALIDATION_ERROR');
+
+  const beforeRow = await env.DB.prepare('SELECT telegram_user_id,role,display_name,active,created_at,updated_at FROM staff_accounts WHERE telegram_user_id=?').bind(telegramUserId).first<any>();
+  const before = beforeRow ? mapStaff(beforeRow) : null;
+  if (before?.role === 'owner' && before.active && (role !== 'owner' || !active)) {
+    const owners = await env.DB.prepare("SELECT COUNT(*) AS n FROM staff_accounts WHERE role='owner' AND active=1 AND telegram_user_id<>?").bind(telegramUserId).first<{n:number}>();
+    if (Number(owners?.n ?? 0) < 1) throw new HttpError(409,'В системе должен оставаться хотя бы один активный владелец','LAST_ACTIVE_OWNER_REQUIRED');
+  }
+
+  await env.DB.prepare(`INSERT INTO staff_accounts(telegram_user_id,role,display_name,active,updated_at)
+    VALUES (?,?,?,?,CURRENT_TIMESTAMP)
+    ON CONFLICT(telegram_user_id) DO UPDATE SET role=excluded.role,display_name=excluded.display_name,active=excluded.active,updated_at=CURRENT_TIMESTAMP`)
+    .bind(telegramUserId, role, displayName, active ? 1 : 0).run();
+  const afterRow = await env.DB.prepare('SELECT telegram_user_id,role,display_name,active,created_at,updated_at FROM staff_accounts WHERE telegram_user_id=?').bind(telegramUserId).first<any>();
+  const after = mapStaff(afterRow);
+  await recordAudit(env, sessionId, 'owner', before ? 'Изменение сотрудника' : 'Добавление сотрудника', 'staff_account', telegramUserId, before ?? {}, after, actorId);
+  return after;
+}
+
 export async function getAuthReadiness(env: Env) {
   const counts = await env.DB.prepare(`SELECT
     COUNT(*) AS total,
-    SUM(CASE WHEN active=1 THEN 1 ELSE 0 END) AS active
-    FROM staff_accounts`).first<{total:number;active:number}>();
+    SUM(CASE WHEN active=1 THEN 1 ELSE 0 END) AS active,
+    SUM(CASE WHEN active=1 AND role='owner' THEN 1 ELSE 0 END) AS owners
+    FROM staff_accounts`).first<{total:number;active:number;owners:number}>();
+  const bootstrapConfigured = /^\d+$/.test(bootstrapOwnerId(env));
+  const active = Number(counts?.active ?? 0);
+  const owners = Number(counts?.owners ?? 0);
   return {
     authMode: env.AUTH_MODE ?? 'demo',
     botTokenConfigured: Boolean(env.TELEGRAM_BOT_TOKEN?.trim()),
     initDataValidationPrepared: true,
+    bootstrapOwnerConfigured: bootstrapConfigured,
     staffAccounts: Number(counts?.total ?? 0),
-    activeStaffAccounts: Number(counts?.active ?? 0),
-    enforcementReady: Boolean(env.TELEGRAM_BOT_TOKEN?.trim()) && Number(counts?.active ?? 0) > 0,
+    activeStaffAccounts: active,
+    activeOwners: owners,
+    enforcementReady: Boolean(env.TELEGRAM_BOT_TOKEN?.trim()) && (active > 0 || bootstrapConfigured),
   };
 }
