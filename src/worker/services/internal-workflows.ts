@@ -54,7 +54,7 @@ export async function getOrderWorkflow(env: Env, sessionId: string, displayId: s
 export async function patchOrderWorkflow(env: Env, sessionId: string, displayId: string, input: any, actorId = 'demo') {
   const order = await resolveOrder(env, sessionId, displayId);
   const before = await getOrderWorkflow(env, sessionId, displayId);
-  const operationType = ['none','reschedule','cancel'].includes(String(input?.operationType)) ? String(input.operationType) : 'none';
+  const operationType = ['none','reschedule','cancel','no_show'].includes(String(input?.operationType)) ? String(input.operationType) : 'none';
   const requestedDate = operationType === 'reschedule' && /^\d{4}-\d{2}-\d{2}$/.test(String(input?.requestedDate ?? '')) ? String(input.requestedDate) : null;
   if (operationType === 'reschedule' && !requestedDate) throw new HttpError(400, 'Для переноса выберите новую дату', 'VALIDATION_ERROR');
   const reason = text(input?.reason, 400);
@@ -66,7 +66,7 @@ export async function patchOrderWorkflow(env: Env, sessionId: string, displayId:
     ON CONFLICT(session_id,order_id) DO UPDATE SET operation_type=excluded.operation_type,requested_date=excluded.requested_date,reason=excluded.reason,manager_note=excluded.manager_note,workflow_status=excluded.workflow_status,updated_at=CURRENT_TIMESTAMP`)
     .bind(sessionId, order.id, operationType, requestedDate, reason, managerNote, workflowStatus).run();
   const after = await getOrderWorkflow(env, sessionId, displayId);
-  await recordAudit(env, sessionId, 'manager', operationType === 'cancel' ? 'Запрос отмены' : operationType === 'reschedule' ? 'Запрос переноса' : 'Сброс операции', 'order', displayId, before, after, actorId);
+  await recordAudit(env, sessionId, 'manager', operationType === 'cancel' ? 'Запрос отмены' : operationType === 'reschedule' ? 'Запрос переноса' : operationType === 'no_show' ? 'Фиксация неявки' : 'Сброс операции', 'order', displayId, before, after, actorId);
   return after;
 }
 
