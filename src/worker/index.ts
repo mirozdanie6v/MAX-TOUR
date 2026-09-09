@@ -10,7 +10,7 @@ import { getCustomerRecord, getOrderWorkflow, listAudit, patchCustomerRecord, pa
 import { flushTelegramOutbox, getIntegrationStatus, handleTelegramWebhook } from './services/notifications';
 import { configureTelegramWebhook, getTelegramWebhookInfo } from './services/telegram-config';
 import { getTildaIntegrationStatus, receiveTildaWebhook } from './services/tilda';
-import { authenticateTelegramStaff, getAuthReadiness, listStaffAccounts, requireStaffRole, upsertStaffAccount } from './services/telegram-auth';
+import { authenticateTelegramStaff, getAuthReadiness, listAssignableStaff, listStaffAccounts, requireStaffRole, upsertStaffAccount } from './services/telegram-auth';
 import { managerStatusSchema } from '../shared/schemas';
 
 function json(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
@@ -20,6 +20,9 @@ function json(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
       'content-type': 'application/json; charset=utf-8',
       'cache-control': 'no-store',
       'x-max-tour-demo': '1',
+      'x-content-type-options': 'nosniff',
+      'referrer-policy': 'strict-origin-when-cross-origin',
+      'permissions-policy': 'camera=(), microphone=(), geolocation=()',
       ...extraHeaders,
     },
   });
@@ -28,7 +31,11 @@ function json(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
 async function body(request: Request) {
   const type = request.headers.get('content-type') ?? '';
   if (!type.includes('application/json')) throw new HttpError(415, 'Ожидается JSON', 'UNSUPPORTED_MEDIA_TYPE');
-  try { return await request.json(); } catch { throw new HttpError(400, 'Некорректный JSON', 'INVALID_JSON'); }
+  const declaredLength = Number(request.headers.get('content-length') ?? 0);
+  if (Number.isFinite(declaredLength) && declaredLength > 131072) throw new HttpError(413, 'JSON-запрос слишком большой', 'PAYLOAD_TOO_LARGE');
+  const raw = await request.text();
+  if (new TextEncoder().encode(raw).byteLength > 131072) throw new HttpError(413, 'JSON-запрос слишком большой', 'PAYLOAD_TOO_LARGE');
+  try { return JSON.parse(raw); } catch { throw new HttpError(400, 'Некорректный JSON', 'INVALID_JSON'); }
 }
 
 function withCookie(response: Response, setCookie?: string) {
@@ -60,7 +67,14 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    if (!path.startsWith('/api/')) return env.ASSETS.fetch(request);
+    if (!path.startsWith('/api/')) {
+      const asset = await env.ASSETS.fetch(request);
+      const headers = new Headers(asset.headers);
+      headers.set('X-Content-Type-Options','nosniff');
+      headers.set('Referrer-Policy','strict-origin-when-cross-origin');
+      headers.set('Permissions-Policy','camera=(), microphone=(), geolocation=()');
+      return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
+    }
 
     try {
       if (path === '/api/health' && request.method === 'GET') {
@@ -161,6 +175,7 @@ export default {
         return finish(json({ order: safe }));
       }
 
+      if (path === '/api/manager/staff' && request.method === 'GET') return finish(json(await listAssignableStaff(env)));
       if (path === '/api/manager/orders' && request.method === 'GET') return finish(json({ items: await listOrders(env.DB, session.id) }));
       m = match(path, /^\/api\/manager\/orders\/([^/]+)$/);
       if (m && request.method === 'GET') {
