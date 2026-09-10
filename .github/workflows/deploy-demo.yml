@@ -46,6 +46,9 @@ jobs:
           set -euo pipefail
           grep -Fq 'MaxTour Mini App Prototype v28' dist/index.html
           grep -Fq 'runtime-api.js' dist/index.html
+          grep -Fq 'role-switch.js' dist/index.html
+          grep -Fq 'Кабинет администратора' dist/admin/index.html
+          grep -Fq 'Переключение роли' dist/admin/index.html
           test "$(node -e "console.log(JSON.parse(require('fs').readFileSync('dist/catalog.v28.json','utf8')).length)")" = "15"
 
       - name: Validate standalone Cloudflare bundle

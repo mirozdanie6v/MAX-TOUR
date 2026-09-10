@@ -26,8 +26,9 @@ if (!prototypeHtml.includes('const TOURS =')) throw new Error('Prototype does no
 
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
+await mkdir(resolve(dist, 'admin'), { recursive: true });
 const marker = '</body>';
-const injection = '<script src="/booking-pricing.js"></script>\n<script src="/traveler-profile.js"></script>\n<link rel="stylesheet" href="/traveler-picker-list.css">\n<script src="/trip-actions.js"></script>\n<link rel="stylesheet" href="/hero-redesign.css">\n<script src="/hero-redesign.js"></script>\n<script src="/runtime-api.js" defer></script>\n';
+const injection = '<script src="/booking-pricing.js"></script>\n<script src="/traveler-profile.js"></script>\n<link rel="stylesheet" href="/traveler-picker-list.css">\n<script src="/trip-actions.js"></script>\n<link rel="stylesheet" href="/hero-redesign.css">\n<script src="/hero-redesign.js"></script>\n<link rel="stylesheet" href="/role-switch.css">\n<script src="/role-switch.js"></script>\n<script src="/runtime-api.js" defer></script>\n';
 if (!prototypeHtml.includes(marker)) throw new Error('Prototype has no </body> marker');
 const builtHtml = prototypeHtml.replace(marker, `${injection}${marker}`);
 await writeFile(resolve(dist, 'index.html'), builtHtml, 'utf8');
@@ -38,5 +39,8 @@ await copyFile(resolve(root, 'src/traveler-picker-list.css'), resolve(dist, 'tra
 await copyFile(resolve(root, 'src/trip-actions.js'), resolve(dist, 'trip-actions.js'));
 await copyFile(resolve(root, 'src/hero-redesign.css'), resolve(dist, 'hero-redesign.css'));
 await copyFile(resolve(root, 'src/hero-redesign.js'), resolve(dist, 'hero-redesign.js'));
+await copyFile(resolve(root, 'src/role-switch.css'), resolve(dist, 'role-switch.css'));
+await copyFile(resolve(root, 'src/role-switch.js'), resolve(dist, 'role-switch.js'));
+await copyFile(resolve(root, 'src/admin-v3.html'), resolve(dist, 'admin/index.html'));
 await copyFile(resolve(root, 'src/runtime-api.js'), resolve(dist, 'runtime-api.js'));
-console.log(`Built standalone v28: ${catalog.length} tours; exact source checksums verified.`);
+console.log(`Built standalone v28: ${catalog.length} tours + admin v3; exact source checksums verified.`);
