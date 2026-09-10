@@ -7,8 +7,10 @@ import { _test } from '../src/admin-api.js';
 const root = resolve(import.meta.dirname, '..');
 const html = await readFile(resolve(root, 'src/admin-v3.html'), 'utf8');
 const app = await readFile(resolve(root, 'src/admin-app.js'), 'utf8');
+const api = await readFile(resolve(root, 'src/admin-api.js'), 'utf8');
 const worker = await readFile(resolve(root, 'src/worker.js'), 'utf8');
 const migration = await readFile(resolve(root, 'migrations/0002_admin_crm.sql'), 'utf8');
+const wrangler = await readFile(resolve(root, 'wrangler.jsonc'), 'utf8');
 
 test('admin prototype contains no hardcoded customer, order or payment records', () => {
   assert.match(html, /const departuresData = \[\];/);
@@ -52,4 +54,11 @@ test('admin migration persists users, sessions, CRM actions and audit trail', ()
   for (const table of ['admin_users', 'admin_sessions', 'admin_customer_profiles', 'admin_messages', 'admin_notification_rules', 'admin_broadcasts', 'admin_audit_log']) {
     assert.match(migration, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`));
   }
+});
+
+test('demo admin opens directly without setup or login UI', () => {
+  assert.match(wrangler, /PUBLIC_ADMIN_DEMO/);
+  assert.match(api, /demo-public-admin/);
+  assert.match(api, /setupRequired: false, authenticated: true/);
+  assert.match(app, /loadWorkspace\(\)/);
 });

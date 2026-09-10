@@ -5,7 +5,8 @@
   "compatibility_date": "2026-09-09",
   "vars": {
     "APP_ENV": "demo-v28",
-    "APP_URL": "https://max-tour-demo.viiversion.com"
+    "APP_URL": "https://max-tour-demo.viiversion.com",
+    "PUBLIC_ADMIN_DEMO": "true"
   },
   "assets": {
     "directory": "./dist",

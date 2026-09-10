@@ -121,7 +121,10 @@
 
   function setupHeader() {
     const pill = document.querySelector('.user-pill');
-    if (pill) pill.innerHTML = `<span class="avatar">${h((state.user?.displayName || 'А')[0])}</span><span>${h(state.user?.displayName || 'Админ')} · ${h(roleName(state.user?.role))}</span><button class="logout-btn" type="button" data-admin-action="logout" aria-label="Выйти">↗</button>`;
+    if (pill) {
+      const demo = state.user?.id === 'demo-public-admin';
+      pill.innerHTML = `<span class="avatar">${h((state.user?.displayName || 'А')[0])}</span><span>${h(state.user?.displayName || 'Админ')} · ${h(roleName(state.user?.role))}</span>${demo ? '' : '<button class="logout-btn" type="button" data-admin-action="logout" aria-label="Выйти">↗</button>'}`;
+    }
     const alertButton = document.querySelector('.icon-btn');
     if (alertButton) {
       alertButton.removeAttribute('onclick');

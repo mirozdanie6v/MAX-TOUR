@@ -65,6 +65,28 @@ const permissions = {
   owner: new Set(['read', 'booking.write', 'customer.write', 'message.write', 'tour.write', 'notification.write', 'broadcast.write', 'departure.write', 'user.write']),
 };
 
+const PUBLIC_DEMO_USER = {
+  id: 'demo-public-admin',
+  email: 'demo@maxtour.local',
+  displayName: 'Демо-администратор',
+  role: 'admin',
+};
+
+function publicDemoEnabled(env) {
+  return String(env.PUBLIC_ADMIN_DEMO || '').toLowerCase() === 'true';
+}
+
+async function ensurePublicDemoUser(env) {
+  // This account is a technical actor for the public demo only. It lets
+  // mutations keep their foreign-key/audit trail without exposing login UI.
+  await env.DB.prepare(`INSERT OR IGNORE INTO admin_users
+    (id,email,display_name,password_salt,password_hash,password_iterations,role)
+    VALUES(?,?,?,?,?,?,?)`)
+    .bind(PUBLIC_DEMO_USER.id, PUBLIC_DEMO_USER.email, PUBLIC_DEMO_USER.displayName,
+      '00000000000000000000000000000000', '0000000000000000000000000000000000000000000000000000000000000000', 1, 'admin')
+    .run();
+}
+
 function can(role, permission) {
   return permissions[role]?.has(permission) || false;
 }
@@ -74,6 +96,10 @@ function sessionCookie(token, maxAge = 28800) {
 }
 
 async function getAuth(request, env) {
+  if (publicDemoEnabled(env)) {
+    await ensurePublicDemoUser(env);
+    return { tokenHash: 'public-demo', csrf: 'public-demo', user: PUBLIC_DEMO_USER };
+  }
   const token = parseCookie(request.headers.get('cookie') || '').mt_admin_session;
   if (!token || !/^[a-f0-9]{64}$/i.test(token)) return null;
   const tokenHash = await sha256Hex(token);
@@ -258,6 +284,10 @@ async function buildBootstrap(env) {
 }
 
 async function authStatus(request, env) {
+  if (publicDemoEnabled(env)) {
+    await ensurePublicDemoUser(env);
+    return json({ ok: true, setupRequired: false, authenticated: true, user: PUBLIC_DEMO_USER, csrfToken: 'public-demo' });
+  }
   const count = await env.DB.prepare('SELECT COUNT(*) count FROM admin_users').first();
   const auth = await getAuth(request, env);
   return json({ ok: true, setupRequired: Number(count?.count || 0) === 0, authenticated: !!auth, user: auth?.user || null, csrfToken: auth?.csrf || null });
