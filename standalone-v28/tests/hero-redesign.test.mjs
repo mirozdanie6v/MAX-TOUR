@@ -28,7 +28,9 @@ test('hero uses Lucide inline SVG system and glass layout', () => {
   assert.match(js, /sparkles:/);
   assert.match(css, /backdrop-filter:blur/);
   assert.match(css, /hero-lux__destinations/);
-  assert.match(css, /grid-template-columns:\.92fr \.92fr \.92fr 1\.34fr/);
+  assert.match(css, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(css, /\.hero-lux__content\{[\s\S]*?margin-top:28px/);
+  assert.doesNotMatch(css, /\.hero-lux__content\{[\s\S]*?margin-top:auto/);
   assert.match(css, /hero-lux__cta--primary/);
 });
 
