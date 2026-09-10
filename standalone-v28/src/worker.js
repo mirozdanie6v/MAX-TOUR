@@ -28,7 +28,39 @@ function withSession(response, session) {
 async function bodyJson(request) {
   try { return await request.json(); } catch { return null; }
 }
+
 const travelerKey = t => `${String(t.fullName || '').trim().toLowerCase()}|${String(t.birthDate || '').trim()}`;
+
+function normalizeTravelers(travelers) {
+  const clean = [];
+  const seen = new Set();
+  for (const item of Array.isArray(travelers) ? travelers : []) {
+    const fullName = String(item?.fullName || '').trim();
+    const birthDate = String(item?.birthDate || '').trim();
+    if (!fullName || !birthDate) continue;
+    const key = `${fullName.toLowerCase()}|${birthDate}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    clean.push({
+      role: String(item?.role || 'adult'),
+      label: String(item?.label || 'Попутчик'),
+      fullName,
+      birthDate,
+      primary: !!item?.primary,
+    });
+  }
+  let primaryIndex = clean.findIndex(t => t.primary && t.role === 'adult');
+  if (primaryIndex < 0) primaryIndex = clean.findIndex(t => t.role === 'adult');
+  if (primaryIndex < 0 && clean.length) primaryIndex = 0;
+  clean.forEach((t, index) => {
+    t.primary = index === primaryIndex;
+    if (t.primary) t.label = 'Основной путешественник';
+    else if (t.role === 'adult') t.label = 'Попутчик · взрослый';
+    else if (t.role === 'child') t.label = 'Попутчик · ребёнок';
+    else t.label = 'Попутчик · малыш';
+  });
+  return clean;
+}
 
 async function replaceFavorites(env, sid, ids) {
   const normalized = [...new Set((Array.isArray(ids) ? ids : []).map(String).filter(Boolean))];
@@ -39,22 +71,41 @@ async function replaceFavorites(env, sid, ids) {
 }
 
 async function upsertTravelers(env, sid, travelers) {
-  for (const t of Array.isArray(travelers) ? travelers : []) {
-    if (!String(t.fullName || '').trim() || !String(t.birthDate || '').trim()) continue;
+  const normalized = normalizeTravelers(travelers);
+  if (normalized.some(t => t.primary)) {
+    await env.DB.prepare('UPDATE travelers SET primary_flag=0, updated_at=CURRENT_TIMESTAMP WHERE session_id=?').bind(sid).run();
+  }
+  for (const t of normalized) {
     const key = travelerKey(t);
     await env.DB.prepare(`INSERT INTO travelers(session_id,traveler_key,role,label,full_name,birth_date,primary_flag)
       VALUES(?,?,?,?,?,?,?) ON CONFLICT(session_id,traveler_key) DO UPDATE SET
       role=excluded.role,label=excluded.label,full_name=excluded.full_name,birth_date=excluded.birth_date,
-      primary_flag=CASE WHEN travelers.primary_flag=1 THEN 1 ELSE excluded.primary_flag END,updated_at=CURRENT_TIMESTAMP`)
-      .bind(sid, key, String(t.role || 'adult'), String(t.label || 'Попутчик'), String(t.fullName).trim(), String(t.birthDate), t.primary ? 1 : 0).run();
+      primary_flag=excluded.primary_flag,updated_at=CURRENT_TIMESTAMP`)
+      .bind(sid, key, t.role, t.label, t.fullName, t.birthDate, t.primary ? 1 : 0).run();
   }
+  return normalized;
+}
+
+async function replaceTravelers(env, sid, travelers) {
+  const normalized = normalizeTravelers(travelers);
+  const statements = [env.DB.prepare('DELETE FROM travelers WHERE session_id=?').bind(sid)];
+  for (const t of normalized) {
+    statements.push(env.DB.prepare(`INSERT INTO travelers(session_id,traveler_key,role,label,full_name,birth_date,primary_flag)
+      VALUES(?,?,?,?,?,?,?)`).bind(sid, travelerKey(t), t.role, t.label, t.fullName, t.birthDate, t.primary ? 1 : 0));
+  }
+  await env.DB.batch(statements);
+  return normalized;
 }
 
 async function saveBooking(env, sid, trip) {
   if (!trip?.id || !trip?.tourId || !trip?.title || !trip?.date) throw new Error('Invalid booking payload');
   await upsertTravelers(env, sid, trip.travelers || []);
   await env.DB.prepare(`INSERT INTO bookings(id,session_id,tour_id,title,trip_date,trip_time,status,paid,rest,total,booking_type,receipt,paid_at,people,image,rules,payload_json)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET payload_json=excluded.payload_json,status=excluded.status,updated_at=CURRENT_TIMESTAMP`)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET
+      tour_id=excluded.tour_id,title=excluded.title,trip_date=excluded.trip_date,trip_time=excluded.trip_time,
+      status=excluded.status,paid=excluded.paid,rest=excluded.rest,total=excluded.total,booking_type=excluded.booking_type,
+      receipt=excluded.receipt,paid_at=excluded.paid_at,people=excluded.people,image=excluded.image,rules=excluded.rules,
+      payload_json=excluded.payload_json,updated_at=CURRENT_TIMESTAMP`)
     .bind(String(trip.id), sid, String(trip.tourId), String(trip.title), String(trip.date), String(trip.time || ''), String(trip.status || ''), String(trip.paid || '$0'), String(trip.rest || '$0'), String(trip.total || '$0'), String(trip.type || ''), String(trip.receipt || ''), String(trip.paidAt || ''), String(trip.people || ''), String(trip.image || ''), String(trip.rules || ''), JSON.stringify(trip)).run();
 }
 
@@ -93,6 +144,9 @@ async function api(request, env, url) {
   } else if (url.pathname === '/api/favorites' && request.method === 'PUT') {
     const payload = await bodyJson(request) || {};
     response = json({ ok:true, favorites:await replaceFavorites(env, session.id, payload.favorites) });
+  } else if (url.pathname === '/api/travelers' && request.method === 'PUT') {
+    const payload = await bodyJson(request) || {};
+    response = json({ ok:true, travelers:await replaceTravelers(env, session.id, payload.travelers || []) });
   } else if (url.pathname === '/api/bookings' && request.method === 'POST') {
     const payload = await bodyJson(request);
     await saveBooking(env, session.id, payload);
@@ -104,8 +158,9 @@ async function api(request, env, url) {
     if (!row) response = json({ ok:false, error:'booking_not_found' }, { status:404 });
     else {
       const trip = { ...JSON.parse(row.payload_json), ...payload };
-      await env.DB.prepare('UPDATE bookings SET status=?, payload_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND session_id=?')
-        .bind(String(trip.status || ''), JSON.stringify(trip), id, session.id).run();
+      await env.DB.prepare(`UPDATE bookings SET trip_date=?,trip_time=?,status=?,paid=?,rest=?,total=?,payload_json=?,updated_at=CURRENT_TIMESTAMP
+        WHERE id=? AND session_id=?`)
+        .bind(String(trip.date || ''), String(trip.time || ''), String(trip.status || ''), String(trip.paid || '$0'), String(trip.rest || '$0'), String(trip.total || '$0'), JSON.stringify(trip), id, session.id).run();
       response = json({ ok:true, booking:trip });
     }
   } else if (url.pathname === '/api/admin/tours' && request.method === 'POST') {
