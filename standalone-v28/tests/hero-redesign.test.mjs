@@ -21,12 +21,14 @@ test('hero redesign has requested destinations and premium copy', () => {
   assert.match(js, /VIETNAM/);
 });
 
-test('hero uses inline svg icon system and glass layout', () => {
-  assert.match(js, /<svg viewBox=/);
+test('hero uses Lucide inline SVG system and glass layout', () => {
+  assert.match(js, /class="lucide"/);
+  assert.match(js, /stroke-width="2"/);
   assert.match(js, /plane:/);
   assert.match(js, /sparkles:/);
   assert.match(css, /backdrop-filter:blur/);
   assert.match(css, /hero-lux__destinations/);
+  assert.match(css, /grid-template-columns:\.92fr \.92fr \.92fr 1\.34fr/);
   assert.match(css, /hero-lux__cta--primary/);
 });
 
