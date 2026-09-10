@@ -2,6 +2,10 @@
   const adminButton = document.querySelector('.admin-top');
   if (!adminButton) return;
 
+  // The approved v3 cabinet replaces the legacy inline admin screen.
+  // Keep every historical entry point inside the Mini App on the protected route.
+  window.showAdmin = () => window.location.assign('/admin/');
+
   const roleSwitch = document.createElement('div');
   roleSwitch.className = 'max-role-switch';
   roleSwitch.setAttribute('aria-label', 'Переключение роли');

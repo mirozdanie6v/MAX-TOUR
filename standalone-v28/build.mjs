@@ -28,13 +28,25 @@ if (!Array.isArray(catalog) || catalog.length < 1) throw new Error('v28 catalog 
 if (!prototypeHtml.includes('MaxTour Mini App Prototype v28')) throw new Error('Unexpected prototype source');
 if (!prototypeHtml.includes('const TOURS =')) throw new Error('Prototype does not contain expected catalog binding');
 
+function replaceLegacyAdmin(html) {
+  const oldEntry = "function showAdmin() { showScreen('admin'); }";
+  const adminStart = html.indexOf('function renderAdmin() {');
+  const adminEndMarker = '\nrenderHome();';
+  const adminEnd = html.indexOf(adminEndMarker, adminStart);
+  if (!html.includes(oldEntry)) throw new Error('Prototype admin entry point was not found');
+  if (adminStart < 0 || adminEnd < 0) throw new Error('Prototype legacy admin renderer was not found');
+
+  const withoutLegacyAdmin = `${html.slice(0, adminStart)}function renderAdmin() { window.location.assign('/admin/'); }${html.slice(adminEnd)}`;
+  return withoutLegacyAdmin.replace(oldEntry, "function showAdmin() { window.location.assign('/admin/'); }");
+}
+
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 await mkdir(resolve(dist, 'admin'), { recursive: true });
 const marker = '</body>';
 const injection = '<script src="/booking-pricing.js"></script>\n<script src="/traveler-profile.js"></script>\n<link rel="stylesheet" href="/traveler-picker-list.css">\n<script src="/trip-actions.js"></script>\n<link rel="stylesheet" href="/hero-redesign.css">\n<script src="/hero-redesign.js"></script>\n<link rel="stylesheet" href="/role-switch.css">\n<script src="/role-switch.js"></script>\n<script src="/runtime-api.js" defer></script>\n';
 if (!prototypeHtml.includes(marker)) throw new Error('Prototype has no </body> marker');
-const builtHtml = prototypeHtml.replace(marker, `${injection}${marker}`);
+const builtHtml = replaceLegacyAdmin(prototypeHtml).replace(marker, `${injection}${marker}`);
 await writeFile(resolve(dist, 'index.html'), builtHtml, 'utf8');
 await writeFile(resolve(dist, 'catalog.v28.json'), catalogRaw);
 await copyFile(resolve(root, 'src/booking-pricing.js'), resolve(dist, 'booking-pricing.js'));

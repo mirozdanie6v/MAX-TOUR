@@ -26,6 +26,7 @@ test('role switch connects tourist and administrator cabinets', () => {
   assert.match(admin, /href="\/admin\/" class="active"/);
   assert.match(roleScript, /querySelector\('\.admin-top'\)/);
   assert.match(roleScript, /href="\/admin\/"/);
+  assert.match(roleScript, /window\.showAdmin = \(\) => window\.location\.assign\('\/admin\/'\)/);
   assert.match(roleStyles, /\.max-role-switch/);
 });
 
@@ -42,4 +43,10 @@ test('standalone build publishes the admin route and role switch assets', () => 
   assert.match(build, /role-switch\.js/);
   assert.match(build, /admin-app\.css/);
   assert.match(build, /admin-app\.js/);
+});
+
+test('published Mini App replaces the legacy inline admin with protected v3', async () => {
+  assert.match(build, /replaceLegacyAdmin/);
+  assert.match(build, /window\.location\.assign\('\/admin\/'\)/);
+  assert.match(build, /Prototype legacy admin renderer was not found/);
 });
