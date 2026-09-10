@@ -1,3 +1,5 @@
+import { handleAdminApi } from './admin-api.js';
+
 const json = (data, init = {}) => new Response(JSON.stringify(data), {
   ...init,
   headers: { 'content-type': 'application/json; charset=utf-8', ...(init.headers || {}) },
@@ -22,6 +24,16 @@ function withSession(response, session) {
   if (!session?.fresh) return response;
   const headers = new Headers(response.headers);
   headers.append('set-cookie', `mt_v28_sid=${encodeURIComponent(session.id)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`);
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
+function secureAdminAsset(response) {
+  const headers = new Headers(response.headers);
+  headers.set('cache-control', 'no-store');
+  headers.set('x-content-type-options', 'nosniff');
+  headers.set('x-frame-options', 'DENY');
+  headers.set('referrer-policy', 'same-origin');
+  headers.set('content-security-policy', "default-src 'self' data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
@@ -127,6 +139,8 @@ async function bootstrap(env, sid) {
 
 async function api(request, env, url) {
   if (url.pathname === '/api/health') return json({ ok:true, app:'max-tour-v28-standalone', database:'D1', env:env.APP_ENV || 'demo' });
+  const adminResponse = await handleAdminApi(request, env, url);
+  if (adminResponse) return adminResponse;
   const session = await ensureSession(request, env);
   let response;
 
@@ -163,24 +177,6 @@ async function api(request, env, url) {
         .bind(String(trip.date || ''), String(trip.time || ''), String(trip.status || ''), String(trip.paid || '$0'), String(trip.rest || '$0'), String(trip.total || '$0'), JSON.stringify(trip), id, session.id).run();
       response = json({ ok:true, booking:trip });
     }
-  } else if (url.pathname === '/api/admin/tours' && request.method === 'POST') {
-    const payload = await bodyJson(request) || {};
-    const id = String(payload.id || `custom-${Date.now()}`).replace(/[^a-z0-9-_]/gi, '-').toLowerCase();
-    const tour = { ...payload, id };
-    if (!String(tour.title || '').trim()) return withSession(json({ ok:false, error:'title_required' }, { status:400 }), session);
-    await env.DB.prepare(`INSERT INTO admin_tours(id,payload_json) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET payload_json=excluded.payload_json,updated_at=CURRENT_TIMESTAMP`).bind(id, JSON.stringify(tour)).run();
-    response = json({ ok:true, tour });
-  } else if (url.pathname === '/api/admin/events' && request.method === 'POST') {
-    const payload = await bodyJson(request) || {};
-    await env.DB.prepare('INSERT INTO admin_events(session_id,event_type,payload_json) VALUES(?,?,?)').bind(session.id, String(payload.type || 'event'), JSON.stringify(payload)).run();
-    response = json({ ok:true });
-  } else if (url.pathname === '/api/admin/stats' && request.method === 'GET') {
-    const counts = await env.DB.prepare(`SELECT
-      (SELECT COUNT(*) FROM bookings) bookings,
-      (SELECT COUNT(*) FROM travelers) travelers,
-      (SELECT COUNT(*) FROM admin_events) events,
-      (SELECT COUNT(*) FROM admin_tours) custom_tours`).first();
-    response = json({ ok:true, ...counts });
   } else {
     response = json({ ok:false, error:'not_found' }, { status:404 });
   }
@@ -192,10 +188,12 @@ export default {
     const url = new URL(request.url);
     try {
       if (url.pathname.startsWith('/api/')) return await api(request, env, url);
-      return await env.ASSETS.fetch(request);
+      if (url.pathname === '/admin') return Response.redirect(new URL('/admin/', url), 308);
+      const asset = await env.ASSETS.fetch(request);
+      return url.pathname.startsWith('/admin/') ? secureAdminAsset(asset) : asset;
     } catch (error) {
       console.error(error);
-      return json({ ok:false, error:'internal_error', message:String(error?.message || error) }, { status:500 });
+      return json({ ok:false, error:'internal_error' }, { status:500 });
     }
   },
 };

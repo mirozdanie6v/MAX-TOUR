@@ -17,7 +17,11 @@ async function restore(entry) {
   return raw;
 }
 
-const [prototypeRaw, catalogRaw] = await Promise.all([restore(manifest.html), restore(manifest.catalog)]);
+const [prototypeRaw, catalogRaw, adminPrototype] = await Promise.all([
+  restore(manifest.html),
+  restore(manifest.catalog),
+  readFile(resolve(root, 'src/admin-v3.html'), 'utf8'),
+]);
 const prototypeHtml = prototypeRaw.toString('utf8');
 const catalog = JSON.parse(catalogRaw.toString('utf8'));
 if (!Array.isArray(catalog) || catalog.length < 1) throw new Error('v28 catalog must be a non-empty array');
@@ -41,6 +45,11 @@ await copyFile(resolve(root, 'src/hero-redesign.css'), resolve(dist, 'hero-redes
 await copyFile(resolve(root, 'src/hero-redesign.js'), resolve(dist, 'hero-redesign.js'));
 await copyFile(resolve(root, 'src/role-switch.css'), resolve(dist, 'role-switch.css'));
 await copyFile(resolve(root, 'src/role-switch.js'), resolve(dist, 'role-switch.js'));
-await copyFile(resolve(root, 'src/admin-v3.html'), resolve(dist, 'admin/index.html'));
+const adminBuilt = adminPrototype
+  .replace('</head>', '<link rel="stylesheet" href="/admin-app.css">\n</head>')
+  .replace('</body>', '<script src="/admin-app.js" defer></script>\n</body>');
+await writeFile(resolve(dist, 'admin/index.html'), adminBuilt, 'utf8');
+await copyFile(resolve(root, 'src/admin-app.css'), resolve(dist, 'admin-app.css'));
+await copyFile(resolve(root, 'src/admin-app.js'), resolve(dist, 'admin-app.js'));
 await copyFile(resolve(root, 'src/runtime-api.js'), resolve(dist, 'runtime-api.js'));
 console.log(`Built standalone v28: ${catalog.length} tours + admin v3; exact source checksums verified.`);

@@ -83,7 +83,7 @@ export default {
         return withSession(json({ ok:true, travelers }), session);
       } catch (error) {
         console.error(error);
-        return json({ ok:false, error:'internal_error', message:String(error?.message || error) }, { status:500 });
+        return json({ ok:false, error:'internal_error' }, { status:500 });
       }
     }
     return baseWorker.fetch(request, env);
