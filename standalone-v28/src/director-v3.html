@@ -290,13 +290,21 @@ td{font-size:13px;font-weight:820;line-height:1.35}
 .legend-dot{width:10px;height:10px;border-radius:50%}
 .legend-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .legend-value{font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+.analytics-clickable{cursor:pointer;transition:background .16s ease,border-color .16s ease,box-shadow .16s ease,transform .16s ease}
+.analytics-clickable:hover{background:#fff7e5;border-color:#e4bf82;box-shadow:0 6px 16px rgba(87,50,18,.08);transform:translateY(-1px)}
+.analytics-clickable:focus-visible{outline:3px solid rgba(37,91,216,.3);outline-offset:2px}
+.analytics-clickable.active{background:#fff1d1;border-color:#d8a33c;box-shadow:inset 0 0 0 1px rgba(216,163,60,.18)}
+.legend-row.analytics-clickable{padding:7px 8px;border:1px solid transparent;border-radius:11px}
 .analytics-bars{display:grid;gap:12px}
-.analytics-bar-row{display:grid;grid-template-columns:minmax(116px,.7fr) minmax(120px,1fr) 78px;gap:10px;align-items:center;font-size:12px;font-weight:850}
+.analytics-bar-row{display:grid;grid-template-columns:minmax(116px,.7fr) minmax(120px,1fr) 78px;gap:10px;align-items:center;font-size:12px;font-weight:850;padding:7px 8px;border:1px solid transparent;border-radius:12px}
 .analytics-bar-row .bar-bg{height:13px}
 .analytics-bar-row .bar-bg span{background:linear-gradient(90deg,#255bd8,#7f9cff)}
 .analytics-bar-row:nth-child(3n+2) .bar-bg span{background:linear-gradient(90deg,#d81524,#ff8b3d)}
 .analytics-bar-row:nth-child(3n) .bar-bg span{background:linear-gradient(90deg,#16744c,#78c89c)}
 .analytics-value{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.analytics-filter-note{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin:0 0 12px;color:var(--muted);font-size:12px;font-weight:800}
+.analytics-filter-chip{min-height:28px;padding:5px 9px;border:1px solid #e2bd67;border-radius:999px;background:#fff3d7;color:#6f470e;font-size:11px;font-weight:950}
+.analytics-filter-hint{color:var(--muted2);font-size:12px;font-weight:750}
 .trend-wrap{padding-top:2px}
 .trend-svg{width:100%;height:220px;display:block;overflow:visible}
 .trend-grid{stroke:#ead6bc;stroke-width:1}
@@ -670,6 +678,48 @@ var analyticsTrend = [
   {label:"Авг", value:3210000},
   {label:"Сен", value:3940000}
 ];
+var analyticsColors = ['#d81524','#255bd8','#16744c','#d8a33c','#7c3aed','#b96814'];
+var analyticsDimensions = {
+  source: sourceChannels.map(function(source,index){return {id:source.id,name:source.name,color:analyticsColors[index % analyticsColors.length]};}),
+  gender: [
+    {id:"women",name:"Женщины",color:"#d81524"},
+    {id:"men",name:"Мужчины",color:"#255bd8"},
+    {id:"unknown",name:"Не указан",color:"#d8a33c"}
+  ],
+  age: [
+    {id:"18-24",name:"18–24",color:"#7c3aed"},
+    {id:"25-34",name:"25–34",color:"#d81524"},
+    {id:"35-44",name:"35–44",color:"#255bd8"},
+    {id:"45-54",name:"45–54",color:"#16744c"},
+    {id:"55-plus",name:"55+",color:"#d8a33c"}
+  ],
+  origin: [
+    {id:"moscow",name:"Москва"},
+    {id:"spb",name:"Санкт-Петербург"},
+    {id:"novosibirsk",name:"Новосибирск"},
+    {id:"ekaterinburg",name:"Екатеринбург"},
+    {id:"khabarovsk",name:"Хабаровск"},
+    {id:"other-origin",name:"Другие города"}
+  ],
+  destination: [
+    {id:"nhatrang",name:"Нячанг"},
+    {id:"dalat",name:"Далат"},
+    {id:"phuquoc",name:"Фукуок"},
+    {id:"danang",name:"Дананг"},
+    {id:"hanoi",name:"Ханой"},
+    {id:"other-destination",name:"Другие маршруты"}
+  ]
+};
+/* Small deterministic profiles keep the demo slices meaningful until CRM/D1
+   supplies real customer dimensions. Each profile is normalized per source. */
+var analyticsSourceProfiles = {
+  telegram:{gender:{women:.58,men:.38,unknown:.04},age:{"18-24":.16,"25-34":.38,"35-44":.28,"45-54":.13,"55-plus":.05},originShift:0,destinationShift:1},
+  site:{gender:{women:.50,men:.47,unknown:.03},age:{"18-24":.08,"25-34":.38,"35-44":.31,"45-54":.16,"55-plus":.07},originShift:1,destinationShift:2},
+  instagram:{gender:{women:.63,men:.34,unknown:.03},age:{"18-24":.22,"25-34":.42,"35-44":.24,"45-54":.09,"55-plus":.03},originShift:2,destinationShift:0},
+  hotelqr:{gender:{women:.55,men:.42,unknown:.03},age:{"18-24":.10,"25-34":.31,"35-44":.31,"45-54":.19,"55-plus":.09},originShift:3,destinationShift:3},
+  referral:{gender:{women:.52,men:.45,unknown:.03},age:{"18-24":.07,"25-34":.32,"35-44":.33,"45-54":.20,"55-plus":.08},originShift:4,destinationShift:4},
+  manager:{gender:{women:.51,men:.45,unknown:.04},age:{"18-24":.09,"25-34":.36,"35-44":.29,"45-54":.18,"55-plus":.08},originShift:5,destinationShift:5}
+};
 
 var team = [
   {id:"guide-minh", name:"Минь", role:"гид", score:4.8, confirms:"98%", issue:"нет", action:"оставить на премиум"},
@@ -684,6 +734,7 @@ var state = {
   view:"dashboard",
   horizon:"month",
   filters:{period:"september",city:"all",status:"all",margin:"all"},
+  analyticsFilters:{source:"all",gender:"all",age:"all",origin:"all",destination:"all"},
   drafts:loadDrafts()
 };
 
@@ -1051,61 +1102,152 @@ function tableSegments(){
   '</tbody></table></div></div>';
 }
 
-function donutHtml(title,note,items,centerLabel){
-  var total = items.reduce(function(sum,item){return sum + Number(item.value || 0);},0) || 1;
+function analyticsFilterKeys(){
+  return ["source","gender","age","origin","destination"];
+}
+function analyticsDimensionItem(dimension,id){
+  return (analyticsDimensions[dimension] || []).find(function(item){return item.id === id;}) || null;
+}
+function analyticsProfile(source){
+  return analyticsSourceProfiles[source.id] || {gender:{women:.54,men:.42,unknown:.04},age:{"18-24":.12,"25-34":.34,"35-44":.29,"45-54":.17,"55-plus":.08},originShift:0,destinationShift:0};
+}
+function analyticsCategoryRatio(source,dimension,id){
+  var profile = analyticsProfile(source);
+  if(dimension === "gender" || dimension === "age"){
+    return Math.max(0, Number(profile[dimension][id] || 0));
+  }
+  var sourceRows = dimension === "origin" ? analyticsOrigins : analyticsDestinations;
+  var definitions = analyticsDimensions[dimension] || [];
+  var sourceShift = dimension === "origin" ? Number(profile.originShift || 0) : Number(profile.destinationShift || 0);
+  var total = sourceRows.reduce(function(sum,row){return sum + Number(row.value || 0);},0) || 1;
+  var raw = definitions.map(function(item,index){
+    var base = Number(sourceRows[index] && sourceRows[index].value || 0) / total;
+    var multiplier = 1 + ((((sourceShift + index * 2) % 5) - 2) * .08);
+    return base * multiplier;
+  });
+  var normalized = raw.reduce(function(sum,value){return sum + value;},0) || 1;
+  var index = definitions.findIndex(function(item){return item.id === id;});
+  return index < 0 ? 0 : raw[index] / normalized;
+}
+function analyticsRatioForSelected(source,exceptDimension){
+  return analyticsFilterKeys().reduce(function(ratio,dimension){
+    if(dimension === exceptDimension){return ratio;}
+    var selected = state.analyticsFilters[dimension];
+    return selected === "all" ? ratio : ratio * analyticsCategoryRatio(source,dimension,selected);
+  },1);
+}
+function analyticsRows(dimension){
+  var selected = state.analyticsFilters[dimension];
+  return (analyticsDimensions[dimension] || []).map(function(item){
+    var value = selected !== "all" && selected !== item.id ? 0 : sourceChannels.reduce(function(sum,source){
+      if(state.analyticsFilters.source !== "all" && source.id !== state.analyticsFilters.source){return sum;}
+      return sum + Number(source.clients || 0) * analyticsRatioForSelected(source,dimension);
+    },0);
+    return {id:item.id,name:item.name,value:value,color:item.color || analyticsColors[0]};
+  });
+}
+function analyticsMetricTotal(field){
+  return sourceChannels.reduce(function(sum,source){
+    if(state.analyticsFilters.source !== "all" && source.id !== state.analyticsFilters.source){return sum;}
+    return sum + Number(source[field] || 0) * analyticsRatioForSelected(source,"source");
+  },0);
+}
+function analyticsActiveEntries(){
+  return analyticsFilterKeys().filter(function(key){return state.analyticsFilters[key] !== "all";}).map(function(key){
+    var item = analyticsDimensionItem(key,state.analyticsFilters[key]);
+    return {key:key,value:state.analyticsFilters[key],label:item ? item.name : state.analyticsFilters[key]};
+  });
+}
+function analyticsActiveLabel(){
+  var active = analyticsActiveEntries();
+  return active.length ? active.map(function(item){return item.label;}).join(" · ") : "вся база";
+}
+function analyticsFilterNote(){
+  var active = analyticsActiveEntries();
+  if(!active.length){
+    return '<div class="analytics-filter-note"><span class="analytics-filter-hint">Нажмите на сегмент, строку или источник, чтобы применить срез. Фильтры можно комбинировать.</span></div>';
+  }
+  return '<div class="analytics-filter-note"><span>Активный срез:</span>'+active.map(function(item){return '<button type="button" class="analytics-filter-chip" data-analytics-clear="'+item.key+'">'+safeText(item.label)+' ×</button>';}).join('')+'<button type="button" class="btn small ghost" data-analytics-reset>Сбросить все</button></div>';
+}
+function donutHtml(title,note,items,centerLabel,dimension){
+  var rawTotal = items.reduce(function(sum,item){return sum + Number(item.value || 0);},0);
+  var total = rawTotal || 1;
   var cursor = 0;
-  var stops = items.map(function(item){
+  var stops = rawTotal ? items.map(function(item){
     var start = cursor;
     cursor += Number(item.value || 0) / total * 100;
-    return item.color+' '+start.toFixed(2)+'% '+cursor.toFixed(2)+'%';
-  }).join(',');
-  return '<div class="card analytics-card"><div class="analytics-card-head"><div><div class="analytics-card-title">'+title+'</div><div class="analytics-card-note">'+note+'</div></div></div><div class="donut-layout"><div class="donut" style="background:conic-gradient('+stops+')"><div class="donut-center"><b>'+int(total)+'</b><span>'+centerLabel+'</span></div></div><div class="analytics-legend">'+items.map(function(item){return '<div class="legend-row"><span class="legend-dot" style="background:'+item.color+'"></span><span class="legend-name">'+item.name+'</span><span class="legend-value">'+item.value+'%</span></div>';}).join('')+'</div></div></div>';
+    return (item.color || analyticsColors[0])+' '+start.toFixed(2)+'% '+cursor.toFixed(2)+'%';
+  }).join(',') : '#ead6bc 0% 100%';
+  var selected = state.analyticsFilters[dimension];
+  return '<div class="card analytics-card"><div class="analytics-card-head"><div><div class="analytics-card-title">'+title+'</div><div class="analytics-card-note">'+note+'</div></div></div><div class="donut-layout"><div class="donut" style="background:conic-gradient('+stops+')"><div class="donut-center"><b>'+int(rawTotal)+'</b><span>'+centerLabel+'</span></div></div><div class="analytics-legend">'+items.map(function(item){
+    var active = selected !== "all" && selected === item.id ? " active" : "";
+    var share = rawTotal ? Math.round(Number(item.value || 0) / rawTotal * 100) : 0;
+    return '<div class="legend-row analytics-clickable'+active+'" role="button" tabindex="0" aria-pressed="'+(active ? "true" : "false")+'" data-analytics-filter="1" data-analytics-filter-key="'+dimension+'" data-analytics-filter-value="'+item.id+'" title="Применить срез: '+safeText(item.name)+'"><span class="legend-dot" style="background:'+(item.color || analyticsColors[0])+'"></span><span class="legend-name">'+safeText(item.name)+'</span><span class="legend-value">'+share+'% · '+int(item.value)+'</span></div>';
+  }).join('')+'</div></div></div>';
 }
 
-function analyticsBarsHtml(rows,total,mode){
+function analyticsBarsHtml(rows,total,mode,dimension){
   var max = Math.max(1, ...rows.map(function(row){return Number(row.value || 0);}));
+  var selected = state.analyticsFilters[dimension];
   return '<div class="analytics-bars">'+rows.map(function(row){
-    var suffix = mode === "percent" ? row.value+'%' : int(row.value);
-    return '<div class="analytics-bar-row"><span>'+row.name+'</span><div class="bar-bg"><span style="width:'+Math.round(Number(row.value || 0) / max * 100)+'%"></span></div><span class="analytics-value">'+suffix+'</span></div>';
+    var active = selected !== "all" && selected === row.id ? " active" : "";
+    var suffix = mode === "percent" ? (total ? Math.round(Number(row.value || 0) / total * 100) : 0)+'%' : int(row.value);
+    return '<div class="analytics-bar-row analytics-clickable'+active+'" role="button" tabindex="0" aria-pressed="'+(active ? "true" : "false")+'" data-analytics-filter="1" data-analytics-filter-key="'+dimension+'" data-analytics-filter-value="'+row.id+'" title="Применить срез: '+safeText(row.name)+'"><span>'+safeText(row.name)+'</span><div class="bar-bg"><span style="width:'+Math.round(Number(row.value || 0) / max * 100)+'%"></span></div><span class="analytics-value">'+suffix+'</span></div>';
   }).join('')+'</div>';
 }
 
-function trendChartHtml(){
+function trendChartHtml(trend){
+  trend = trend || analyticsTrend;
   var width = 640, height = 210, left = 28, right = 16, top = 18, bottom = 32;
-  var max = Math.max.apply(null, analyticsTrend.map(function(row){return row.value;})) || 1;
-  var step = (width-left-right) / Math.max(1, analyticsTrend.length-1);
-  var points = analyticsTrend.map(function(row,index){
+  var max = Math.max.apply(null, trend.map(function(row){return Number(row.value || 0);})) || 1;
+  var step = (width - left - right) / Math.max(1, trend.length - 1);
+  var points = trend.map(function(row,index){
     var x = left + step * index;
-    var y = top + (height-bottom-top) * (1 - row.value / max);
+    var y = top + (height - bottom - top) * (1 - Number(row.value || 0) / max);
     return {x:x,y:y,row:row};
   });
   var pointString = points.map(function(point){return point.x.toFixed(1)+','+point.y.toFixed(1);}).join(' ');
   var area = left+','+(height-bottom)+' '+pointString+' '+(width-right)+','+(height-bottom);
-  return '<div class="trend-wrap"><svg class="trend-svg" viewBox="0 0 '+width+' '+height+'" role="img" aria-label="Динамика выручки по месяцам"><defs><linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#d81524" stop-opacity=".24"/><stop offset="1" stop-color="#d81524" stop-opacity="0"/></linearGradient></defs><line class="trend-grid" x1="'+left+'" y1="'+top+'" x2="'+width-right+'" y2="'+top+'"/><line class="trend-grid" x1="'+left+'" y1="'+(height-bottom)/2+'" x2="'+width-right+'" y2="'+(height-bottom)/2+'"/><line class="trend-grid" x1="'+left+'" y1="'+(height-bottom)+'" x2="'+width-right+'" y2="'+(height-bottom)+'"/><polygon class="trend-area" points="'+area+'"/><polyline class="trend-line" points="'+pointString+'"/>'+points.map(function(point){return '<circle class="trend-point" cx="'+point.x+'" cy="'+point.y+'" r="4"/><text class="trend-label" x="'+point.x+'" y="'+(height-10)+'" text-anchor="middle">'+point.row.label+'</text>';}).join('')+'</svg><div class="analytics-footnote">Выручка растёт пятый месяц подряд. В рабочей CRM этот график строится из фактических оплат, возвратов и выбранного периода.</div></div>';
+  var rightX = width - right;
+  var midY = (height - bottom) / 2;
+  var bottomY = height - bottom;
+  return '<div class="trend-wrap"><svg class="trend-svg" viewBox="0 0 '+width+' '+height+'" role="img" aria-label="Динамика выручки по месяцам"><defs><linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#d81524" stop-opacity=".24"/><stop offset="1" stop-color="#d81524" stop-opacity="0"/></linearGradient></defs><line class="trend-grid" x1="'+left+'" y1="'+top+'" x2="'+rightX+'" y2="'+top+'"/><line class="trend-grid" x1="'+left+'" y1="'+midY+'" x2="'+rightX+'" y2="'+midY+'"/><line class="trend-grid" x1="'+left+'" y1="'+bottomY+'" x2="'+rightX+'" y2="'+bottomY+'"/><polygon class="trend-area" points="'+area+'"/><polyline class="trend-line" points="'+pointString+'"/>'+points.map(function(point){return '<circle class="trend-point" cx="'+point.x+'" cy="'+point.y+'" r="4"/><text class="trend-label" x="'+point.x+'" y="'+(height-10)+'" text-anchor="middle">'+safeText(point.row.label)+'</text>';}).join('')+'</svg><div class="analytics-footnote">Данные пересчитываются по выбранным срезам. В рабочей CRM график строится из фактических оплат, возвратов и выбранного периода.</div></div>';
+}
+
+function analyticsTrendForSelection(){
+  var baseRevenue = sourceChannels.reduce(function(sum,source){return sum + Number(source.revenue || 0);},0) || 1;
+  var filteredRevenue = analyticsMetricTotal("revenue");
+  var ratio = filteredRevenue / baseRevenue;
+  var period = PERIOD_FACTORS[state.filters.period] || 1;
+  return analyticsTrend.map(function(row){return {label:row.label,value:Number(row.value || 0) * ratio * period};});
 }
 
 function renderAnalytics(){
-  var totalClients = sourceChannels.reduce(function(sum,source){return sum + source.clients;},0);
-  var totalPaid = sourceChannels.reduce(function(sum,source){return sum + source.paid;},0);
-  var totalRevenue = sourceChannels.reduce(function(sum,source){return sum + source.revenue;},0);
-  var repeat = sourceChannels.reduce(function(sum,source){return sum + source.repeat;},0);
+  var totalClients = analyticsRows("source").reduce(function(sum,row){return sum + Number(row.value || 0);},0);
+  var totalPaid = analyticsMetricTotal("paid");
+  var totalRevenue = analyticsMetricTotal("revenue");
+  var repeat = analyticsMetricTotal("repeat");
   var conversion = Math.round(totalPaid / Math.max(1,totalClients) * 100);
   var avg = Math.round(totalRevenue / Math.max(1,totalPaid));
-  var sourceColors = ['#d81524','#255bd8','#16744c','#d8a33c','#7c3aed','#b96814'];
-  var sourceMix = sourceChannels.map(function(source,index){return {name:source.name,value:source.clients,color:sourceColors[index % sourceColors.length]};});
-  var sourceRows = sourceChannels.slice().sort(function(a,b){return b.clients-a.clients;}).map(function(source){return {name:source.name,value:source.clients};});
-  return filters('<span class="filter-summary">Срезы: источники · портреты · места · динамика</span>',{period:true,city:false,status:false})+
+  var sourceRows = analyticsRows("source").sort(function(a,b){return b.value-a.value;});
+  var genderRows = analyticsRows("gender");
+  var ageRows = analyticsRows("age");
+  var originRows = analyticsRows("origin");
+  var destinationRows = analyticsRows("destination");
+  var sourceMix = sourceRows.map(function(row){return {id:row.id,name:row.name,value:row.value,color:row.color};});
+  return filters('',{period:true,city:false,status:false})+
+  analyticsFilterNote()+
   '<section class="section"><div class="grid kpis">'+
-    '<div class="card kpi"><div class="kpi-label">Клиенты в срезе</div><div class="kpi-value">'+int(totalClients)+'</div><div class="kpi-note">все источники</div></div>'+
+    '<div class="card kpi"><div class="kpi-label">Клиенты в срезе</div><div class="kpi-value">'+int(totalClients)+'</div><div class="kpi-note">'+safeText(analyticsActiveLabel())+'</div></div>'+
     '<div class="card kpi good"><div class="kpi-label">Конверсия в оплату</div><div class="kpi-value">'+conversion+'%</div><div class="kpi-note">'+int(totalPaid)+' оплативших</div></div>'+
     '<div class="card kpi"><div class="kpi-label">Средний чек</div><div class="kpi-value">'+fmt(avg)+'</div><div class="kpi-note">по подтверждённым оплатам</div></div>'+
     '<div class="card kpi blue"><div class="kpi-label">Повторные клиенты</div><div class="kpi-value">'+int(repeat)+'</div><div class="kpi-note">потенциал повторных продаж</div></div>'+
-    '<div class="card kpi warn"><div class="kpi-label">Выручка</div><div class="kpi-value">'+fmt(totalRevenue)+'</div><div class="kpi-note">по каналам привлечения</div></div>'+
+    '<div class="card kpi warn"><div class="kpi-label">Выручка</div><div class="kpi-value">'+fmt(totalRevenue)+'</div><div class="kpi-note">по выбранным фильтрам</div></div>'+
   '</div></section>'+
-  '<section class="section"><div class="section-head"><div><h2 class="section-title">Портрет клиентской базы</h2><p class="section-caption">Круговые срезы помогают директору понимать, кому продавать и какие предложения развивать.</p></div></div><div class="analytics-grid">'+donutHtml('Пол клиентов','Распределение по заполненным профилям',analyticsGender,'доля базы')+donutHtml('Возраст','Возрастные группы путешественников',analyticsAge,'доля базы')+'</div></section>'+
-  '<section class="section"><div class="analytics-grid"><div class="card analytics-card"><div class="analytics-card-head"><div><div class="analytics-card-title">Откуда пришли</div><div class="analytics-card-note">Количество клиентов по площадкам и каналам</div></div></div>'+analyticsBarsHtml(sourceRows,totalClients,'count')+'<div class="analytics-footnote">Рядом с объёмом канала нужно смотреть конверсию, средний чек и повторные покупки — иначе большой поток может быть менее выгодным.</div></div>'+donutHtml('Микс источников','Доля клиентской базы по площадкам',sourceMix,'клиенты')+'</div></section>'+
-  '<section class="section"><div class="analytics-grid"><div class="card analytics-card"><div class="analytics-card-head"><div><div class="analytics-card-title">Города проживания</div><div class="analytics-card-note">Откуда туристы приезжают во Вьетнам</div></div></div>'+analyticsBarsHtml(analyticsOrigins,totalClients,'count')+'</div><div class="card analytics-card"><div class="analytics-card-head"><div><div class="analytics-card-title">Какие места выбирают</div><div class="analytics-card-note">Направления и экскурсионный спрос</div></div></div>'+analyticsBarsHtml(analyticsDestinations,totalClients,'count')+'</div></div></section>'+
-  '<section class="section"><div class="card analytics-card"><div class="analytics-card-head"><div><div class="analytics-card-title">Динамика выручки</div><div class="analytics-card-note">Фактическая и прогнозная серия по месяцам</div></div><span class="badge green">рост 5 месяцев</span></div>'+trendChartHtml()+'</div></section>'+
+  '<section class="section"><div class="section-head"><div><h2 class="section-title">Портрет клиентской базы</h2><p class="section-caption">Нажмите на сегмент в легенде: например, «Женщины» или возрастную группу.</p></div></div><div class="analytics-grid">'+donutHtml('Пол клиентов','Распределение по заполненным профилям',genderRows,'клиенты','gender')+donutHtml('Возраст','Возрастные группы путешественников',ageRows,'клиенты','age')+'</div></section>'+
+  '<section class="section"><div class="analytics-grid"><div class="card analytics-card"><div class="analytics-card-head"><div><div class="analytics-card-title">Откуда пришли</div><div class="analytics-card-note">Нажмите на источник, чтобы оставить только его клиентов</div></div></div>'+analyticsBarsHtml(sourceRows,totalClients,'count','source')+'<div class="analytics-footnote">Можно совместить источник с полом, возрастом, городом проживания и выбранным местом.</div></div>'+donutHtml('Микс источников','Доля клиентской базы по площадкам',sourceMix,'клиенты','source')+'</div></section>'+
+  '<section class="section"><div class="analytics-grid"><div class="card analytics-card"><div class="analytics-card-head"><div><div class="analytics-card-title">Города проживания</div><div class="analytics-card-note">Откуда туристы приезжают во Вьетнам</div></div></div>'+analyticsBarsHtml(originRows,totalClients,'count','origin')+'</div><div class="card analytics-card"><div class="analytics-card-head"><div><div class="analytics-card-title">Какие места выбирают</div><div class="analytics-card-note">Направления и экскурсионный спрос</div></div></div>'+analyticsBarsHtml(destinationRows,totalClients,'count','destination')+'</div></div></section>'+
+  '<section class="section"><div class="card analytics-card"><div class="analytics-card-head"><div><div class="analytics-card-title">Динамика выручки</div><div class="analytics-card-note">Фактическая и прогнозная серия по выбранному срезу</div></div><span class="badge green">'+safeText(analyticsActiveLabel())+'</span></div>'+trendChartHtml(analyticsTrendForSelection())+'</div></section>'+
   '<section class="section"><div class="section-head"><div><h2 class="section-title">Срезы для решений</h2><p class="section-caption">Аналитика должна приводить к действию: открыть дату, изменить предложение, добрать группу или запустить повторную продажу.</p></div></div>'+tableCustomerTypes()+'</section>';
 }
 
@@ -1286,6 +1428,34 @@ function bindActions(){
     if(btn.dataset.bound){return;} btn.dataset.bound="1";
     btn.addEventListener("click", function(){
       state.view = btn.getAttribute("data-nav");
+      render();
+    });
+  });
+  document.querySelectorAll("[data-analytics-filter]").forEach(function(btn){
+    if(btn.dataset.bound){return;} btn.dataset.bound="1";
+    var apply = function(){
+      var key = btn.getAttribute("data-analytics-filter-key");
+      var value = btn.getAttribute("data-analytics-filter-value");
+      if(!key || !value){return;}
+      state.analyticsFilters[key] = state.analyticsFilters[key] === value ? "all" : value;
+      render();
+    };
+    btn.addEventListener("click", apply);
+    btn.addEventListener("keydown", function(event){
+      if(event.key === "Enter" || event.key === " "){event.preventDefault();apply();}
+    });
+  });
+  document.querySelectorAll("[data-analytics-clear]").forEach(function(btn){
+    if(btn.dataset.bound){return;} btn.dataset.bound="1";
+    btn.addEventListener("click", function(){
+      var key = btn.getAttribute("data-analytics-clear");
+      if(key){state.analyticsFilters[key] = "all";render();}
+    });
+  });
+  document.querySelectorAll("[data-analytics-reset]").forEach(function(btn){
+    if(btn.dataset.bound){return;} btn.dataset.bound="1";
+    btn.addEventListener("click", function(){
+      analyticsFilterKeys().forEach(function(key){state.analyticsFilters[key] = "all";});
       render();
     });
   });

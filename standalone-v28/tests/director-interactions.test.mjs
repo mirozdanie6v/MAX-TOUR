@@ -76,9 +76,29 @@ test('director demo interaction model filters, searches, changes horizon and sto
   assert.ok(storage.get('maxtourDirectorDrafts'));
 });
 
+test('analytics cross-filters recalculate the visible slice and trend without SVG NaN', () => {
+  const { context } = createHarness();
+  const baseClients = context.analyticsRows('source').reduce((sum, row) => sum + row.value, 0);
+
+  context.state.analyticsFilters.source = 'instagram';
+  context.state.analyticsFilters.gender = 'women';
+  const sourceRows = context.analyticsRows('source');
+  const womenRows = context.analyticsRows('gender');
+  const filteredClients = sourceRows.reduce((sum, row) => sum + row.value, 0);
+
+  assert.ok(filteredClients > 0 && filteredClients < baseClients);
+  assert.ok(womenRows.find(row => row.id === 'women').value > 0);
+  assert.equal(womenRows.find(row => row.id === 'men').value, 0);
+  const html = context.renderAnalytics();
+  assert.match(html, /Активный срез/);
+  assert.match(html, /data-analytics-filter-key="source"/);
+  assert.match(html, /data-analytics-filter-value="instagram"/);
+  assert.doesNotMatch(html, /NaN/);
+});
+
 test('every director button template has an interaction contract', () => {
   const buttons = [...html.matchAll(/<button\b[^>]*>/g)].map(match => match[0]);
-  const known = /data-(view|horizon|toast|open|nav|search-index)|id="(closeDrawer|draftsButton)"|type="submit"/;
+  const known = /data-(view|horizon|toast|open|nav|search-index|analytics-clear|analytics-reset)|id="(closeDrawer|draftsButton)"|type="submit"/;
   assert.ok(buttons.length > 40);
   assert.deepEqual(buttons.filter(button => !known.test(button)), []);
 });

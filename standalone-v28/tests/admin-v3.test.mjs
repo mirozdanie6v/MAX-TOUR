@@ -61,6 +61,8 @@ test('director demo filters, search and periods change visible data', () => {
 test('director includes a dedicated analytics dashboard with demographic and channel slices', () => {
   assert.match(director, /id:"analytics", label:"Аналитика"/);
   assert.match(director, /function renderAnalytics\(\)/);
+  assert.match(director, /data-analytics-filter/);
+  assert.match(director, /analyticsFilters/);
   assert.match(director, /analyticsGender/);
   assert.match(director, /analyticsAge/);
   assert.match(director, /analyticsOrigins/);
@@ -68,6 +70,7 @@ test('director includes a dedicated analytics dashboard with demographic and cha
   assert.match(director, /conic-gradient/);
   assert.match(director, /Динамика выручки/);
   assert.match(director, /Откуда пришли/);
+  assert.doesNotMatch(director, /NaN/);
 });
 
 test('director demo actions create session drafts and every internal navigation control is bound', () => {
