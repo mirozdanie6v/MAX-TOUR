@@ -86,6 +86,9 @@ test('standalone build publishes admin and director routes plus role switch asse
 test('all three cabinets publish the same approved Max Tour logo asset', () => {
   assert.match(build, /function replaceBrandLogos\(html\)/);
   assert.match(build, /brandLogoPath = '\/max-tour-logo\.svg'/);
+  assert.match(admin, /<img alt="MaxTour" src="\/max-tour-logo\.svg">/);
+  assert.match(admin, /const logoSrc = '\/max-tour-logo\.svg';/);
+  assert.doesNotMatch(admin, /<img\s+alt="MaxTour"\s+src="data:image/);
   assert.match(director, /class="brand-logo" src="\/max-tour-logo\.svg"/);
   assert.doesNotMatch(director, /class="logo-mark"/);
 });

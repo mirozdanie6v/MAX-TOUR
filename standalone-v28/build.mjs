@@ -65,7 +65,7 @@ function replaceBrandLogos(html) {
     `const logoSrc = '${brandLogoPath}';`,
   );
 
-  if (replacements === 0) throw new Error('Brand logo was not found in HTML');
+  if (replacements === 0 && !html.includes(brandLogoPath)) throw new Error('Brand logo was not found in HTML');
   return html;
 }
 
