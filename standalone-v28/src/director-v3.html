@@ -127,6 +127,17 @@ button{cursor:pointer}
   display:flex;align-items:center;gap:8px;padding:0 14px;box-shadow:var(--soft)
 }
 .search input{border:0;background:transparent;outline:0;width:100%;font-weight:800;min-width:0;color:var(--ink)}
+.mobile-search{display:none}
+.search-results{
+  position:sticky;top:88px;z-index:24;display:grid;gap:7px;max-width:720px;margin:0 0 12px auto;
+  padding:10px;border:1px solid var(--line);border-radius:20px;background:rgba(255,253,248,.98);box-shadow:var(--shadow)
+}
+.search-results[hidden]{display:none!important}
+.search-result{
+  width:100%;border:1px solid rgba(226,196,155,.68);border-radius:14px;background:#fffaf2;
+  padding:10px 12px;display:flex;justify-content:space-between;gap:12px;text-align:left;color:var(--ink);font-weight:900
+}
+.search-result span{color:var(--muted);font-size:12px;font-weight:750}
 .person{
   min-height:46px;border:1px solid var(--line);border-radius:999px;
   background:rgba(255,255,255,.88);box-shadow:var(--soft);
@@ -194,6 +205,19 @@ button{cursor:pointer}
 .btn.gold{color:#60390e;background:linear-gradient(135deg,#fff4d7,#f3d179);border-color:#e2bd67}
 .btn.ghost{background:transparent;box-shadow:none}
 .btn.small{min-height:34px;padding:7px 10px;border-radius:12px;font-size:12px}
+.filter-summary{margin-left:auto;color:var(--muted);font-size:12px;font-weight:850}
+.empty-state{padding:28px;text-align:center;color:var(--muted);font-weight:850}
+.drafts-fab{
+  position:fixed;right:18px;bottom:18px;z-index:45;min-height:44px;border:0;border-radius:999px;
+  padding:9px 15px;color:#fff;background:linear-gradient(135deg,#3a2115,#7c4a27);box-shadow:0 16px 34px rgba(58,33,21,.25);font-weight:950
+}
+.drafts-fab span{display:inline-grid;place-items:center;min-width:24px;height:24px;margin-left:7px;border-radius:999px;background:rgba(255,255,255,.18)}
+.draft-list{display:grid;gap:9px}
+.draft-item{padding:12px;border:1px solid var(--line);border-radius:16px;background:#fffaf2}
+.draft-item b{display:block}.draft-item span{display:block;margin-top:4px;color:var(--muted);font-size:12px;font-weight:750}
+.draft-form{display:grid;gap:11px}
+.draft-form input,.draft-form select,.draft-form textarea{width:100%;border:1px solid var(--line);border-radius:14px;background:#fff;padding:11px;color:var(--ink);font-weight:800}
+.draft-form textarea{min-height:110px;resize:vertical}
 .badge{
   display:inline-flex;align-items:center;gap:5px;min-height:26px;padding:4px 9px;
   border-radius:999px;font-size:11px;line-height:1;font-weight:950;white-space:nowrap;
@@ -284,7 +308,7 @@ td{font-size:13px;font-weight:820;line-height:1.35}
 .detail-title{font-size:16px;font-weight:950;margin-bottom:8px}
 .detail-text{color:var(--muted);font-size:13px;line-height:1.45;font-weight:760}
 .toast{
-  position:fixed;right:18px;bottom:18px;z-index:70;
+  position:fixed;right:18px;bottom:76px;z-index:70;
   max-width:380px;padding:14px 16px;border-radius:18px;
   background:#2c170d;color:#fff;box-shadow:0 20px 48px rgba(0,0,0,.28);
   transform:translateY(120%);transition:.24s ease;font-weight:850;line-height:1.35;
@@ -321,6 +345,8 @@ td{font-size:13px;font-weight:820;line-height:1.35}
     color:#6e5039;padding:8px 12px;font-size:12px;font-weight:950;
   }
   .mobile-nav button.active{color:#fff;border-color:transparent;background:linear-gradient(135deg,var(--red),var(--red2))}
+  .mobile-search{display:flex;width:100%;margin:2px 0 8px}
+  .search-results{top:132px;margin:0 0 10px;max-width:none}
   .title{font-size:36px}
   .subtitle{font-size:13px}
   .grid-3,.grid-2{grid-template-columns:1fr}
@@ -343,6 +369,8 @@ td{font-size:13px;font-weight:820;line-height:1.35}
   .time-row{grid-template-columns:1fr}
   .drawer{padding:12px}
   .drawer-title{font-size:25px}
+  .filter-summary{width:100%;margin-left:0}
+  .drafts-fab{right:12px;bottom:12px}
 }
 @media(max-width:370px){
   .main{padding-left:10px;padding-right:10px}
@@ -392,10 +420,12 @@ td{font-size:13px;font-weight:820;line-height:1.35}
           <a href="/director/" class="active" aria-current="page"><span class="role-long">Директор</span><span class="role-short">Директор</span></a>
         </div>
         <div class="search">⌕ <input id="globalSearch" placeholder="Поиск города, тура, сегмента..."></div>
-        <button class="icon-btn" data-toast="Демо: экспорт отчёта не выполняется">⇩</button>
+        <button class="icon-btn" data-toast="Демо: экспорт отчёта подготовлен как черновик">⇩</button>
         <div class="person"><span class="avatar">Д</span><span>Директор</span></div>
       </div>
     </div>
+    <div class="search mobile-search">⌕ <input id="mobileGlobalSearch" placeholder="Поиск города, тура, сегмента..."></div>
+    <div class="search-results" id="searchResults" hidden></div>
     <div class="mobile-nav" id="mobileNav"></div>
     <section id="content"></section>
   </main>
@@ -413,6 +443,7 @@ td{font-size:13px;font-weight:820;line-height:1.35}
   <div id="drawerBody" class="detail-grid"></div>
 </aside>
 <div class="toast" id="toast"></div>
+<button class="drafts-fab" id="draftsButton" type="button">Черновики <span id="draftCount">0</span></button>
 
 <script>
 (function(){
@@ -581,13 +612,60 @@ var team = [
   {id:"driver-nam", name:"Нам", role:"водитель", score:4.7, confirms:"94%", issue:"1 жалоба на pickup", action:"проверить маршрут"}
 ];
 
-var state = { view:"dashboard", horizon:"month" };
+var PERIOD_FACTORS = {september:1, october:.78, week:.24};
+var HORIZON_FACTORS = {now:.08, today:.11, days3:.18, week:.34, month:1};
+var state = {
+  view:"dashboard",
+  horizon:"month",
+  filters:{period:"september",city:"all",status:"all",margin:"all"},
+  drafts:loadDrafts()
+};
+
+function loadDrafts(){
+  try{return JSON.parse(sessionStorage.getItem("maxtourDirectorDrafts") || "[]");}
+  catch(e){return [];}
+}
+function saveDrafts(){
+  try{sessionStorage.setItem("maxtourDirectorDrafts", JSON.stringify(state.drafts));}
+  catch(e){}
+}
+function periodFactor(){
+  var base = PERIOD_FACTORS[state.filters.period] || 1;
+  var horizon = state.view === "dashboard" ? (HORIZON_FACTORS[state.horizon] || 1) : 1;
+  return base * horizon;
+}
+function periodLabel(){
+  return {september:"Сентябрь",october:"Октябрь · прогноз",week:"Последние 7 дней"}[state.filters.period] || "Сентябрь";
+}
+function horizonLabel(){
+  return {now:"Сейчас",today:"Сегодня",days3:"Ближайшие 3 дня",week:"Неделя",month:"Месяц"}[state.horizon] || "Месяц";
+}
+function statusKey(row){
+  var status = String(row.status || row.trend || "").toLowerCase();
+  if(status.includes("крит") || status.includes("не набрана") || status.includes("под риском") || row.forecast < row.plan * .75 || Number(row.confirms && row.confirms.replace("%","")) < 90){return "critical";}
+  if(status.includes("ниже") || status.includes("вним") || status.includes("почти") || (row.issue && row.issue !== "нет") || (row.forecast && row.plan && row.forecast < row.plan)){return "attention";}
+  return "normal";
+}
+function filteredRows(rows){
+  return rows.filter(function(row){
+    if(state.filters.city !== "all" && row.city && row.city !== state.filters.city){return false;}
+    if(state.filters.status !== "all" && statusKey(row) !== state.filters.status){return false;}
+    if(state.filters.margin !== "all" && row.margin && row.margin !== state.filters.margin){return false;}
+    return true;
+  });
+}
+function emptyState(label){
+  return '<div class="card empty-state">По выбранным фильтрам '+label+' не найдено.</div>';
+}
+function safeText(value){
+  return String(value || "").replace(/[&<>"']/g,function(ch){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];});
+}
 
 function fmt(n){
-  return new Intl.NumberFormat("ru-RU", {maximumFractionDigits:0}).format(n) + " ₽";
+  return new Intl.NumberFormat("ru-RU", {maximumFractionDigits:0}).format(Math.round(n * periodFactor())) + " ₽";
 }
 function int(n){
-  return new Intl.NumberFormat("ru-RU", {maximumFractionDigits:0}).format(n);
+  return new Intl.NumberFormat("ru-RU", {maximumFractionDigits:0}).format(Math.round(n * periodFactor()));
 }
 function percent(value,total){
   if(!total){return 0;}
@@ -632,6 +710,7 @@ function mountNav(){
   document.querySelectorAll("[data-view]").forEach(function(btn){
     btn.addEventListener("click", function(){
       state.view = btn.getAttribute("data-view");
+      if(state.view !== "dashboard"){state.horizon = "month";}
       render();
     });
   });
@@ -655,7 +734,7 @@ function horizonBar(){
   return '<div class="toolbar">'+items.map(function(x){
     var active = state.horizon === x[0] ? "active" : "";
     return '<button class="chip '+active+'" data-horizon="'+x[0]+'">'+x[1]+'</button>';
-  }).join("")+'<button class="btn gold" data-toast="Демо: директорская задача создана бы в очереди администратора">Создать задачу админу</button></div>';
+  }).join("")+'<button class="btn gold" data-toast="Демо: директорская задача создана бы в очереди администратора">Создать задачу админу</button><span class="filter-summary">Показатели: '+horizonLabel()+'</span></div>';
 }
 function bindHorizon(){
   document.querySelectorAll("[data-horizon]").forEach(function(btn){
@@ -668,6 +747,7 @@ function bindHorizon(){
 
 function renderDashboard(){
   var gap = summary.plan - summary.forecast;
+  var visibleDecisions = decisions.slice(0,{now:2,today:3,days3:4,week:5,month:decisions.length}[state.horizon] || decisions.length);
   return horizonBar()+
   '<section class="section">'+
     '<div class="grid kpis">'+
@@ -680,7 +760,7 @@ function renderDashboard(){
   '</section>'+
   '<section class="section">'+
     '<div class="section-head"><div><h2 class="section-title">Управленческие решения</h2><p class="section-caption">Не вся операционка. Только то, что влияет на план, деньги, группы, качество или рост.</p></div><button class="btn primary" data-toast="Демо: AI-сводка была бы отправлена директору">Получить AI-сводку</button></div>'+
-    '<div class="decision-list">'+decisions.map(decisionCard).join("")+'</div>'+
+    '<div class="decision-list">'+visibleDecisions.map(decisionCard).join("")+'</div>'+
   '</section>'+
   '<section class="section">'+
     '<div class="grid grid-3">'+
@@ -707,13 +787,13 @@ function statusForDecision(d){
 }
 function timelineHtml(){
   var rows = [
-    ["Сейчас","Оплаты на проверке, группы под риском, качество команды","решить сегодня"],
-    ["3 дня","T-3/T-2/T-1 по группам, добор, переносы","не ждать дня выезда"],
-    ["Неделя","Открыть новые даты по спросу, управлять листами интереса","создать продажи"],
-    ["Месяц","План, факт, прогноз, просадки по городам и экскурсиям","управлять ростом"]
+    ["Сейчас","Оплаты на проверке, группы под риском, качество команды","решить сегодня","money"],
+    ["3 дня","T-3/T-2/T-1 по группам, добор, переносы","не ждать дня выезда","groups"],
+    ["Неделя","Открыть новые даты по спросу, управлять листами интереса","создать продажи","groups"],
+    ["Месяц","План, факт, прогноз, просадки по городам и экскурсиям","управлять ростом","plan"]
   ];
   return '<div class="timeline" style="margin-top:12px">'+rows.map(function(r){
-    return '<div class="time-row"><div class="time">'+r[0]+'</div><div><div class="time-title">'+r[1]+'</div><div class="time-meta">'+r[2]+'</div></div><button class="btn small" data-toast="Демо: открылся бы список задач горизонта">Открыть</button></div>';
+    return '<div class="time-row"><div class="time">'+r[0]+'</div><div><div class="time-title">'+r[1]+'</div><div class="time-meta">'+r[2]+'</div></div><button class="btn small" data-nav="'+r[3]+'">Открыть</button></div>';
   }).join("")+'</div>';
 }
 function cityChartHtml(){
@@ -730,33 +810,41 @@ function sourceMiniHtml(){
   }).join("")+'<div style="margin-top:10px"><button class="btn small primary" data-nav="customers">Открыть разбор</button></div></div>';
 }
 
-function filters(extra){
-  return '<div class="toolbar">'+
-    '<div class="field"><label>Период</label><select><option>Сентябрь</option><option>Октябрь</option><option>Неделя</option></select></div>'+
-    '<div class="field"><label>Город</label><select><option>Все города</option><option>Нячанг</option><option>Дананг</option><option>Фукуок</option><option>Ханой</option></select></div>'+
-    '<div class="field"><label>Статус</label><select><option>Все статусы</option><option>Критично</option><option>Внимание</option><option>Норма</option></select></div>'+
-    (extra || "")+
-  '</div>';
+function option(value,label,current){
+  return '<option value="'+value+'"'+(value === current ? ' selected' : '')+'>'+label+'</option>';
+}
+function filters(extra,options){
+  options = options || {period:true,city:true,status:true};
+  var html = '<div class="toolbar">';
+  if(options.period){html += '<div class="field"><label>Период</label><select data-filter="period">'+option("september","Сентябрь",state.filters.period)+option("october","Октябрь · прогноз",state.filters.period)+option("week","Последние 7 дней",state.filters.period)+'</select></div>';}
+  if(options.city){html += '<div class="field"><label>Город</label><select data-filter="city">'+option("all","Все города",state.filters.city)+option("Нячанг","Нячанг",state.filters.city)+option("Дананг","Дананг",state.filters.city)+option("Фукуок","Фукуок",state.filters.city)+option("Ханой","Ханой",state.filters.city)+'</select></div>';}
+  if(options.status){html += '<div class="field"><label>Статус</label><select data-filter="status">'+option("all","Все статусы",state.filters.status)+option("critical","Критично",state.filters.status)+option("attention","Внимание",state.filters.status)+option("normal","Норма",state.filters.status)+'</select></div>';}
+  html += (extra || "")+'<span class="filter-summary">'+periodLabel()+'</span></div>';
+  return html;
 }
 
 function renderPlan(){
-  var gap = summary.plan - summary.forecast;
+  var rows = filteredRows(cities);
+  var totals = rows.reduce(function(acc,c){acc.plan+=c.plan;acc.fact+=c.fact;acc.forecast+=c.forecast;return acc;},{plan:0,fact:0,forecast:0});
+  var gap = Math.max(0, totals.plan - totals.forecast);
   return filters('<button class="btn primary" data-toast="Демо: открылась бы форма редактирования директорского плана">Изменить план</button>')+
   '<section class="section"><div class="grid grid-4">'+
-    '<div class="card kpi"><div class="kpi-label">План</div><div class="kpi-value">'+fmt(summary.plan)+'</div><div class="kpi-note">месяц</div></div>'+
-    '<div class="card kpi"><div class="kpi-label">Факт</div><div class="kpi-value good">'+fmt(summary.fact)+'</div><div class="kpi-note">'+percent(summary.fact, summary.plan)+'% выполнено</div></div>'+
-    '<div class="card kpi"><div class="kpi-label">Прогноз</div><div class="kpi-value warn">'+fmt(summary.forecast)+'</div><div class="kpi-note">на конец месяца</div></div>'+
+    '<div class="card kpi"><div class="kpi-label">План</div><div class="kpi-value">'+fmt(totals.plan)+'</div><div class="kpi-note">'+periodLabel()+'</div></div>'+
+    '<div class="card kpi"><div class="kpi-label">Факт</div><div class="kpi-value good">'+fmt(totals.fact)+'</div><div class="kpi-note">'+percent(totals.fact, totals.plan)+'% выполнено</div></div>'+
+    '<div class="card kpi"><div class="kpi-label">Прогноз</div><div class="kpi-value warn">'+fmt(totals.forecast)+'</div><div class="kpi-note">по выбранным фильтрам</div></div>'+
     '<div class="card kpi"><div class="kpi-label">Разрыв</div><div class="kpi-value bad">'+fmt(gap)+'</div><div class="kpi-note">нужно закрыть действиями</div></div>'+
   '</div></section>'+
   '<section class="section">'+
   '<div class="section-head"><div><h2 class="section-title">План по городам</h2><p class="section-caption">План директора превращается в задачи: открыть дату, добрать группу, запустить сегмент.</p></div></div>'+
-  tablePlan()+
+  tablePlan(rows)+
   '</section>'+
   '<section class="section"><div class="card pad"><div class="section-title">AI-разбор разрыва</div><p class="detail-text">Главный разрыв создают Фукуок и Дананг. Причина не только в спросе: мало открытых групповых дат, низкая конверсия после выбора даты и слабый добор по тёплым сегментам. Рекомендация: открыть 2 даты по Фукуоку, усилить Ба На Хилл объяснением формата и запустить добор Фуйена.</p><div style="margin-top:12px"><button class="btn primary" data-toast="Демо: создан набор задач роста">Создать задачи роста</button></div></div></section>';
 }
-function tablePlan(){
+function tablePlan(rows){
+  rows = rows || filteredRows(cities);
+  if(!rows.length){return emptyState("городов");}
   return '<div class="card table-card"><div class="table-scroll"><table><thead><tr><th>Город</th><th>План</th><th>Факт</th><th>Прогноз</th><th>Разрыв</th><th>Выполнение</th><th>Действие</th></tr></thead><tbody>'+
-    cities.map(function(c){
+    rows.map(function(c){
       var gap = c.plan - c.forecast;
       var cls = moneyStatus(c);
       return '<tr><td><div class="table-main">'+c.city+'</div><div class="table-muted">'+c.insight+'</div></td><td class="num">'+fmt(c.plan)+'</td><td class="num">'+fmt(c.fact)+'</td><td class="num '+cls+'">'+fmt(c.forecast)+'</td><td class="num '+(gap>0?"bad":"good")+'">'+(gap>0?fmt(gap):"выше")+'</td><td>'+progressHtml(c.forecast,c.plan,cls==="good"?"good":"")+'</td><td><button class="btn small" data-open="city" data-id="'+c.id+'">Открыть</button></td></tr>';
@@ -765,27 +853,34 @@ function tablePlan(){
 }
 
 function renderCities(){
+  var rows = filteredRows(cities);
   return filters('<button class="btn gold" data-toast="Демо: отчет по городам готовился бы в фоне">Сформировать отчёт</button>')+
-  '<section class="section"><div class="section-head"><div><h2 class="section-title">Города как зоны управления</h2><p class="section-caption">Не просто выручка. Для каждого города видно: план, прогноз, конверсия, причина и действие.</p></div></div>'+tableCities()+'</section>'+
-  '<section class="section"><div class="matrix">'+cities.map(function(c){
+  '<section class="section"><div class="section-head"><div><h2 class="section-title">Города как зоны управления</h2><p class="section-caption">Не просто выручка. Для каждого города видно: план, прогноз, конверсия, причина и действие.</p></div></div>'+tableCities(rows)+'</section>'+
+  '<section class="section">'+(!rows.length ? "" : '<div class="matrix">'+rows.map(function(c){
     return '<div class="matrix-card"><div class="meta-row">'+statusBadge(c.trend)+'</div><div class="matrix-title" style="margin-top:8px">'+c.city+'</div><div class="matrix-meta">'+c.insight+'</div><div class="split" style="margin-top:12px"><div class="split-tile"><b>'+fmt(c.fact)+'</b><span>факт</span></div><div class="split-tile"><b>'+fmt(c.forecast)+'</b><span>прогноз</span></div><div class="split-tile"><b>'+c.conv+'%</b><span>конверсия</span></div></div><button class="btn small primary" style="margin-top:12px" data-open="city" data-id="'+c.id+'">Разобрать</button></div>';
-  }).join("")+'</div></section>';
+  }).join("")+'</div>')+'</section>';
 }
-function tableCities(){
+function tableCities(rows){
+  rows = rows || filteredRows(cities);
+  if(!rows.length){return emptyState("городов");}
   return '<div class="card table-card"><div class="table-scroll"><table><thead><tr><th>Город</th><th>Статус</th><th>План / факт</th><th>Прогноз</th><th>Заказы</th><th>Конверсия</th><th>Причина / действие</th></tr></thead><tbody>'+
-    cities.map(function(c){
+    rows.map(function(c){
       return '<tr><td><div class="table-main">'+c.city+'</div></td><td>'+statusBadge(c.trend)+'</td><td><div class="num">'+fmt(c.plan)+'</div><div class="table-muted">факт '+fmt(c.fact)+'</div></td><td>'+progressHtml(c.forecast,c.plan,moneyStatus(c)==="good"?"good":"")+'</td><td>'+c.orders+'</td><td>'+c.conv+'%</td><td><div class="table-main">'+c.insight+'</div><div style="margin-top:8px"><button class="btn small" data-open="city" data-id="'+c.id+'">Открыть решение</button></div></td></tr>';
     }).join("")+
   '</tbody></table></div></div>';
 }
 
 function renderTours(){
-  return filters('<div class="field"><label>Маржинальность</label><select><option>Все</option><option>Высокая</option><option>Средняя</option></select></div>')+
-  '<section class="section"><div class="section-head"><div><h2 class="section-title">Экскурсии как продукты</h2><p class="section-caption">Директор видит не карточки туров, а вклад каждого продукта в план и рост.</p></div></div>'+tableTours()+'</section>';
+  var rows = filteredRows(tours);
+  var margin = '<div class="field"><label>Маржинальность</label><select data-filter="margin">'+option("all","Все",state.filters.margin)+option("высокая","Высокая",state.filters.margin)+option("средняя","Средняя",state.filters.margin)+'</select></div>';
+  return filters(margin)+
+  '<section class="section"><div class="section-head"><div><h2 class="section-title">Экскурсии как продукты</h2><p class="section-caption">Директор видит не карточки туров, а вклад каждого продукта в план и рост.</p></div></div>'+tableTours(rows)+'</section>';
 }
-function tableTours(){
+function tableTours(rows){
+  rows = rows || filteredRows(tours);
+  if(!rows.length){return emptyState("экскурсий");}
   return '<div class="card table-card"><div class="table-scroll"><table><thead><tr><th>Экскурсия</th><th>Город</th><th>План</th><th>Факт</th><th>Прогноз</th><th>Конверсия</th><th>Группы</th><th>Решение</th></tr></thead><tbody>'+
-    tours.map(function(t){
+    rows.map(function(t){
       var cls = t.forecast >= t.plan ? "good" : (t.forecast < t.plan*0.75 ? "bad" : "warn");
       return '<tr><td><div class="table-main">'+t.name+'</div><div class="table-muted">маржинальность: '+t.margin+'</div></td><td>'+t.city+'</td><td class="num">'+fmt(t.plan)+'</td><td class="num">'+fmt(t.fact)+'</td><td>'+progressHtml(t.forecast,t.plan,cls==="good"?"good":"")+'</td><td>'+t.conv+'%</td><td>'+t.groups+'</td><td><div class="table-main">'+t.action+'</div><div style="margin-top:8px"><button class="btn small" data-open="tour" data-id="'+t.id+'">Открыть</button></div></td></tr>';
     }).join("")+
@@ -793,20 +888,25 @@ function tableTours(){
 }
 
 function renderGroups(){
+  var rows = filteredRows(groups);
+  var risky = rows.filter(function(g){return g.booked < g.min;}).length;
+  var demand = rows.reduce(function(sum,g){return sum+g.demand;},0);
   return filters('<button class="btn primary" data-toast="Демо: открылась бы форма создания новой групповой даты">Открыть групповую дату</button>')+
   '<section class="section">'+
     '<div class="section-head"><div><h2 class="section-title">Группы и спрос</h2><p class="section-caption">Отдельный коммерческий механизм: спрос → дата → добор → минимум → подтверждение.</p></div></div>'+
     '<div class="grid grid-3">'+
-      '<div class="card kpi"><div class="kpi-label">Под риском</div><div class="kpi-value bad">2</div><div class="kpi-note">ниже минимума или близко к нему</div></div>'+
-      '<div class="card kpi"><div class="kpi-label">Спрос без даты</div><div class="kpi-value warn">52</div><div class="kpi-note">людей можно собрать в новые даты</div></div>'+
-      '<div class="card kpi"><div class="kpi-label">Потенциал добора</div><div class="kpi-value good">'+fmt(1650000)+'</div><div class="kpi-note">оценка по листам интереса</div></div>'+
+      '<div class="card kpi"><div class="kpi-label">Под риском</div><div class="kpi-value bad">'+risky+'</div><div class="kpi-note">ниже минимального состава</div></div>'+
+      '<div class="card kpi"><div class="kpi-label">Спрос по выборке</div><div class="kpi-value warn">'+demand+'</div><div class="kpi-note">интересов по выбранным группам</div></div>'+
+      '<div class="card kpi"><div class="kpi-label">Потенциал добора</div><div class="kpi-value good">'+fmt(demand*31700)+'</div><div class="kpi-note">оценка по листам интереса</div></div>'+
     '</div>'+
   '</section>'+
-  '<section class="section">'+tableGroups()+'</section>';
+  '<section class="section">'+tableGroups(rows)+'</section>';
 }
-function tableGroups(){
+function tableGroups(rows){
+  rows = rows || filteredRows(groups);
+  if(!rows.length){return emptyState("групп");}
   return '<div class="card table-card"><div class="table-scroll"><table><thead><tr><th>Группа</th><th>Дата</th><th>Места</th><th>Минимум</th><th>Оплаты</th><th>Спрос</th><th>Триггер</th><th>Действие</th></tr></thead><tbody>'+
-    groups.map(function(g){
+    rows.map(function(g){
       var missing = Math.max(0, g.min - g.booked);
       var cls = g.booked >= g.min ? "good" : "bad";
       return '<tr><td><div class="table-main">'+g.tour+'</div><div class="table-muted">'+g.city+' · '+g.status+'</div></td><td>'+g.date+'<div class="table-muted">'+g.time+'</div></td><td><div class="num">'+g.booked+' / '+g.cap+'</div>'+progressHtml(g.booked,g.cap,cls==="good"?"good":"")+'</td><td><div class="table-main">'+g.min+' туристов</div><div class="table-muted">'+(missing ? "не хватает "+missing : "минимум набран")+'</div></td><td><div>'+g.paidFull+' заказов 100%</div><div class="table-muted">'+g.deposit+' депозит · '+g.waiting+' ждёт оплату</div></td><td>'+g.demand+' интересов</td><td><span class="badge '+(g.trigger==="OK"?"green":"gold")+'">'+g.trigger+'</span></td><td><button class="btn small primary" data-open="group" data-id="'+g.id+'">Сценарий</button></td></tr>';
@@ -815,7 +915,7 @@ function tableGroups(){
 }
 
 function renderMoney(){
-  return filters('<button class="btn gold" data-toast="Демо: выгрузка для бухгалтера не выполняется">Выгрузка бухгалтеру</button>')+
+  return filters('<button class="btn gold" data-toast="Демо: выгрузка для бухгалтера подготовлена как черновик">Выгрузка бухгалтеру</button>',{period:true})+
   '<section class="section"><div class="grid grid-4">'+
     '<div class="card kpi"><div class="kpi-label">Онлайн подтверждено</div><div class="kpi-value good">'+fmt(summary.online)+'</div><div class="kpi-note">рублёвые платежи</div></div>'+
     '<div class="card kpi"><div class="kpi-label">Ручная проверка</div><div class="kpi-value blue">'+fmt(summary.manualReview)+'</div><div class="kpi-note">чеки и переводы</div></div>'+
@@ -837,10 +937,10 @@ function renderCustomers(){
   var totalPaid = sourceChannels.reduce(function(sum,s){return sum+s.paid;},0);
   var totalRevenue = sourceChannels.reduce(function(sum,s){return sum+s.revenue;},0);
   var avgConversion = Math.round(totalPaid / Math.max(1,totalClients) * 100);
-  return filters('<button class="btn primary" data-toast="Демо: AI-сегмент создался бы как черновик">Создать AI-сегмент</button><button class="btn gold" data-toast="Демо: отчёт по источникам был бы сформирован">Отчёт по источникам</button>')+
+  return filters('<button class="btn primary" data-toast="Демо: AI-сегмент подготовлен как черновик">Создать AI-сегмент</button><button class="btn gold" data-toast="Демо: отчёт по источникам подготовлен как черновик">Отчёт по источникам</button>',{period:true})+
   '<section class="section"><div class="grid kpis">'+
-    '<div class="card kpi"><div class="kpi-label">Всего клиентов</div><div class="kpi-value">'+totalClients+'</div><div class="kpi-note">в демо-периоде CRM</div></div>'+
-    '<div class="card kpi"><div class="kpi-label">Оплатили</div><div class="kpi-value good">'+totalPaid+'</div><div class="kpi-note">'+avgConversion+'% общая конверсия в оплату</div></div>'+
+    '<div class="card kpi"><div class="kpi-label">Всего клиентов</div><div class="kpi-value">'+int(totalClients)+'</div><div class="kpi-note">'+periodLabel()+'</div></div>'+
+    '<div class="card kpi"><div class="kpi-label">Оплатили</div><div class="kpi-value good">'+int(totalPaid)+'</div><div class="kpi-note">'+avgConversion+'% общая конверсия в оплату</div></div>'+
     '<div class="card kpi"><div class="kpi-label">Выручка по источникам</div><div class="kpi-value">'+fmt(totalRevenue)+'</div><div class="kpi-note">только подтверждённые рубли</div></div>'+
     '<div class="card kpi"><div class="kpi-label">Лучший канал</div><div class="kpi-value good">Рекомендации</div><div class="kpi-note">54% конверсия, высокий средний чек</div></div>'+
     '<div class="card kpi"><div class="kpi-label">Слабое место</div><div class="kpi-value warn">Соцсети</div><div class="kpi-note">интерес есть, оплата слабая</div></div>'+
@@ -858,7 +958,7 @@ function tableSources(){
   return '<div class="card table-card"><div class="table-scroll"><table><thead><tr><th>Источник</th><th>Клиенты</th><th>Оплатили</th><th>Выручка</th><th>Средний чек</th><th>Повторность</th><th>Качество / действие</th><th></th></tr></thead><tbody>'+
     sourceChannels.map(function(s){
       var quality = s.conv >= 45 ? "green" : (s.conv >= 30 ? "gold" : "red");
-      return '<tr><td><div class="table-main">'+s.name+'</div><div class="table-muted">'+s.top+'</div></td><td>'+s.clients+'</td><td><span class="badge '+quality+'">'+s.paid+' · '+s.conv+'%</span></td><td class="num">'+fmt(s.revenue)+'</td><td class="num">'+fmt(s.avg)+'</td><td>'+s.repeat+' повторных</td><td><div class="table-main">'+s.action+'</div><div class="table-muted">'+s.insight+'</div></td><td><button class="btn small primary" data-open="source" data-id="'+s.id+'">Открыть</button></td></tr>';
+      return '<tr><td><div class="table-main">'+s.name+'</div><div class="table-muted">'+s.top+'</div></td><td>'+int(s.clients)+'</td><td><span class="badge '+quality+'">'+int(s.paid)+' · '+s.conv+'%</span></td><td class="num">'+fmt(s.revenue)+'</td><td class="num">'+fmt(s.avg)+'</td><td>'+int(s.repeat)+' повторных</td><td><div class="table-main">'+s.action+'</div><div class="table-muted">'+s.insight+'</div></td><td><button class="btn small primary" data-open="source" data-id="'+s.id+'">Открыть</button></td></tr>';
     }).join("")+
   '</tbody></table></div></div>';
 }
@@ -866,33 +966,36 @@ function tableSources(){
 function tableCustomerTypes(){
   return '<div class="card table-card"><div class="table-scroll"><table><thead><tr><th>Портрет</th><th>Доля</th><th>Клиентов</th><th>Выручка</th><th>Что покупают</th><th>Поведение</th><th>Следующее действие</th><th></th></tr></thead><tbody>'+
     customerTypes.map(function(c){
-      return '<tr><td><div class="table-main">'+c.name+'</div></td><td>'+c.share+'%</td><td>'+c.count+'</td><td class="num">'+fmt(c.revenue)+'</td><td>'+c.buys+'</td><td>'+c.behavior+'</td><td>'+c.action+'</td><td><button class="btn small primary" data-open="persona" data-id="'+c.id+'">Открыть</button></td></tr>';
+      return '<tr><td><div class="table-main">'+c.name+'</div></td><td>'+c.share+'%</td><td>'+int(c.count)+'</td><td class="num">'+fmt(c.revenue)+'</td><td>'+c.buys+'</td><td>'+c.behavior+'</td><td>'+c.action+'</td><td><button class="btn small primary" data-open="persona" data-id="'+c.id+'">Открыть</button></td></tr>';
     }).join("")+
   '</tbody></table></div></div>';
 }
 
 function funnelHtml(){
   return '<div class="timeline">'+sourceFunnel.map(function(f){
-    return '<div class="time-row"><div class="time">'+f.rate+'</div><div><div class="time-title">'+f.stage+' · '+f.value+'</div><div class="time-meta">'+f.problem+' · '+f.action+'</div></div><button class="btn small" data-toast="Демо: задача по этапу воронки создана бы">Задача</button></div>';
+    return '<div class="time-row"><div class="time">'+f.rate+'</div><div><div class="time-title">'+f.stage+' · '+int(f.value)+'</div><div class="time-meta">'+f.problem+' · '+f.action+'</div></div><button class="btn small" data-toast="Демо: задача по этапу воронки подготовлена как черновик">Задача</button></div>';
   }).join("")+'</div>';
 }
 
 function tableSegments(){
   return '<div class="card table-card"><div class="table-scroll"><table><thead><tr><th>Сегмент</th><th>Клиентов</th><th>Потенциал</th><th>Зачем нужен</th><th>Действие</th></tr></thead><tbody>'+
     segments.map(function(s){
-      return '<tr><td><div class="table-main">'+s.name+'</div></td><td>'+s.count+'</td><td class="num">'+fmt(s.value)+'</td><td>'+s.action+'</td><td><button class="btn small primary" data-open="segment" data-id="'+s.id+'">Открыть</button></td></tr>';
+      return '<tr><td><div class="table-main">'+s.name+'</div></td><td>'+int(s.count)+'</td><td class="num">'+fmt(s.value)+'</td><td>'+s.action+'</td><td><button class="btn small primary" data-open="segment" data-id="'+s.id+'">Открыть</button></td></tr>';
     }).join("")+
   '</tbody></table></div></div>';
 }
 
 function renderTeam(){
-  return filters('<button class="btn gold" data-toast="Демо: правило подтверждения не сохраняется">Правило подтверждения</button>')+
-  '<section class="section"><div class="section-head"><div><h2 class="section-title">Команда и качество</h2><p class="section-caption">Директор не управляет каждым выездом, но видит системные проблемы: гиды, подтверждения, качество, спорные остатки.</p></div></div>'+tableTeam()+'</section>'+
+  var rows = filteredRows(team);
+  return filters('<button class="btn gold" data-toast="Демо: правило подтверждения подготовлено как черновик">Правило подтверждения</button>',{status:true})+
+  '<section class="section"><div class="section-head"><div><h2 class="section-title">Команда и качество</h2><p class="section-caption">Директор не управляет каждым выездом, но видит системные проблемы: гиды, подтверждения, качество, спорные остатки.</p></div></div>'+tableTeam(rows)+'</section>'+
   '<section class="section"><div class="card pad"><div class="section-title">Будущий кабинет гида</div><p class="detail-text">В v2 гид видит только свои выезды, список туристов, pickup, остаток к оплате на месте и кнопки «получено / не получено / проблема». Директор видит агрегат качества и спорные случаи, не всю операционную ленту гида.</p></div></section>';
 }
-function tableTeam(){
+function tableTeam(rows){
+  rows = rows || filteredRows(team);
+  if(!rows.length){return emptyState("сотрудников");}
   return '<div class="card table-card"><div class="table-scroll"><table><thead><tr><th>Человек</th><th>Роль</th><th>Оценка</th><th>Подтверждения</th><th>Проблема</th><th>Решение</th></tr></thead><tbody>'+
-    team.map(function(t){
+    rows.map(function(t){
       return '<tr><td><div class="table-main">'+t.name+'</div></td><td>'+t.role+'</td><td>'+t.score+'</td><td>'+t.confirms+'</td><td>'+t.issue+'</td><td><div class="table-main">'+t.action+'</div><div style="margin-top:8px"><button class="btn small" data-open="team" data-id="'+t.id+'">Открыть</button></div></td></tr>';
     }).join("")+
   '</tbody></table></div></div>';
@@ -957,7 +1060,7 @@ function drawerContent(type,id){
       title:src.name,
       sub:"Источник клиентов · качество канала",
       body:
-      '<div class="detail-card"><div class="detail-title">Канал в цифрах</div><div class="split"><div class="split-tile"><b>'+src.clients+'</b><span>клиентов</span></div><div class="split-tile"><b>'+src.paid+'</b><span>оплатили</span></div><div class="split-tile"><b>'+fmt(src.revenue)+'</b><span>выручка</span></div></div></div>'+
+      '<div class="detail-card"><div class="detail-title">Канал в цифрах</div><div class="split"><div class="split-tile"><b>'+int(src.clients)+'</b><span>клиентов</span></div><div class="split-tile"><b>'+int(src.paid)+'</b><span>оплатили</span></div><div class="split-tile"><b>'+fmt(src.revenue)+'</b><span>выручка</span></div></div></div>'+
       '<div class="detail-card"><div class="detail-title">Качество</div><div class="detail-text">Конверсия в оплату: '+src.conv+'%. Средний чек: '+fmt(src.avg)+'. Повторных клиентов: '+src.repeat+'. Отмен: '+src.cancel+'. Покупают чаще: '+src.top+'.</div></div>'+
       '<div class="detail-card"><div class="detail-title">Почему это важно</div><div class="detail-text">'+src.insight+'</div></div>'+
       '<div class="detail-card"><div class="detail-title">AI предлагает</div><div class="detail-text">'+src.action+'. Массовые действия и рассылки — только после подтверждения директора.</div><div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-toast="Демо: задача по источнику создана бы">Создать задачу</button><button class="btn" data-toast="Демо: сегмент для источника создан бы">Создать сегмент</button></div></div>'
@@ -969,7 +1072,7 @@ function drawerContent(type,id){
       title:cp.name,
       sub:"Портрет клиента · CRM-сегмент",
       body:
-      '<div class="detail-card"><div class="detail-title">Портрет в цифрах</div><div class="split"><div class="split-tile"><b>'+cp.count+'</b><span>клиентов</span></div><div class="split-tile"><b>'+cp.share+'%</b><span>доля базы</span></div><div class="split-tile"><b>'+fmt(cp.revenue)+'</b><span>выручка</span></div></div></div>'+
+      '<div class="detail-card"><div class="detail-title">Портрет в цифрах</div><div class="split"><div class="split-tile"><b>'+int(cp.count)+'</b><span>клиентов</span></div><div class="split-tile"><b>'+cp.share+'%</b><span>доля базы</span></div><div class="split-tile"><b>'+fmt(cp.revenue)+'</b><span>выручка</span></div></div></div>'+
       '<div class="detail-card"><div class="detail-title">Что покупают</div><div class="detail-text">'+cp.buys+'</div></div>'+
       '<div class="detail-card"><div class="detail-title">Поведение</div><div class="detail-text">'+cp.behavior+'</div></div>'+
       '<div class="detail-card"><div class="detail-title">Следующее действие</div><div class="detail-text">'+cp.action+'</div><div style="margin-top:12px"><button class="btn primary" data-toast="Демо: AI-черновик предложения создан бы">Создать предложение</button></div></div>'
@@ -981,7 +1084,7 @@ function drawerContent(type,id){
       title:s.name,
       sub:"CRM-сегмент для роста",
       body:
-      '<div class="detail-card"><div class="detail-title">Потенциал</div><div class="split"><div class="split-tile"><b>'+s.count+'</b><span>клиентов</span></div><div class="split-tile"><b>'+fmt(s.value)+'</b><span>оценка</span></div></div></div>'+
+      '<div class="detail-card"><div class="detail-title">Потенциал</div><div class="split"><div class="split-tile"><b>'+int(s.count)+'</b><span>клиентов</span></div><div class="split-tile"><b>'+fmt(s.value)+'</b><span>оценка</span></div></div></div>'+
       '<div class="detail-card"><div class="detail-title">Зачем нужен</div><div class="detail-text">'+s.action+'</div></div>'+
       '<div class="detail-card"><div class="detail-title">AI-черновик</div><div class="detail-text">Подготовить короткое персональное предложение, связанное с прошлым интересом клиента. Массовая отправка только после подтверждения директора или администратора.</div><div style="margin-top:12px"><button class="btn primary" data-toast="Демо: черновик рассылки создан бы">Создать черновик</button></div></div>'
     };
@@ -997,6 +1100,15 @@ function drawerContent(type,id){
     };
   }
   if(type === "team"){
+    if(id === "guide-confirm"){
+      return {
+        title:"Поздние подтверждения гидов",
+        sub:"Анна и Виктор · системная проблема команды",
+        body:
+        '<div class="detail-card"><div class="detail-title">Кого проверить</div><div class="detail-text">Анна: 2 поздних подтверждения, показатель 91%. Виктор: 4 поздних подтверждения, показатель 86%.</div></div>'+
+        '<div class="detail-card"><div class="detail-title">Рекомендуемое правило</div><div class="detail-text">Обязательное подтверждение выезда до 20:00 накануне. При отсутствии подтверждения — автоматическая задача администратору и эскалация директору.</div><div style="margin-top:12px"><button class="btn primary" data-toast="Демо: правило подтверждения подготовлено как черновик">Создать правило</button></div></div>'
+      };
+    }
     var p = team.find(function(x){return x.id === id;}) || team[0];
     return {
       title:p.name,
@@ -1029,18 +1141,75 @@ function render(){
   document.getElementById("content").innerHTML = html;
   bindActions();
   bindHorizon();
+  bindFilters();
+  updateDraftCount();
 }
 function bindActions(){
   document.querySelectorAll("[data-open]").forEach(function(btn){
+    if(btn.dataset.bound){return;} btn.dataset.bound="1";
     btn.addEventListener("click", function(){
       openDrawer(btn.getAttribute("data-open"), btn.getAttribute("data-id"));
     });
   });
   document.querySelectorAll("[data-toast]").forEach(function(btn){
+    if(btn.dataset.bound){return;} btn.dataset.bound="1";
     btn.addEventListener("click", function(){
-      showToast(btn.getAttribute("data-toast"));
+      openDraftComposer(btn.textContent.trim() || "Новое действие", btn.getAttribute("data-toast"));
     });
   });
+  document.querySelectorAll("[data-nav]").forEach(function(btn){
+    if(btn.dataset.bound){return;} btn.dataset.bound="1";
+    btn.addEventListener("click", function(){
+      state.view = btn.getAttribute("data-nav");
+      render();
+    });
+  });
+}
+function bindFilters(){
+  document.querySelectorAll("[data-filter]").forEach(function(field){
+    field.addEventListener("change", function(){
+      state.filters[field.getAttribute("data-filter")] = field.value;
+      render();
+    });
+  });
+}
+function openDraftComposer(title,note){
+  document.getElementById("drawerTitle").textContent = title;
+  document.getElementById("drawerSub").textContent = "Демонстрационный черновик · без отправки в CRM";
+  document.getElementById("drawerBody").innerHTML =
+    '<div class="detail-card"><form class="draft-form" id="draftForm">'+
+      '<label><b>Название</b><input id="draftTitle" value="'+safeText(title)+'"></label>'+
+      '<label><b>Ответственный</b><select id="draftOwner"><option>Администратор</option><option>Маркетинг</option><option>Бухгалтер</option><option>Директор</option></select></label>'+
+      '<label><b>Комментарий</b><textarea id="draftNote">'+safeText(String(note || "").replace(/^Демо:\s*/,""))+'</textarea></label>'+
+      '<button class="btn primary" type="submit">Сохранить черновик</button>'+
+    '</form></div>';
+  document.getElementById("drawer").classList.add("open");
+  document.getElementById("scrim").classList.add("open");
+  document.getElementById("drawer").setAttribute("aria-hidden","false");
+  document.getElementById("draftForm").addEventListener("submit",function(e){
+    e.preventDefault();
+    createDraft(document.getElementById("draftTitle").value,document.getElementById("draftNote").value,document.getElementById("draftOwner").value);
+  });
+}
+function createDraft(title,note,owner){
+  state.drafts.unshift({id:Date.now(),title:title || "Черновик",note:note || "",owner:owner || "Администратор",created:new Date().toLocaleString("ru-RU")});
+  saveDrafts();
+  updateDraftCount();
+  closeDrawer();
+  showToast("Черновик сохранён в демо-сессии");
+}
+function updateDraftCount(){
+  document.getElementById("draftCount").textContent = state.drafts.length;
+}
+function openDrafts(){
+  document.getElementById("drawerTitle").textContent = "Черновики действий";
+  document.getElementById("drawerSub").textContent = "Сохраняются только в текущей браузерной сессии";
+  document.getElementById("drawerBody").innerHTML = state.drafts.length ? '<div class="draft-list">'+state.drafts.map(function(d){
+    return '<div class="draft-item"><b>'+safeText(d.title)+'</b><span>'+safeText(d.owner)+' · '+safeText(d.created)+'</span><span>'+safeText(d.note)+'</span></div>';
+  }).join("")+'</div>' : '<div class="detail-card"><div class="detail-text">Черновиков пока нет. Создайте задачу, отчёт, сегмент или другое действие в любом разделе.</div></div>';
+  document.getElementById("drawer").classList.add("open");
+  document.getElementById("scrim").classList.add("open");
+  document.getElementById("drawer").setAttribute("aria-hidden","false");
 }
 function openDrawer(type,id){
   var d = drawerContent(type,id);
@@ -1064,13 +1233,45 @@ function showToast(msg){
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(function(){t.classList.remove("show");}, 2600);
 }
+function searchIndex(){
+  var list = NAV.map(function(n){return {title:n.label,meta:n.sub,view:n.id};});
+  cities.forEach(function(x){list.push({title:x.city,meta:x.insight,view:"cities",type:"city",id:x.id});});
+  tours.forEach(function(x){list.push({title:x.name,meta:x.city+" · "+x.action,view:"tours",type:"tour",id:x.id});});
+  groups.forEach(function(x){list.push({title:x.tour+" · "+x.date,meta:x.city+" · "+x.status,view:"groups",type:"group",id:x.id});});
+  moneyRows.forEach(function(x){list.push({title:x.kind,meta:x.desc,view:"money",type:"money",id:x.id});});
+  sourceChannels.forEach(function(x){list.push({title:x.name,meta:x.insight,view:"customers",type:"source",id:x.id});});
+  customerTypes.forEach(function(x){list.push({title:x.name,meta:x.behavior,view:"customers",type:"persona",id:x.id});});
+  segments.forEach(function(x){list.push({title:x.name,meta:x.action,view:"customers",type:"segment",id:x.id});});
+  team.forEach(function(x){list.push({title:x.name,meta:x.role+" · "+x.issue,view:"team",type:"team",id:x.id});});
+  return list;
+}
+function renderSearch(query){
+  var box = document.getElementById("searchResults");
+  var q = String(query || "").trim().toLowerCase();
+  if(q.length < 2){box.hidden=true;box.innerHTML="";return;}
+  var found = searchIndex().filter(function(item){return (item.title+" "+item.meta).toLowerCase().includes(q);}).slice(0,8);
+  box.innerHTML = found.length ? found.map(function(item,index){
+    return '<button class="search-result" data-search-index="'+index+'"><b>'+safeText(item.title)+'</b><span>'+safeText(item.meta)+'</span></button>';
+  }).join("") : '<div class="empty-state">Ничего не найдено</div>';
+  box.hidden=false;
+  document.querySelectorAll("[data-search-index]").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      var item=found[Number(btn.getAttribute("data-search-index"))];
+      state.view=item.view;
+      state.horizon="month";
+      box.hidden=true;
+      document.getElementById("globalSearch").value="";
+      document.getElementById("mobileGlobalSearch").value="";
+      render();
+      if(item.type){openDrawer(item.type,item.id);}
+    });
+  });
+}
 document.getElementById("closeDrawer").addEventListener("click", closeDrawer);
 document.getElementById("scrim").addEventListener("click", closeDrawer);
-document.getElementById("globalSearch").addEventListener("input", function(e){
-  if(e.target.value.trim().length > 1){
-    showToast("Демо: поиск нашёл бы города, экскурсии, сегменты и задачи");
-  }
-});
+document.getElementById("draftsButton").addEventListener("click",openDrafts);
+document.getElementById("globalSearch").addEventListener("input",function(e){renderSearch(e.target.value);});
+document.getElementById("mobileGlobalSearch").addEventListener("input",function(e){renderSearch(e.target.value);});
 render();
 })();
 </script>

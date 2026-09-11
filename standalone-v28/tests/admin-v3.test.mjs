@@ -40,8 +40,29 @@ test('director v3 keeps its management views and direct demo access', () => {
   assert.match(director, /aria-label="Переключение роли"/);
   assert.match(director, /href="\/director\/" class="active"/);
   assert.doesNotMatch(director, /type="password"/);
-  assert.match(director, /format\(n\) \+ " ₽"/);
+  assert.match(director, /format\(Math\.round\(n \* periodFactor\(\)\)\) \+ " ₽"/);
   assert.doesNotMatch(director, /USD/);
+});
+
+test('director demo filters, search and periods change visible data', () => {
+  assert.match(director, /data-filter="period"/);
+  assert.match(director, /data-filter="city"/);
+  assert.match(director, /data-filter="status"/);
+  assert.match(director, /function filteredRows\(rows\)/);
+  assert.match(director, /field\.addEventListener\("change"/);
+  assert.match(director, /HORIZON_FACTORS/);
+  assert.match(director, /visibleDecisions = decisions\.slice/);
+  assert.match(director, /function searchIndex\(\)/);
+  assert.match(director, /\.filter\(function\(item\).*includes\(q\)/);
+  assert.match(director, /data-search-index/);
+});
+
+test('director demo actions create session drafts and every internal navigation control is bound', () => {
+  assert.match(director, /sessionStorage\.setItem\("maxtourDirectorDrafts"/);
+  assert.match(director, /function openDraftComposer\(title,note\)/);
+  assert.match(director, /function createDraft\(title,note,owner\)/);
+  assert.match(director, /querySelectorAll\("\[data-nav\]"\)/);
+  assert.match(director, /if\(id === "guide-confirm"\)/);
 });
 
 test('admin prototype displays money only in rubles', () => {
