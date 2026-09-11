@@ -54,14 +54,7 @@ button{cursor:pointer}
   display:flex;align-items:center;gap:12px;
   padding:5px 4px 17px;
 }
-.logo-mark{
-  width:46px;height:46px;border-radius:18px;
-  display:grid;place-items:center;
-  color:#fff;font-weight:950;letter-spacing:-.06em;
-  background:linear-gradient(135deg,var(--red),var(--red2));
-  box-shadow:0 12px 26px rgba(216,21,36,.22);
-}
-.brand-main{font-weight:950;font-size:22px;line-height:.95;letter-spacing:-.055em}
+.brand-logo{width:146px;max-width:100%;height:auto;display:block;object-fit:contain}
 .brand-sub{margin-top:5px;color:var(--muted);font-weight:850;font-size:12px}
 .nav-label{
   margin:12px 10px 8px;
@@ -328,7 +321,7 @@ td{font-size:13px;font-weight:820;line-height:1.35}
   .main{padding:12px 14px 30px}
   .topbar{display:block;padding-top:8px}
   .mobile-brand{display:flex;align-items:center;gap:9px;margin-bottom:10px}
-  .mobile-brand .logo-mark{width:40px;height:40px;border-radius:15px}
+  .mobile-brand .brand-logo{width:132px}
   .top-actions{position:absolute;right:14px;top:14px}
   .search,.person,.top-actions .icon-btn{display:none}
   .role-switch{min-height:42px;padding:3px}
@@ -386,9 +379,8 @@ td{font-size:13px;font-weight:820;line-height:1.35}
 <div class="app">
   <aside class="sidebar">
     <div class="brand">
-      <div class="logo-mark">M</div>
       <div>
-        <div class="brand-main">MaxTour</div>
+        <img class="brand-logo" src="/max-tour-logo.svg" alt="Max Tour — Экскурсионное бюро">
         <div class="brand-sub">кабинет директора</div>
       </div>
     </div>
@@ -403,9 +395,8 @@ td{font-size:13px;font-weight:820;line-height:1.35}
     <div class="topbar">
       <div>
         <div class="mobile-brand">
-          <div class="logo-mark">M</div>
           <div>
-            <div class="brand-main">MaxTour</div>
+            <img class="brand-logo" src="/max-tour-logo.svg" alt="Max Tour — Экскурсионное бюро">
             <div class="brand-sub">кабинет директора</div>
           </div>
         </div>

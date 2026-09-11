@@ -41,6 +41,34 @@ function replaceLegacyAdmin(html) {
   return withoutLegacyAdmin.replace(oldEntry, "function showAdmin() { window.location.assign('/admin/'); }");
 }
 
+const brandLogoPath = '/max-tour-logo.svg';
+
+function replaceBrandLogos(html) {
+  let replacements = 0;
+  const replace = (pattern, markup) => {
+    html = html.replace(pattern, () => {
+      replacements += 1;
+      return markup;
+    });
+  };
+
+  replace(
+    /<img\s+src="data:image\/png;base64,[^"]+"\s+alt="Max Tour — Экскурсионное бюро"\s+loading="eager">/g,
+    `<img src="${brandLogoPath}" alt="Max Tour — Экскурсионное бюро" loading="eager">`,
+  );
+  replace(
+    /<img\s+alt="MaxTour"\s+src="data:image\/png;base64,[^"]+">/g,
+    `<img alt="MaxTour" src="${brandLogoPath}">`,
+  );
+  replace(
+    /const logoSrc = "data:image\/png;base64,[^"]+";/g,
+    `const logoSrc = '${brandLogoPath}';`,
+  );
+
+  if (replacements === 0) throw new Error('Brand logo was not found in HTML');
+  return html;
+}
+
 const telegramSdk = '<script src="https://telegram.org/js/telegram-web-app.js?63"></script>';
 const analyticsTracker = '<script defer src="https://dashboard.viiversion.com/tracker.js" data-project="MAX TOUR Demo"></script>';
 
@@ -64,7 +92,7 @@ await mkdir(resolve(dist, 'director'), { recursive: true });
 const marker = '</body>';
 const injection = '<script src="/booking-pricing.js"></script>\n<script src="/traveler-profile.js"></script>\n<link rel="stylesheet" href="/traveler-picker-list.css">\n<script src="/trip-actions.js"></script>\n<link rel="stylesheet" href="/hero-redesign.css">\n<script src="/hero-redesign.js"></script>\n<link rel="stylesheet" href="/role-switch.css">\n<script src="/role-switch.js"></script>\n<script src="/runtime-api.js" defer></script>\n';
 if (!prototypeHtml.includes(marker)) throw new Error('Prototype has no </body> marker');
-const builtHtml = withViiversionAnalytics(replaceLegacyAdmin(prototypeHtml).replace(marker, `${injection}${marker}`));
+const builtHtml = withViiversionAnalytics(replaceBrandLogos(replaceLegacyAdmin(prototypeHtml)).replace(marker, `${injection}${marker}`));
 await writeFile(resolve(dist, 'index.html'), builtHtml, 'utf8');
 await writeFile(resolve(dist, 'catalog.v28.json'), catalogRaw);
 await copyFile(resolve(root, 'src/booking-pricing.js'), resolve(dist, 'booking-pricing.js'));
@@ -75,7 +103,8 @@ await copyFile(resolve(root, 'src/hero-redesign.css'), resolve(dist, 'hero-redes
 await copyFile(resolve(root, 'src/hero-redesign.js'), resolve(dist, 'hero-redesign.js'));
 await copyFile(resolve(root, 'src/role-switch.css'), resolve(dist, 'role-switch.css'));
 await copyFile(resolve(root, 'src/role-switch.js'), resolve(dist, 'role-switch.js'));
-const adminBuilt = withViiversionAnalytics(adminPrototype
+await copyFile(resolve(root, 'src/max-tour-logo.svg'), resolve(dist, 'max-tour-logo.svg'));
+const adminBuilt = withViiversionAnalytics(replaceBrandLogos(adminPrototype)
   .replace('</head>', '<link rel="stylesheet" href="/admin-app.css">\n</head>')
   .replace('</body>', '<script src="/admin-app.js" defer></script>\n</body>'));
 await writeFile(resolve(dist, 'admin/index.html'), adminBuilt, 'utf8');

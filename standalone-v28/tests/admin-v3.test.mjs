@@ -80,6 +80,14 @@ test('standalone build publishes admin and director routes plus role switch asse
   assert.match(build, /role-switch\.js/);
   assert.match(build, /admin-app\.css/);
   assert.match(build, /admin-app\.js/);
+  assert.match(build, /max-tour-logo\.svg/);
+});
+
+test('all three cabinets publish the same approved Max Tour logo asset', () => {
+  assert.match(build, /function replaceBrandLogos\(html\)/);
+  assert.match(build, /brandLogoPath = '\/max-tour-logo\.svg'/);
+  assert.match(director, /class="brand-logo" src="\/max-tour-logo\.svg"/);
+  assert.doesNotMatch(director, /class="logo-mark"/);
 });
 
 test('published Mini App replaces the legacy inline admin with protected v3', async () => {
