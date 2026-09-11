@@ -11,7 +11,7 @@
 }
 .max-role-switch__item{
   min-height:36px;
-  padding:0 10px;
+  padding:0 8px;
   border-radius:999px;
   display:inline-flex;
   align-items:center;
@@ -32,10 +32,10 @@
 .max-role-switch__long{display:inline}
 .max-role-switch__short{display:none}
 @media(max-width:390px){
-  .max-role-switch__item{min-height:34px;padding:0 8px;font-size:10.5px}
+  .max-role-switch__item{min-height:34px;padding:0 6px;font-size:9.5px}
   .max-role-switch__long{display:none}
   .max-role-switch__short{display:inline}
 }
 @media(max-width:330px){
-  .max-role-switch__item{padding:0 7px;font-size:10px}
+  .max-role-switch__item{padding:0 5px;font-size:9px}
 }

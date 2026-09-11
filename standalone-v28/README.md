@@ -13,14 +13,16 @@ The two supplied source files are stored in `source/` as checksummed gzip+base64
 
 The build then injects the runtime adapters before `</body>`. No existing v28 source HTML is rewritten.
 
-The administrator prototype is published separately at `/admin/`. It is based on the approved admin cabinet v3 and is linked to the tourist interface through the role switch in both headers.
+The administrator prototype is published separately at `/admin/`, and the director prototype at `/director/`. Both are based on the approved v3 cabinet prototypes and are linked to the tourist interface through the role switch in every header. The director route is a self-contained interactive presentation prototype with demo data; it does not yet write to D1.
 
 ## Architecture
 
 - `source/` — exact supplied v28 sources, losslessly packaged and checksummed.
 - `src/runtime-api.js` — persistence plus wiring for prototype controls that had no handler.
 - `src/admin-v3.html` — self-contained administrator cabinet prototype.
-- `src/role-switch.*` — top-level tourist/administrator role navigation.
+- `src/director-v3.html` — self-contained director cabinet prototype.
+- `docs/director-v3-*` — supplied UX and QA notes for the director prototype.
+- `src/role-switch.*` — top-level tourist/administrator/director role navigation.
 - `src/worker.js` — Cloudflare Worker API + static assets.
 - `migrations/` — dedicated D1 schema for demo sessions, bookings, travelers, favorites and admin demo actions.
 - `build.mjs` — reconstructs exact sources and produces `dist/`.

@@ -17,10 +17,11 @@ async function restore(entry) {
   return raw;
 }
 
-const [prototypeRaw, catalogRaw, adminPrototype] = await Promise.all([
+const [prototypeRaw, catalogRaw, adminPrototype, directorPrototype] = await Promise.all([
   restore(manifest.html),
   restore(manifest.catalog),
   readFile(resolve(root, 'src/admin-v3.html'), 'utf8'),
+  readFile(resolve(root, 'src/director-v3.html'), 'utf8'),
 ]);
 const prototypeHtml = prototypeRaw.toString('utf8');
 const catalog = JSON.parse(catalogRaw.toString('utf8'));
@@ -43,6 +44,7 @@ function replaceLegacyAdmin(html) {
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 await mkdir(resolve(dist, 'admin'), { recursive: true });
+await mkdir(resolve(dist, 'director'), { recursive: true });
 const marker = '</body>';
 const injection = '<script src="/booking-pricing.js"></script>\n<script src="/traveler-profile.js"></script>\n<link rel="stylesheet" href="/traveler-picker-list.css">\n<script src="/trip-actions.js"></script>\n<link rel="stylesheet" href="/hero-redesign.css">\n<script src="/hero-redesign.js"></script>\n<link rel="stylesheet" href="/role-switch.css">\n<script src="/role-switch.js"></script>\n<script src="/runtime-api.js" defer></script>\n';
 if (!prototypeHtml.includes(marker)) throw new Error('Prototype has no </body> marker');
@@ -61,7 +63,8 @@ const adminBuilt = adminPrototype
   .replace('</head>', '<link rel="stylesheet" href="/admin-app.css">\n</head>')
   .replace('</body>', '<script src="/admin-app.js" defer></script>\n</body>');
 await writeFile(resolve(dist, 'admin/index.html'), adminBuilt, 'utf8');
+await writeFile(resolve(dist, 'director/index.html'), directorPrototype, 'utf8');
 await copyFile(resolve(root, 'src/admin-app.css'), resolve(dist, 'admin-app.css'));
 await copyFile(resolve(root, 'src/admin-app.js'), resolve(dist, 'admin-app.js'));
 await copyFile(resolve(root, 'src/runtime-api.js'), resolve(dist, 'runtime-api.js'));
-console.log(`Built standalone v28: ${catalog.length} tours + admin v3; exact source checksums verified.`);
+console.log(`Built standalone v28: ${catalog.length} tours + admin v3 + director v3; exact source checksums verified.`);

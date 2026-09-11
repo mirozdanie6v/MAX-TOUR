@@ -15,6 +15,9 @@
     </a>
     <a class="max-role-switch__item" href="/admin/" aria-label="Открыть кабинет администратора">
       <span class="max-role-switch__long">Админ</span><span class="max-role-switch__short">Админ</span>
+    </a>
+    <a class="max-role-switch__item" href="/director/" aria-label="Открыть кабинет директора">
+      <span class="max-role-switch__long">Директор</span><span class="max-role-switch__short">Директор</span>
     </a>`;
 
   adminButton.replaceWith(roleSwitch);

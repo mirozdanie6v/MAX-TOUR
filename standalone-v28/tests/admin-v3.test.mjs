@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
 const admin = await readFile(resolve(root, 'src/admin-v3.html'), 'utf8');
+const director = await readFile(resolve(root, 'src/director-v3.html'), 'utf8');
 const adminApp = await readFile(resolve(root, 'src/admin-app.js'), 'utf8');
 const roleScript = await readFile(resolve(root, 'src/role-switch.js'), 'utf8');
 const roleStyles = await readFile(resolve(root, 'src/role-switch.css'), 'utf8');
@@ -20,14 +21,27 @@ test('admin v3 keeps the approved navigation and operational views', () => {
   assert.match(adminApp, /window\.renderCustomers = function\(/);
 });
 
-test('role switch connects tourist and administrator cabinets', () => {
+test('role switch connects tourist, administrator and director cabinets', () => {
   assert.match(admin, /aria-label="Переключение роли"/);
   assert.match(admin, /href="\/"[^>]*aria-label="Открыть кабинет туриста"/);
   assert.match(admin, /href="\/admin\/" class="active"/);
+  assert.match(admin, /href="\/director\/"/);
   assert.match(roleScript, /querySelector\('\.admin-top'\)/);
   assert.match(roleScript, /href="\/admin\/"/);
+  assert.match(roleScript, /href="\/director\/"/);
   assert.match(roleScript, /window\.showAdmin = \(\) => window\.location\.assign\('\/admin\/'\)/);
   assert.match(roleStyles, /\.max-role-switch/);
+});
+
+test('director v3 keeps its management views and direct demo access', () => {
+  for (const section of ['Пульт директора', 'План и прогноз', 'Города', 'Экскурсии', 'Группы и спрос', 'Деньги', 'Клиенты и источники', 'Команда', 'AI-copilot']) {
+    assert.match(director, new RegExp(section));
+  }
+  assert.match(director, /aria-label="Переключение роли"/);
+  assert.match(director, /href="\/director\/" class="active"/);
+  assert.doesNotMatch(director, /type="password"/);
+  assert.match(director, /format\(n\) \+ " ₽"/);
+  assert.doesNotMatch(director, /USD/);
 });
 
 test('admin prototype displays money only in rubles', () => {
@@ -36,9 +50,11 @@ test('admin prototype displays money only in rubles', () => {
   assert.doesNotMatch(admin, /USD/);
 });
 
-test('standalone build publishes the admin route and role switch assets', () => {
+test('standalone build publishes admin and director routes plus role switch assets', () => {
   assert.match(build, /mkdir\(resolve\(dist, 'admin'\)/);
   assert.match(build, /admin\/index\.html/);
+  assert.match(build, /mkdir\(resolve\(dist, 'director'\)/);
+  assert.match(build, /director\/index\.html/);
   assert.match(build, /role-switch\.css/);
   assert.match(build, /role-switch\.js/);
   assert.match(build, /admin-app\.css/);
