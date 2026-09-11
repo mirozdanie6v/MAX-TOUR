@@ -12,13 +12,14 @@ const roleStyles = await readFile(resolve(root, 'src/role-switch.css'), 'utf8');
 const build = await readFile(resolve(root, 'build.mjs'), 'utf8');
 
 test('admin v3 keeps the approved navigation and operational views', () => {
-  for (const section of ['Обзор', 'Выезды', 'Заказы', 'Группы', 'Клиенты', 'Оплаты', 'Каталог', 'Уведомления', 'Аналитика']) {
+  for (const section of ['Обзор', 'Выезды', 'Заказы', 'Группы', 'Клиенты', 'Оплаты', 'Каталог', 'Задачи директора', 'Уведомления', 'Аналитика']) {
     assert.match(admin, new RegExp(section));
   }
   assert.match(adminApp, /window\.renderDashboard = function\(/);
   assert.match(adminApp, /window\.renderDepartures = function\(/);
   assert.match(adminApp, /window\.renderOrders = function\(/);
   assert.match(adminApp, /window\.renderCustomers = function\(/);
+  assert.match(adminApp, /window\.renderTasks = function\(/);
 });
 
 test('role switch connects tourist, administrator and director cabinets', () => {
@@ -63,6 +64,8 @@ test('director demo actions create session drafts and every internal navigation 
   assert.match(director, /function createDraft\(title,note,owner\)/);
   assert.match(director, /querySelectorAll\("\[data-nav\]"\)/);
   assert.match(director, /if\(id === "guide-confirm"\)/);
+  assert.match(director, /\/api\/admin\/tasks/);
+  assert.match(director, /Отправить администратору/);
 });
 
 test('admin prototype displays money only in rubles', () => {

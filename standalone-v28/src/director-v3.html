@@ -1166,13 +1166,13 @@ function bindFilters(){
 }
 function openDraftComposer(title,note){
   document.getElementById("drawerTitle").textContent = title;
-  document.getElementById("drawerSub").textContent = "Демонстрационный черновик · без отправки в CRM";
+  document.getElementById("drawerSub").textContent = "Задача будет отправлена администратору и сохранена в D1";
   document.getElementById("drawerBody").innerHTML =
     '<div class="detail-card"><form class="draft-form" id="draftForm">'+
       '<label><b>Название</b><input id="draftTitle" value="'+safeText(title)+'"></label>'+
       '<label><b>Ответственный</b><select id="draftOwner"><option>Администратор</option><option>Маркетинг</option><option>Бухгалтер</option><option>Директор</option></select></label>'+
       '<label><b>Комментарий</b><textarea id="draftNote">'+safeText(String(note || "").replace(/^Демо:\s*/,""))+'</textarea></label>'+
-      '<button class="btn primary" type="submit">Сохранить черновик</button>'+
+      '<button class="btn primary" type="submit">Отправить администратору</button>'+
     '</form></div>';
   document.getElementById("drawer").classList.add("open");
   document.getElementById("scrim").classList.add("open");
@@ -1183,18 +1183,40 @@ function openDraftComposer(title,note){
   });
 }
 function createDraft(title,note,owner){
-  state.drafts.unshift({id:Date.now(),title:title || "Черновик",note:note || "",owner:owner || "Администратор",created:new Date().toLocaleString("ru-RU")});
+  var draft = {id:Date.now(),title:title || "Задача директору",note:note || "",owner:owner || "Администратор",created:new Date().toLocaleString("ru-RU"),status:"sending"};
+  state.drafts.unshift(draft);
   saveDrafts();
   updateDraftCount();
   closeDrawer();
-  showToast("Черновик сохранён в демо-сессии");
+  showToast("Задача отправляется администратору…");
+  if(typeof fetch !== "function") return draft;
+  fetch("/api/admin/auth/session", {credentials:"same-origin"})
+    .then(function(response){return response.json();})
+    .then(function(session){
+      if(!session || !session.authenticated || !session.csrfToken){throw new Error("session");}
+      return fetch("/api/admin/tasks", {method:"POST", credentials:"same-origin", headers:{"content-type":"application/json","x-csrf-token":session.csrfToken}, body:JSON.stringify({title:draft.title,description:draft.note,owner:draft.owner,priority:"normal"})});
+    })
+    .then(function(response){return response.json().then(function(data){if(!response.ok || data.ok === false){throw new Error("task");} return data;});})
+    .then(function(data){
+      draft.serverId = data.task && data.task.id;
+      draft.status = "sent";
+      draft.created = data.task && data.task.created_at ? data.task.created_at : draft.created;
+      saveDrafts();
+      showToast("Задача отправлена администратору");
+    })
+    .catch(function(){
+      draft.status = "local";
+      saveDrafts();
+      showToast("Нет связи с сервером — задача сохранена локально");
+    });
+  return draft;
 }
 function updateDraftCount(){
   document.getElementById("draftCount").textContent = state.drafts.length;
 }
 function openDrafts(){
   document.getElementById("drawerTitle").textContent = "Черновики действий";
-  document.getElementById("drawerSub").textContent = "Сохраняются только в текущей браузерной сессии";
+  document.getElementById("drawerSub").textContent = "Отправленные задачи доступны администратору в разделе «Задачи директора»";
   document.getElementById("drawerBody").innerHTML = state.drafts.length ? '<div class="draft-list">'+state.drafts.map(function(d){
     return '<div class="draft-item"><b>'+safeText(d.title)+'</b><span>'+safeText(d.owner)+' · '+safeText(d.created)+'</span><span>'+safeText(d.note)+'</span></div>';
   }).join("")+'</div>' : '<div class="detail-card"><div class="detail-text">Черновиков пока нет. Создайте задачу, отчёт, сегмент или другое действие в любом разделе.</div></div>';

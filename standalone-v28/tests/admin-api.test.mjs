@@ -10,6 +10,7 @@ const app = await readFile(resolve(root, 'src/admin-app.js'), 'utf8');
 const api = await readFile(resolve(root, 'src/admin-api.js'), 'utf8');
 const worker = await readFile(resolve(root, 'src/worker.js'), 'utf8');
 const migration = await readFile(resolve(root, 'migrations/0002_admin_crm.sql'), 'utf8');
+const taskMigration = await readFile(resolve(root, 'migrations/0003_admin_tasks.sql'), 'utf8');
 const wrangler = await readFile(resolve(root, 'wrangler.jsonc'), 'utf8');
 
 test('admin prototype contains no hardcoded customer, order or payment records', () => {
@@ -61,4 +62,14 @@ test('demo admin opens directly without setup or login UI', () => {
   assert.match(api, /demo-public-admin/);
   assert.match(api, /setupRequired: false, authenticated: true/);
   assert.match(app, /loadWorkspace\(\)/);
+});
+
+test('director tasks have a persistent D1 queue and admin API contract', () => {
+  assert.match(taskMigration, /CREATE TABLE IF NOT EXISTS admin_tasks/);
+  for (const field of ['title', 'description', 'owner', 'priority', 'status', 'due_date', 'created_by']) {
+    assert.match(taskMigration, new RegExp(`${field}`));
+  }
+  assert.match(api, /path === '\/api\/admin\/tasks' && request.method === 'POST'/);
+  assert.match(api, /const task = path\.match/);
+  assert.match(api, /task\.write/);
 });

@@ -2,7 +2,7 @@
   'use strict';
 
   const state = {
-    csrf: '', user: null, catalog: [], rules: [], analytics: {}, messages: [], broadcasts: [],
+    csrf: '', user: null, catalog: [], rules: [], analytics: {}, messages: [], broadcasts: [], tasks: [],
     query: '', orderFilter: 'all', customerFilter: 'all', selectedCustomerId: '', busy: false,
   };
 
@@ -93,6 +93,7 @@
     state.analytics = data.analytics || {};
     state.messages = data.messages || [];
     state.broadcasts = data.broadcasts || [];
+    state.tasks = data.tasks || [];
     state.csrf = data.csrfToken || state.csrf;
     state.user = data.user || state.user;
   }
@@ -156,13 +157,13 @@
 
   function renderAll() {
     renderDashboard(); renderDepartures(); renderOrders(); renderGroups(); renderCustomers();
-    renderPayments(); renderCatalog(); renderNotifications(); renderAnalytics();
+    renderPayments(); renderCatalog(); renderTasks(); renderNotifications(); renderAnalytics();
   }
 
   function renderSearchView() {
     const current = document.querySelector('.view.active')?.id;
     ({ dashboard:renderDashboard, departures:renderDepartures, orders:renderOrders, groups:renderGroups,
-      customers:renderCustomers, payments:renderPayments, catalog:renderCatalog, notifications:renderNotifications,
+      customers:renderCustomers, payments:renderPayments, catalog:renderCatalog, tasks:renderTasks, notifications:renderNotifications,
       analytics:renderAnalytics })[current]?.();
   }
 
@@ -256,6 +257,28 @@
     document.getElementById('catalog').innerHTML = `<section class="section"><div class="section-head"><div><h2 class="section-title">Туры, цены, расписания</h2><p class="section-caption">Изменения сохраняются в D1 и попадают в Mini App через общий bootstrap.</p></div><button class="btn primary" data-admin-action="edit-tour" data-id="">Добавить экскурсию</button></div><div class="card data-table-card"><div class="table-scroll"><table><thead><tr><th>Экскурсия</th><th>Город</th><th>Форматы</th><th>Цена</th><th>Вместимость</th><th>Статус</th><th></th></tr></thead><tbody>${tours.map(t=>`<tr><td><div class="table-main">${h(t.title)}</div></td><td>${h(t.city)}</td><td>${h(t.format)}</td><td>${h(t.price)}</td><td>${h(t.capacity)}</td><td>${badgeStatus(h(t.status))}</td><td><button class="btn small" data-admin-action="edit-tour" data-id="${attrId(t.id)}">Редактировать</button></td></tr>`).join('') || '<tr><td colspan="7"><div class="empty">Каталог не загружен</div></td></tr>'}</tbody></table></div></div></section>`;
   };
 
+  function taskStatusLabel(status) {
+    return ({ new:'Новая', in_progress:'В работе', done:'Выполнена', cancelled:'Отменена' })[status] || status || 'Новая';
+  }
+
+  function taskPriorityLabel(priority) {
+    return ({ low:'Низкий', normal:'Обычный', high:'Высокий', urgent:'Срочный' })[priority] || 'Обычный';
+  }
+
+  function taskCard(task) {
+    const status = taskStatusLabel(task.status);
+    const priorityClass = task.priority === 'urgent' || task.priority === 'high' ? 'red' : task.priority === 'low' ? 'gray' : 'gold';
+    const date = task.created_at ? new Date(task.created_at.replace(' ', 'T') + (task.created_at.includes('Z') ? '' : 'Z')).toLocaleString('ru-RU') : 'только что';
+    const due = task.due_date ? ` · срок ${h(task.due_date)}` : '';
+    return `<article class="card card-pad task-card"><div class="meta-row"><span class="badge ${task.status === 'done' ? 'green' : task.status === 'cancelled' ? 'gray' : 'blue'}">${h(status)}</span><span class="badge ${priorityClass}">${h(taskPriorityLabel(task.priority))}</span></div><h3 class="entity-title" style="margin-top:10px">${h(task.title)}</h3><p class="section-caption">${h(task.description || 'Без комментария')}</p><div class="entity-meta">От: директор · Ответственный: ${h(task.owner || 'Администратор')}<br>${h(date)}${due}</div><div class="row-actions">${task.status === 'new' ? `<button class="btn primary" data-admin-action="task-status" data-id="${attrId(task.id)}" data-status="in_progress">В работу</button>` : ''}${task.status === 'in_progress' ? `<button class="btn primary" data-admin-action="task-status" data-id="${attrId(task.id)}" data-status="done">Завершить</button>` : ''}${task.status !== 'done' && task.status !== 'cancelled' ? `<button class="btn" data-admin-action="task-status" data-id="${attrId(task.id)}" data-status="cancelled">Отменить</button>` : ''}</div></article>`;
+  }
+
+  window.renderTasks = function() {
+    const open = state.tasks.filter(task => task.status === 'new' || task.status === 'in_progress');
+    const done = state.tasks.filter(task => task.status === 'done' || task.status === 'cancelled');
+    document.getElementById('tasks').innerHTML = `<section class="section"><div class="section-head"><div><h2 class="section-title">Задачи директора</h2><p class="section-caption">Новые задачи сохраняются в D1 и доступны администратору с любого устройства.</p></div><span class="badge ${open.length ? 'red' : 'green'}">Открытых: ${open.length}</span></div><div class="grid responsive-2">${open.map(taskCard).join('') || empty('Новых задач нет')}</div>${done.length ? `<div class="section-head" style="margin-top:24px"><h2 class="section-title">История</h2></div><div class="grid responsive-2">${done.map(taskCard).join('')}</div>` : ''}</section>`;
+  };
+
   window.renderNotifications = function() {
     document.getElementById('notifications').innerHTML = `<section class="section"><div class="section-head"><div><h2 class="section-title">Автонапоминания</h2><p class="section-caption">Состояние каждого правила сохраняется в D1.</p></div></div><div class="grid responsive-2">${state.rules.map(r=>`<div class="card card-pad"><div class="profile-head"><div><div class="entity-title" style="font-size:17px">${h(r.title)}</div><div class="section-caption">${h(r.description)}</div></div><button class="switch ${r.enabled?'on':''}" type="button" data-admin-action="toggle-rule" data-id="${attrId(r.key)}" aria-pressed="${r.enabled}" aria-label="${r.enabled?'Выключить':'Включить'}"></button></div>${badgeStatus(r.requiresConfirmation?'Ручное подтверждение':(r.enabled?'Включено':'Выключено'))}</div>`).join('') || empty('Правила не найдены')}</div></section><section class="section"><div class="card card-pad"><h2 class="section-title">Ручная рассылка</h2><p class="section-caption">Сообщение сохраняется в очереди. Фактическая доставка начнётся после подключения Telegram/CRM-провайдера.</p><div class="tabs" style="margin-top:12px"><button class="btn primary" data-admin-action="broadcast">Создать рассылку</button><button class="btn" data-admin-action="broadcast-history">История (${state.broadcasts.length})</button></div></div></section>`;
   };
@@ -342,6 +365,12 @@
     if (action === 'edit-tour') return tourForm(state.catalog.find(t=>String(t.id)===id) || {});
     if (action === 'broadcast') return broadcastForm();
     if (action === 'broadcast-history') return broadcastHistory();
+    if (action === 'task-status') {
+      target.disabled = true;
+      try { await api(`/api/admin/tasks/${encodeURIComponent(id)}`, { method:'PATCH', body:JSON.stringify({ status: target.dataset.status }) }); await loadWorkspace('Статус задачи сохранён'); }
+      catch (err) { showToast(err.message); target.disabled = false; }
+      return;
+    }
     if (action === 'toggle-rule') {
       const rule = state.rules.find(r=>r.key===id); if (!rule) return;
       target.disabled = true;

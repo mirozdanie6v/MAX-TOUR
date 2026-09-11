@@ -61,8 +61,8 @@ function normalizeEmail(value) {
 
 const permissions = {
   manager: new Set(['read', 'booking.write', 'customer.write', 'message.write']),
-  admin: new Set(['read', 'booking.write', 'customer.write', 'message.write', 'tour.write', 'notification.write', 'broadcast.write', 'departure.write']),
-  owner: new Set(['read', 'booking.write', 'customer.write', 'message.write', 'tour.write', 'notification.write', 'broadcast.write', 'departure.write', 'user.write']),
+  admin: new Set(['read', 'booking.write', 'customer.write', 'message.write', 'tour.write', 'notification.write', 'broadcast.write', 'departure.write', 'task.write']),
+  owner: new Set(['read', 'booking.write', 'customer.write', 'message.write', 'tour.write', 'notification.write', 'broadcast.write', 'departure.write', 'user.write', 'task.write']),
 };
 
 const PUBLIC_DEMO_USER = {
@@ -188,13 +188,14 @@ async function getCatalog(env) {
 
 async function buildBootstrap(env) {
   const rate = Number(env.ADMIN_USD_RUB_RATE || 100) || 100;
-  const [bookingsResult, travelersResult, profilesResult, rulesResult, messagesResult, broadcastsResult, catalog] = await Promise.all([
+  const [bookingsResult, travelersResult, profilesResult, rulesResult, messagesResult, broadcastsResult, tasksResult, catalog] = await Promise.all([
     env.DB.prepare('SELECT * FROM bookings ORDER BY trip_date,created_at DESC').all(),
     env.DB.prepare('SELECT session_id,role,label,full_name,birth_date,primary_flag FROM travelers ORDER BY session_id,primary_flag DESC,created_at').all(),
     env.DB.prepare('SELECT * FROM admin_customer_profiles').all(),
     env.DB.prepare('SELECT * FROM admin_notification_rules ORDER BY rowid').all(),
     env.DB.prepare('SELECT id,booking_id,customer_session_id,channel,subject,body,status,created_at FROM admin_messages ORDER BY created_at DESC LIMIT 50').all(),
     env.DB.prepare('SELECT id,segment,body,status,recipient_count,created_at FROM admin_broadcasts ORDER BY created_at DESC LIMIT 50').all(),
+    env.DB.prepare('SELECT id,title,description,owner,priority,status,due_date,created_by,created_at,updated_at FROM admin_tasks ORDER BY CASE status WHEN \'new\' THEN 0 WHEN \'in_progress\' THEN 1 ELSE 2 END, CASE priority WHEN \'urgent\' THEN 0 WHEN \'high\' THEN 1 WHEN \'normal\' THEN 2 ELSE 3 END, created_at DESC LIMIT 100').all(),
     getCatalog(env),
   ]);
 
@@ -278,7 +279,7 @@ async function buildBootstrap(env) {
   return {
     orders, customers, departures: [...departureMap.values()], catalog,
     notificationRules: (rulesResult.results || []).map(r => ({ key: r.rule_key, title: r.title, description: r.description, enabled: !!r.enabled, requiresConfirmation: !!r.requires_confirmation })),
-    messages: messagesResult.results || [], broadcasts: broadcastsResult.results || [],
+    messages: messagesResult.results || [], broadcasts: broadcastsResult.results || [], tasks: tasksResult.results || [],
     analytics: { received, guideDue, orderCount: orders.length, customerCount: customers.length, sources, popular },
   };
 }
@@ -427,6 +428,53 @@ async function createBroadcast(request, env) {
   return json({ ok: true, id, status: 'queued', recipientCount: recipients }, { status: 201 });
 }
 
+const taskPriorities = new Set(['low', 'normal', 'high', 'urgent']);
+const taskStatuses = new Set(['new', 'in_progress', 'done', 'cancelled']);
+
+function cleanTaskText(value, max) {
+  return String(value ?? '').trim().slice(0, max);
+}
+
+async function createTask(request, env) {
+  const checked = await requireAuth(request, env, 'task.write');
+  if (checked.response) return checked.response;
+  const body = await readBody(request) || {};
+  const title = cleanTaskText(body.title, 200);
+  const description = cleanTaskText(body.description ?? body.note, 4000);
+  const owner = cleanTaskText(body.owner, 100) || 'Администратор';
+  const priority = taskPriorities.has(String(body.priority)) ? String(body.priority) : 'normal';
+  const dueDate = cleanTaskText(body.dueDate ?? body.due_date, 32);
+  if (!title) return bad('task_invalid');
+  if (dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) return bad('task_due_date_invalid');
+  const id = crypto.randomUUID();
+  await env.DB.prepare(`INSERT INTO admin_tasks(id,title,description,owner,priority,status,due_date,created_by)
+    VALUES(?,?,?,?,?,?,?,?)`).bind(id, title, description, owner, priority, 'new', dueDate || null, checked.auth.user.id).run();
+  await audit(env, checked.auth.user.id, 'create', 'task', id, { title, owner, priority, dueDate: dueDate || null });
+  const task = await env.DB.prepare('SELECT id,title,description,owner,priority,status,due_date,created_by,created_at,updated_at FROM admin_tasks WHERE id=?').bind(id).first();
+  return json({ ok: true, task }, { status: 201 });
+}
+
+async function patchTask(request, env, id) {
+  const checked = await requireAuth(request, env, 'task.write');
+  if (checked.response) return checked.response;
+  const body = await readBody(request) || {};
+  const existing = await env.DB.prepare('SELECT * FROM admin_tasks WHERE id=?').bind(id).first();
+  if (!existing) return bad('task_not_found', 404);
+  const status = taskStatuses.has(String(body.status)) ? String(body.status) : existing.status;
+  const priority = taskPriorities.has(String(body.priority)) ? String(body.priority) : existing.priority;
+  const owner = body.owner == null ? existing.owner : (cleanTaskText(body.owner, 100) || 'Администратор');
+  const title = body.title == null ? existing.title : cleanTaskText(body.title, 200);
+  const description = body.description == null && body.note == null ? existing.description : cleanTaskText(body.description ?? body.note, 4000);
+  const dueDate = body.dueDate == null && body.due_date == null ? existing.due_date : cleanTaskText(body.dueDate ?? body.due_date, 32);
+  if (!title) return bad('task_invalid');
+  if (dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) return bad('task_due_date_invalid');
+  await env.DB.prepare(`UPDATE admin_tasks SET title=?,description=?,owner=?,priority=?,status=?,due_date=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .bind(title, description, owner, priority, status, dueDate || null, id).run();
+  await audit(env, checked.auth.user.id, 'update', 'task', id, { status, priority, owner, dueDate: dueDate || null });
+  const task = await env.DB.prepare('SELECT id,title,description,owner,priority,status,due_date,created_by,created_at,updated_at FROM admin_tasks WHERE id=?').bind(id).first();
+  return json({ ok: true, task });
+}
+
 export async function handleAdminApi(request, env, url = new URL(request.url)) {
   if (!url.pathname.startsWith('/api/admin/')) return null;
   const path = url.pathname;
@@ -450,6 +498,9 @@ export async function handleAdminApi(request, env, url = new URL(request.url)) {
   if (rule && request.method === 'PATCH') return patchRule(request, env, decodeURIComponent(rule[1]));
   if (path === '/api/admin/messages' && request.method === 'POST') return createMessage(request, env);
   if (path === '/api/admin/broadcasts' && request.method === 'POST') return createBroadcast(request, env);
+  if (path === '/api/admin/tasks' && request.method === 'POST') return createTask(request, env);
+  const task = path.match(/^\/api\/admin\/tasks\/([^/]+)$/);
+  if (task && request.method === 'PATCH') return patchTask(request, env, decodeURIComponent(task[1]));
   return bad('not_found', 404);
 }
 
