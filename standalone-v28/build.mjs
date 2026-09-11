@@ -41,6 +41,22 @@ function replaceLegacyAdmin(html) {
   return withoutLegacyAdmin.replace(oldEntry, "function showAdmin() { window.location.assign('/admin/'); }");
 }
 
+const telegramSdk = '<script src="https://telegram.org/js/telegram-web-app.js?63"></script>';
+const analyticsTracker = '<script defer src="https://dashboard.viiversion.com/tracker.js" data-project="MAX TOUR Demo"></script>';
+
+function withViiversionAnalytics(html) {
+  let result = html;
+  if (!result.includes('telegram-web-app.js')) {
+    if (!result.includes('</head>')) throw new Error('HTML has no </head> marker');
+    result = result.replace('</head>', `${telegramSdk}\n</head>`);
+  }
+  if (!result.includes('dashboard.viiversion.com/tracker.js')) {
+    if (!result.includes('</body>')) throw new Error('HTML has no </body> marker');
+    result = result.replace('</body>', `${analyticsTracker}\n</body>`);
+  }
+  return result;
+}
+
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 await mkdir(resolve(dist, 'admin'), { recursive: true });
@@ -48,7 +64,7 @@ await mkdir(resolve(dist, 'director'), { recursive: true });
 const marker = '</body>';
 const injection = '<script src="/booking-pricing.js"></script>\n<script src="/traveler-profile.js"></script>\n<link rel="stylesheet" href="/traveler-picker-list.css">\n<script src="/trip-actions.js"></script>\n<link rel="stylesheet" href="/hero-redesign.css">\n<script src="/hero-redesign.js"></script>\n<link rel="stylesheet" href="/role-switch.css">\n<script src="/role-switch.js"></script>\n<script src="/runtime-api.js" defer></script>\n';
 if (!prototypeHtml.includes(marker)) throw new Error('Prototype has no </body> marker');
-const builtHtml = replaceLegacyAdmin(prototypeHtml).replace(marker, `${injection}${marker}`);
+const builtHtml = withViiversionAnalytics(replaceLegacyAdmin(prototypeHtml).replace(marker, `${injection}${marker}`));
 await writeFile(resolve(dist, 'index.html'), builtHtml, 'utf8');
 await writeFile(resolve(dist, 'catalog.v28.json'), catalogRaw);
 await copyFile(resolve(root, 'src/booking-pricing.js'), resolve(dist, 'booking-pricing.js'));
@@ -59,12 +75,12 @@ await copyFile(resolve(root, 'src/hero-redesign.css'), resolve(dist, 'hero-redes
 await copyFile(resolve(root, 'src/hero-redesign.js'), resolve(dist, 'hero-redesign.js'));
 await copyFile(resolve(root, 'src/role-switch.css'), resolve(dist, 'role-switch.css'));
 await copyFile(resolve(root, 'src/role-switch.js'), resolve(dist, 'role-switch.js'));
-const adminBuilt = adminPrototype
+const adminBuilt = withViiversionAnalytics(adminPrototype
   .replace('</head>', '<link rel="stylesheet" href="/admin-app.css">\n</head>')
-  .replace('</body>', '<script src="/admin-app.js" defer></script>\n</body>');
+  .replace('</body>', '<script src="/admin-app.js" defer></script>\n</body>'));
 await writeFile(resolve(dist, 'admin/index.html'), adminBuilt, 'utf8');
-await writeFile(resolve(dist, 'director/index.html'), directorPrototype, 'utf8');
+await writeFile(resolve(dist, 'director/index.html'), withViiversionAnalytics(directorPrototype), 'utf8');
 await copyFile(resolve(root, 'src/admin-app.css'), resolve(dist, 'admin-app.css'));
 await copyFile(resolve(root, 'src/admin-app.js'), resolve(dist, 'admin-app.js'));
 await copyFile(resolve(root, 'src/runtime-api.js'), resolve(dist, 'runtime-api.js'));
-console.log(`Built standalone v28: ${catalog.length} tours + admin v3 + director v3; exact source checksums verified.`);
+console.log(`Built standalone v28: ${catalog.length} tours + admin v3 + director v3 + Telegram analytics; exact source checksums verified.`);
