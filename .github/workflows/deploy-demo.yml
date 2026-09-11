@@ -44,12 +44,17 @@ jobs:
       - name: Build exact v28 + runtime adapter
         run: npm run build
 
-      - name: Verify built v28 identity
+      - name: Verify built v28 identity and analytics
         run: |
           set -euo pipefail
           grep -Fq 'MaxTour Mini App Prototype v28' dist/index.html
           grep -Fq 'runtime-api.js' dist/index.html
           grep -Fq 'role-switch.js' dist/index.html
+          grep -Fq 'telegram.org/js/telegram-web-app.js?63' dist/index.html
+          grep -Fq 'dashboard.viiversion.com/tracker.js' dist/index.html
+          grep -Fq 'data-project="MAX TOUR Demo"' dist/index.html
+          grep -Fq 'dashboard.viiversion.com/tracker.js' dist/admin/index.html
+          grep -Fq 'dashboard.viiversion.com/tracker.js' dist/director/index.html
           grep -Fq 'Кабинет администратора' dist/admin/index.html
           grep -Fq 'Переключение роли' dist/admin/index.html
           grep -Fq 'admin-app.js' dist/admin/index.html
@@ -66,5 +71,6 @@ jobs:
       - name: Deployment routing note
         run: |
           echo 'Standalone v28 validation complete.'
+          echo 'Telegram WebApp SDK and VIIVERSION analytics tracker verified in built HTML.'
           echo 'The repository-root React application was not built or used.'
           echo 'Live deployment is delegated to the authorized VIIVERSION runner in mirozdanie6v/rusinfocenter.'
