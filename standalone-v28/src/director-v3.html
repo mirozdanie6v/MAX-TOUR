@@ -1141,7 +1141,8 @@ function analyticsRows(dimension){
   return (analyticsDimensions[dimension] || []).map(function(item){
     var value = selected !== "all" && selected !== item.id ? 0 : sourceChannels.reduce(function(sum,source){
       if(state.analyticsFilters.source !== "all" && source.id !== state.analyticsFilters.source){return sum;}
-      return sum + Number(source.clients || 0) * analyticsRatioForSelected(source,dimension);
+      var itemRatio = dimension === "source" ? 1 : analyticsCategoryRatio(source,dimension,item.id);
+      return sum + Number(source.clients || 0) * itemRatio * analyticsRatioForSelected(source,dimension);
     },0);
     return {id:item.id,name:item.name,value:value,color:item.color || analyticsColors[0]};
   });

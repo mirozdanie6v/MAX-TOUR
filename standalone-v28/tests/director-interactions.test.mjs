@@ -88,6 +88,7 @@ test('analytics cross-filters recalculate the visible slice and trend without SV
 
   assert.ok(filteredClients > 0 && filteredClients < baseClients);
   assert.ok(womenRows.find(row => row.id === 'women').value > 0);
+  assert.ok(womenRows.find(row => row.id === 'women').value < filteredClients);
   assert.equal(womenRows.find(row => row.id === 'men').value, 0);
   const html = context.renderAnalytics();
   assert.match(html, /Активный срез/);
