@@ -58,6 +58,18 @@ test('director demo filters, search and periods change visible data', () => {
   assert.match(director, /data-search-index/);
 });
 
+test('director includes a dedicated analytics dashboard with demographic and channel slices', () => {
+  assert.match(director, /id:"analytics", label:"Аналитика"/);
+  assert.match(director, /function renderAnalytics\(\)/);
+  assert.match(director, /analyticsGender/);
+  assert.match(director, /analyticsAge/);
+  assert.match(director, /analyticsOrigins/);
+  assert.match(director, /analyticsDestinations/);
+  assert.match(director, /conic-gradient/);
+  assert.match(director, /Динамика выручки/);
+  assert.match(director, /Откуда пришли/);
+});
+
 test('director demo actions create session drafts and every internal navigation control is bound', () => {
   assert.match(director, /sessionStorage\.setItem\("maxtourDirectorDrafts"/);
   assert.match(director, /function openDraftComposer\(title,note\)/);

@@ -63,6 +63,11 @@ test('director demo interaction model filters, searches, changes horizon and sto
   context.state.horizon = 'now';
   assert.equal((context.renderDashboard().match(/class="decision"/g) || []).length, 2);
 
+  const analytics = context.renderAnalytics();
+  assert.match(analytics, /Пол клиентов/);
+  assert.match(analytics, /Откуда пришли/);
+  assert.match(analytics, /Динамика выручки/);
+
   assert.ok(context.searchIndex().some(item => item.title.includes('Далат')));
   assert.equal(context.drawerContent('team', 'guide-confirm').title, 'Поздние подтверждения гидов');
 

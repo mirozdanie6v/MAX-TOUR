@@ -274,6 +274,37 @@ td{font-size:13px;font-weight:820;line-height:1.35}
 .bar-row{display:grid;grid-template-columns:140px 1fr 120px;gap:10px;align-items:center;font-size:12px;font-weight:850;color:#6b503d}
 .bar-bg{height:11px;background:#f0ddc4;border-radius:999px;overflow:hidden}
 .bar-bg span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--red),var(--red2),var(--gold))}
+.analytics-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.analytics-card{padding:18px;min-width:0}
+.analytics-card-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}
+.analytics-card-title{font-size:17px;font-weight:950;line-height:1.18}
+.analytics-card-note{margin-top:4px;color:var(--muted);font-size:12px;line-height:1.35;font-weight:750}
+.donut-layout{display:grid;grid-template-columns:180px minmax(0,1fr);gap:18px;align-items:center}
+.donut{width:174px;height:174px;border-radius:50%;display:grid;place-items:center;position:relative;box-shadow:inset 0 0 0 1px rgba(255,255,255,.5)}
+.donut:after{content:"";width:104px;height:104px;border-radius:50%;background:var(--surface);box-shadow:0 3px 14px rgba(87,50,18,.08);position:absolute}
+.donut-center{position:relative;z-index:1;text-align:center;max-width:84px}
+.donut-center b{display:block;font-size:24px;line-height:1;font-weight:950;letter-spacing:-.06em}
+.donut-center span{display:block;margin-top:5px;color:var(--muted);font-size:11px;line-height:1.15;font-weight:850}
+.analytics-legend{display:grid;gap:9px;min-width:0}
+.legend-row{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:8px;align-items:center;font-size:12px;font-weight:850}
+.legend-dot{width:10px;height:10px;border-radius:50%}
+.legend-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.legend-value{font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+.analytics-bars{display:grid;gap:12px}
+.analytics-bar-row{display:grid;grid-template-columns:minmax(116px,.7fr) minmax(120px,1fr) 78px;gap:10px;align-items:center;font-size:12px;font-weight:850}
+.analytics-bar-row .bar-bg{height:13px}
+.analytics-bar-row .bar-bg span{background:linear-gradient(90deg,#255bd8,#7f9cff)}
+.analytics-bar-row:nth-child(3n+2) .bar-bg span{background:linear-gradient(90deg,#d81524,#ff8b3d)}
+.analytics-bar-row:nth-child(3n) .bar-bg span{background:linear-gradient(90deg,#16744c,#78c89c)}
+.analytics-value{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.trend-wrap{padding-top:2px}
+.trend-svg{width:100%;height:220px;display:block;overflow:visible}
+.trend-grid{stroke:#ead6bc;stroke-width:1}
+.trend-area{fill:url(#trendFill)}
+.trend-line{fill:none;stroke:#d81524;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.trend-point{fill:#fff8ee;stroke:#d81524;stroke-width:2}
+.trend-label{fill:#755a45;font-size:10px;font-weight:800}
+.analytics-footnote{margin-top:12px;color:var(--muted);font-size:11px;line-height:1.4;font-weight:720}
 .matrix{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .matrix-card{padding:13px;border-radius:18px;border:1px solid rgba(226,196,155,.68);background:#fffdf8}
 .matrix-title{font-size:14px;font-weight:950;line-height:1.2}
@@ -344,6 +375,7 @@ td{font-size:13px;font-weight:820;line-height:1.35}
   .subtitle{font-size:13px}
   .grid-3,.grid-2{grid-template-columns:1fr}
   .bar-row{grid-template-columns:96px 1fr 92px}
+  .analytics-grid{grid-template-columns:1fr}
 }
 @media(max-width:620px){
   .section-head{align-items:flex-start;flex-direction:column;gap:8px}
@@ -359,6 +391,9 @@ td{font-size:13px;font-weight:820;line-height:1.35}
   .row-actions{display:grid;grid-template-columns:1fr 1fr}
   .matrix{grid-template-columns:1fr}
   .split{grid-template-columns:1fr 1fr}
+  .donut-layout{grid-template-columns:1fr;justify-items:center}
+  .analytics-legend{width:100%}
+  .analytics-bar-row{grid-template-columns:104px 1fr 70px}
   .time-row{grid-template-columns:1fr}
   .drawer{padding:12px}
   .drawer-title{font-size:25px}
@@ -448,6 +483,7 @@ var NAV = [
   {id:"groups", label:"Группы и спрос", ico:"◌", sub:"Что открыть, добрать, закрыть"},
   {id:"money", label:"Деньги", ico:"₽", sub:"Рубли, остатки гиду, возвраты"},
   {id:"customers", label:"Клиенты и источники", ico:"◎", sub:"Откуда пришли, кто они, что делать"},
+  {id:"analytics", label:"Аналитика", ico:"◔", sub:"Источники, портреты, места и динамика"},
   {id:"team", label:"Команда", ico:"♙", sub:"Гиды, качество, подтверждения"},
   {id:"ai", label:"AI-copilot", ico:"✦", sub:"Рекомендации, не автодействия"}
 ];
@@ -594,6 +630,45 @@ var sourceFunnel = [
   {stage:"Начали оплату", value:186, rate:"29%", problem:"падает на способе оплаты", action:"предлагать депозит 30% и понятную инструкцию"},
   {stage:"Оплатили", value:224, rate:"35%", problem:"часть чеков ждёт ручной проверки", action:"поднять срочные платежи перед выездом"},
   {stage:"Повторно купили", value:66, rate:"10%", problem:"повторные продажи не выделены в отдельный процесс", action:"запустить VIP/повторный сегмент"}
+];
+
+/* The director prototype keeps the analytical dimensions explicit. In production
+   these same series are populated by CRM/D1 events, not hardcoded fixtures. */
+var analyticsGender = [
+  {name:"Женщины", value:54, color:"#d81524"},
+  {name:"Мужчины", value:42, color:"#255bd8"},
+  {name:"Не указан", value:4, color:"#d8a33c"}
+];
+var analyticsAge = [
+  {name:"18–24", value:12, color:"#7c3aed"},
+  {name:"25–34", value:34, color:"#d81524"},
+  {name:"35–44", value:29, color:"#255bd8"},
+  {name:"45–54", value:17, color:"#16744c"},
+  {name:"55+", value:8, color:"#d8a33c"}
+];
+var analyticsOrigins = [
+  {name:"Москва", value:148},
+  {name:"Санкт-Петербург", value:112},
+  {name:"Новосибирск", value:61},
+  {name:"Екатеринбург", value:48},
+  {name:"Хабаровск", value:37},
+  {name:"Другие города", value:226}
+];
+var analyticsDestinations = [
+  {name:"Нячанг", value:193},
+  {name:"Далат", value:121},
+  {name:"Фукуок", value:76},
+  {name:"Дананг", value:64},
+  {name:"Ханой", value:42},
+  {name:"Другие маршруты", value:136}
+];
+var analyticsTrend = [
+  {label:"Апр", value:1420000},
+  {label:"Май", value:1880000},
+  {label:"Июн", value:2310000},
+  {label:"Июл", value:2780000},
+  {label:"Авг", value:3210000},
+  {label:"Сен", value:3940000}
 ];
 
 var team = [
@@ -976,6 +1051,64 @@ function tableSegments(){
   '</tbody></table></div></div>';
 }
 
+function donutHtml(title,note,items,centerLabel){
+  var total = items.reduce(function(sum,item){return sum + Number(item.value || 0);},0) || 1;
+  var cursor = 0;
+  var stops = items.map(function(item){
+    var start = cursor;
+    cursor += Number(item.value || 0) / total * 100;
+    return item.color+' '+start.toFixed(2)+'% '+cursor.toFixed(2)+'%';
+  }).join(',');
+  return '<div class="card analytics-card"><div class="analytics-card-head"><div><div class="analytics-card-title">'+title+'</div><div class="analytics-card-note">'+note+'</div></div></div><div class="donut-layout"><div class="donut" style="background:conic-gradient('+stops+')"><div class="donut-center"><b>'+int(total)+'</b><span>'+centerLabel+'</span></div></div><div class="analytics-legend">'+items.map(function(item){return '<div class="legend-row"><span class="legend-dot" style="background:'+item.color+'"></span><span class="legend-name">'+item.name+'</span><span class="legend-value">'+item.value+'%</span></div>';}).join('')+'</div></div></div>';
+}
+
+function analyticsBarsHtml(rows,total,mode){
+  var max = Math.max(1, ...rows.map(function(row){return Number(row.value || 0);}));
+  return '<div class="analytics-bars">'+rows.map(function(row){
+    var suffix = mode === "percent" ? row.value+'%' : int(row.value);
+    return '<div class="analytics-bar-row"><span>'+row.name+'</span><div class="bar-bg"><span style="width:'+Math.round(Number(row.value || 0) / max * 100)+'%"></span></div><span class="analytics-value">'+suffix+'</span></div>';
+  }).join('')+'</div>';
+}
+
+function trendChartHtml(){
+  var width = 640, height = 210, left = 28, right = 16, top = 18, bottom = 32;
+  var max = Math.max.apply(null, analyticsTrend.map(function(row){return row.value;})) || 1;
+  var step = (width-left-right) / Math.max(1, analyticsTrend.length-1);
+  var points = analyticsTrend.map(function(row,index){
+    var x = left + step * index;
+    var y = top + (height-bottom-top) * (1 - row.value / max);
+    return {x:x,y:y,row:row};
+  });
+  var pointString = points.map(function(point){return point.x.toFixed(1)+','+point.y.toFixed(1);}).join(' ');
+  var area = left+','+(height-bottom)+' '+pointString+' '+(width-right)+','+(height-bottom);
+  return '<div class="trend-wrap"><svg class="trend-svg" viewBox="0 0 '+width+' '+height+'" role="img" aria-label="Динамика выручки по месяцам"><defs><linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#d81524" stop-opacity=".24"/><stop offset="1" stop-color="#d81524" stop-opacity="0"/></linearGradient></defs><line class="trend-grid" x1="'+left+'" y1="'+top+'" x2="'+width-right+'" y2="'+top+'"/><line class="trend-grid" x1="'+left+'" y1="'+(height-bottom)/2+'" x2="'+width-right+'" y2="'+(height-bottom)/2+'"/><line class="trend-grid" x1="'+left+'" y1="'+(height-bottom)+'" x2="'+width-right+'" y2="'+(height-bottom)+'"/><polygon class="trend-area" points="'+area+'"/><polyline class="trend-line" points="'+pointString+'"/>'+points.map(function(point){return '<circle class="trend-point" cx="'+point.x+'" cy="'+point.y+'" r="4"/><text class="trend-label" x="'+point.x+'" y="'+(height-10)+'" text-anchor="middle">'+point.row.label+'</text>';}).join('')+'</svg><div class="analytics-footnote">Выручка растёт пятый месяц подряд. В рабочей CRM этот график строится из фактических оплат, возвратов и выбранного периода.</div></div>';
+}
+
+function renderAnalytics(){
+  var totalClients = sourceChannels.reduce(function(sum,source){return sum + source.clients;},0);
+  var totalPaid = sourceChannels.reduce(function(sum,source){return sum + source.paid;},0);
+  var totalRevenue = sourceChannels.reduce(function(sum,source){return sum + source.revenue;},0);
+  var repeat = sourceChannels.reduce(function(sum,source){return sum + source.repeat;},0);
+  var conversion = Math.round(totalPaid / Math.max(1,totalClients) * 100);
+  var avg = Math.round(totalRevenue / Math.max(1,totalPaid));
+  var sourceColors = ['#d81524','#255bd8','#16744c','#d8a33c','#7c3aed','#b96814'];
+  var sourceMix = sourceChannels.map(function(source,index){return {name:source.name,value:source.clients,color:sourceColors[index % sourceColors.length]};});
+  var sourceRows = sourceChannels.slice().sort(function(a,b){return b.clients-a.clients;}).map(function(source){return {name:source.name,value:source.clients};});
+  return filters('<span class="filter-summary">Срезы: источники · портреты · места · динамика</span>',{period:true,city:false,status:false})+
+  '<section class="section"><div class="grid kpis">'+
+    '<div class="card kpi"><div class="kpi-label">Клиенты в срезе</div><div class="kpi-value">'+int(totalClients)+'</div><div class="kpi-note">все источники</div></div>'+
+    '<div class="card kpi good"><div class="kpi-label">Конверсия в оплату</div><div class="kpi-value">'+conversion+'%</div><div class="kpi-note">'+int(totalPaid)+' оплативших</div></div>'+
+    '<div class="card kpi"><div class="kpi-label">Средний чек</div><div class="kpi-value">'+fmt(avg)+'</div><div class="kpi-note">по подтверждённым оплатам</div></div>'+
+    '<div class="card kpi blue"><div class="kpi-label">Повторные клиенты</div><div class="kpi-value">'+int(repeat)+'</div><div class="kpi-note">потенциал повторных продаж</div></div>'+
+    '<div class="card kpi warn"><div class="kpi-label">Выручка</div><div class="kpi-value">'+fmt(totalRevenue)+'</div><div class="kpi-note">по каналам привлечения</div></div>'+
+  '</div></section>'+
+  '<section class="section"><div class="section-head"><div><h2 class="section-title">Портрет клиентской базы</h2><p class="section-caption">Круговые срезы помогают директору понимать, кому продавать и какие предложения развивать.</p></div></div><div class="analytics-grid">'+donutHtml('Пол клиентов','Распределение по заполненным профилям',analyticsGender,'доля базы')+donutHtml('Возраст','Возрастные группы путешественников',analyticsAge,'доля базы')+'</div></section>'+
+  '<section class="section"><div class="analytics-grid"><div class="card analytics-card"><div class="analytics-card-head"><div><div class="analytics-card-title">Откуда пришли</div><div class="analytics-card-note">Количество клиентов по площадкам и каналам</div></div></div>'+analyticsBarsHtml(sourceRows,totalClients,'count')+'<div class="analytics-footnote">Рядом с объёмом канала нужно смотреть конверсию, средний чек и повторные покупки — иначе большой поток может быть менее выгодным.</div></div>'+donutHtml('Микс источников','Доля клиентской базы по площадкам',sourceMix,'клиенты')+'</div></section>'+
+  '<section class="section"><div class="analytics-grid"><div class="card analytics-card"><div class="analytics-card-head"><div><div class="analytics-card-title">Города проживания</div><div class="analytics-card-note">Откуда туристы приезжают во Вьетнам</div></div></div>'+analyticsBarsHtml(analyticsOrigins,totalClients,'count')+'</div><div class="card analytics-card"><div class="analytics-card-head"><div><div class="analytics-card-title">Какие места выбирают</div><div class="analytics-card-note">Направления и экскурсионный спрос</div></div></div>'+analyticsBarsHtml(analyticsDestinations,totalClients,'count')+'</div></div></section>'+
+  '<section class="section"><div class="card analytics-card"><div class="analytics-card-head"><div><div class="analytics-card-title">Динамика выручки</div><div class="analytics-card-note">Фактическая и прогнозная серия по месяцам</div></div><span class="badge green">рост 5 месяцев</span></div>'+trendChartHtml()+'</div></section>'+
+  '<section class="section"><div class="section-head"><div><h2 class="section-title">Срезы для решений</h2><p class="section-caption">Аналитика должна приводить к действию: открыть дату, изменить предложение, добрать группу или запустить повторную продажу.</p></div></div>'+tableCustomerTypes()+'</section>';
+}
+
 function renderTeam(){
   var rows = filteredRows(team);
   return filters('<button class="btn gold" data-toast="Демо: правило подтверждения подготовлено как черновик">Правило подтверждения</button>',{status:true})+
@@ -1127,6 +1260,7 @@ function render(){
   if(state.view === "groups"){html = renderGroups();}
   if(state.view === "money"){html = renderMoney();}
   if(state.view === "customers"){html = renderCustomers();}
+  if(state.view === "analytics"){html = renderAnalytics();}
   if(state.view === "team"){html = renderTeam();}
   if(state.view === "ai"){html = renderAi();}
   document.getElementById("content").innerHTML = html;
