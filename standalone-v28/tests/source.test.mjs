@@ -54,12 +54,16 @@ test('runtime adds persistence without replacing visual renderers', () => {
   assert.doesNotMatch(runtime,/Ваш лучший отдых во Вьетнаме/);
 });
 
-test('AI consultant keeps the original v28 renderer and supports an optional saved selection', () => {
+test('AI consultant is a simple customer-facing chat with optional saved selection', () => {
   assert.match(runtime, /MaxTourAI\?\.mount/);
   for (const slot of ['adults', 'children', 'infants', 'tripType', 'date', 'preferences', 'contact']) assert.match(ai, new RegExp(slot));
   assert.match(ai, /\/api\/consultations/);
   assert.match(ai, /Сохранить подбор/);
-  assert.match(ai, /Очистить диалог/);
+  assert.match(ai, /Я AI-консультант, задайте мне любые вопросы/);
+  assert.match(ai, /ai-chat-subtitle/);
+  assert.match(ai, /data-ai-action="show-contact"/);
+  assert.match(ai, /Очистить/);
+  assert.doesNotMatch(ai, /ai-progress|ai-consultant-brief|ai-consultant-intro|Персональный подбор|заполнено/);
   assert.doesNotMatch(ai, /менеджер|передать/iu);
   assert.match(ai, /answerQuestion/);
 });
