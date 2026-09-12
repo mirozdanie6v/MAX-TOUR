@@ -15,6 +15,8 @@ test('personal cabinet exposes traveler editing', () => {
   assert.match(profile, /onclick="beginTravelerEdit/);
   assert.match(profile, /saveTravelerEdit/);
   assert.match(profile, /Сохранить/);
+  assert.match(profile, /async function removeTraveler/);
+  assert.match(profile, /profile-delete-button/);
 });
 
 test('booking FIO field exposes saved traveler picker', () => {
@@ -22,6 +24,7 @@ test('booking FIO field exposes saved traveler picker', () => {
   assert.match(profile, /onfocus="openSavedTravelerPicker/);
   assert.match(profile, /useSavedTraveler/);
   assert.match(profile, /Этот путешественник уже выбран в заявке/);
+  assert.match(profile, /grid-template-columns:1fr;gap:8px;overflow:visible/);
 });
 
 test('traveler directory normalizes to one primary traveler', () => {
