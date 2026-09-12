@@ -58,7 +58,7 @@ jobs:
           grep -Fq 'Кабинет администратора' dist/admin/index.html
           grep -Fq 'Переключение роли' dist/admin/index.html
           grep -Fq 'admin-app.js' dist/admin/index.html
-          grep -Fq 'CRM · защищённый доступ' dist/admin-app.js
+          grep -Fq 'Защищённый доступ сотрудников' dist/admin-app.js
           grep -Fq 'Кабинет директора v3' dist/director/index.html
           grep -Fq 'Переключение роли' dist/director/index.html
           grep -Fq 'href="/director/" class="active"' dist/director/index.html
