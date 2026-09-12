@@ -117,7 +117,7 @@ These are the only Telegram values that still need to be entered externally:
 - `TELEGRAM_MANAGER_CHAT_ID` — Cloudflare secret/variable.
 - `TELEGRAM_OWNER_CHAT_ID` — Cloudflare secret/variable.
 
-`TELEGRAM_MINIAPP_URL=https://max-tour.viiversion.com` is already configured as a non-secret Worker variable.
+`TELEGRAM_MINIAPP_URL=https://max-tour-demo.viiversion.com` is already configured as a non-secret Worker variable.
 
 GitHub production deployment expects repository secrets:
 

@@ -10,7 +10,7 @@ import { configureTelegramWebhook } from '../src/worker/services/telegram-config
 const env = {
   TELEGRAM_BOT_TOKEN: '123456:TEST_BOT_TOKEN',
   TELEGRAM_WEBHOOK_SECRET: 'test-webhook-secret',
-  TELEGRAM_MINIAPP_URL: 'https://max-tour.viiversion.com',
+  TELEGRAM_MINIAPP_URL: 'https://max-tour-demo.viiversion.com',
 } as Env;
 
 function telegramSuccess() {
@@ -43,7 +43,7 @@ describe('Telegram bot catalogue entry UX', () => {
     expect(payload.reply_markup.inline_keyboard).toEqual([[
       {
         text: '🌴 Открыть каталог',
-        web_app: { url: 'https://max-tour.viiversion.com' },
+        web_app: { url: 'https://max-tour-demo.viiversion.com' },
       },
     ]]);
   });
@@ -83,7 +83,7 @@ describe('Telegram bot catalogue entry UX', () => {
       menu_button: {
         type: 'web_app',
         text: 'Открыть каталог',
-        web_app: { url: 'https://max-tour.viiversion.com' },
+        web_app: { url: 'https://max-tour-demo.viiversion.com' },
       },
     });
   });
