@@ -26,17 +26,26 @@ export async function configureTelegramWebhook(env: Env, origin: string) {
   if (!secret) throw new HttpError(503, 'Telegram webhook secret ещё не настроен', 'TELEGRAM_WEBHOOK_SECRET_NOT_CONFIGURED');
 
   const webhookUrl = `${origin.replace(/\/$/, '')}/api/telegram/webhook`;
+  const miniAppUrl = env.TELEGRAM_MINIAPP_URL?.trim() || `${origin.replace(/\/$/, '')}/`;
   await telegramApi(token, 'setWebhook', {
     url: webhookUrl,
     secret_token: secret,
     allowed_updates: ['message'],
     drop_pending_updates: false,
   });
+  await telegramApi(token, 'setChatMenuButton', {
+    menu_button: {
+      type: 'web_app',
+      text: 'Открыть каталог',
+      web_app: { url: miniAppUrl },
+    },
+  });
 
   return {
     configured: true,
     webhookUrl,
-    miniAppUrl: env.TELEGRAM_MINIAPP_URL?.trim() || `${origin.replace(/\/$/, '')}/`,
+    miniAppUrl,
+    menuButtonConfigured: true,
   };
 }
 

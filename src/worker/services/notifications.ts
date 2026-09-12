@@ -3,6 +3,20 @@ import { HttpError } from './booking';
 
 export type NotificationAudience = 'manager' | 'owner' | 'customer';
 
+export const TELEGRAM_WELCOME_TEXT = [
+  '👋 Подберём экскурсию во Вьетнаме?',
+  '',
+  'В каталоге можно посмотреть программы, цены и доступные даты.',
+  '',
+  'Нажмите кнопку ниже 👇',
+].join('\n');
+
+export const TELEGRAM_FALLBACK_TEXT = [
+  'Я помогу выбрать экскурсию, посмотреть цены и доступные даты.',
+  '',
+  'Откройте каталог 👇',
+].join('\n');
+
 export async function queueNotification(
   env: Env,
   sessionId: string,
@@ -58,7 +72,7 @@ export async function sendTelegramMessage(env: Env, chatId: string, text: string
   const miniAppUrl = env.TELEGRAM_MINIAPP_URL?.trim();
   if (withMiniAppButton && miniAppUrl) {
     body.reply_markup = {
-      inline_keyboard: [[{ text: 'Открыть MAX TOUR', web_app: { url: miniAppUrl } }]],
+      inline_keyboard: [[{ text: '🌴 Открыть каталог', web_app: { url: miniAppUrl } }]],
     };
   }
 
@@ -136,9 +150,15 @@ export async function handleTelegramWebhook(env: Env, update: any) {
   const text = String(message?.text ?? '').trim();
   if (!chatId) return { accepted: true, action: 'ignored' };
 
-  if (text === '/start' || text.startsWith('/start ')) {
-    await sendTelegramMessage(env, chatId, 'MAX TOUR · каталог экскурсий и бронирование внутри Telegram.', true);
+  const command = text.split(/\s+/, 1)[0]?.split('@', 1)[0]?.toLowerCase();
+  if (command === '/start') {
+    await sendTelegramMessage(env, chatId, TELEGRAM_WELCOME_TEXT, true);
     return { accepted: true, action: 'start_replied' };
+  }
+
+  if (text) {
+    await sendTelegramMessage(env, chatId, TELEGRAM_FALLBACK_TEXT, true);
+    return { accepted: true, action: 'text_replied' };
   }
 
   return { accepted: true, action: 'ignored' };
