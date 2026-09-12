@@ -54,12 +54,22 @@ test('runtime adds persistence without replacing visual renderers', () => {
   assert.doesNotMatch(runtime,/Ваш лучший отдых во Вьетнаме/);
 });
 
-test('AI consultant keeps the original v28 renderer and adds a structured handoff layer', () => {
+test('AI consultant keeps the original v28 renderer and supports an optional saved selection', () => {
   assert.match(runtime, /MaxTourAI\?\.mount/);
   for (const slot of ['adults', 'children', 'infants', 'tripType', 'date', 'preferences', 'contact']) assert.match(ai, new RegExp(slot));
   assert.match(ai, /\/api\/consultations/);
-  assert.match(ai, /Передать менеджеру/);
+  assert.match(ai, /Сохранить подбор/);
+  assert.match(ai, /Очистить диалог/);
+  assert.doesNotMatch(ai, /менеджер|передать/iu);
   assert.match(ai, /answerQuestion/);
+});
+
+test('customer interactions preserve mobile input and allow removing a companion', async () => {
+  assert.match(runtime, /installCatalogSearchFix/);
+  assert.match(runtime, /setSelectionRange/);
+  const profile = await readFile(resolve(root, 'src/traveler-profile.js'), 'utf8');
+  assert.match(profile, /async function removeTraveler/);
+  assert.match(profile, /profile-delete-button/);
 });
 
 test('customer-facing copy hides implementation details', () => {
