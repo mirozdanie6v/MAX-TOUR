@@ -161,7 +161,7 @@
       date: 'На какие даты планируете? Подойдёт точная дата, «ближайшие выходные» или диапазон — гибкие даты расширят выбор.',
       preferences: 'Что важно в поездке? Выберите или напишите несколько вариантов: море, природа, город, лёгкая программа, комфорт.',
       contact: 'Основные параметры собраны. Я покажу подходящие варианты и попрошу один контакт, чтобы менеджер получил готовую заявку, а не начинал опрос заново.',
-      done: 'Заявка заполнена. Проверьте краткий бриф справа и нажмите «Передать менеджеру», если хотите продолжить подбор в чате.',
+      done: 'Заявка заполнена. Проверьте данные поездки справа и нажмите «Передать менеджеру», если хотите продолжить подбор в чате.',
     })[current];
   }
 
@@ -210,10 +210,10 @@
   function answerQuestion(text) {
     const q = lower(text);
     if (/отмен|перенос|возврат/.test(q)) return 'Правила зависят от момента действия: раньше чем за 48 часов отмена бесплатна; ближе к выезду может быть удержание. Перенос также пересчитывается по текущей дате — менеджер увидит запрос и предложит доступные варианты.';
-    if (/оплат|депозит|предоплат|30\s*%|сто процент/.test(q)) return 'Можно зафиксировать поездку депозитом или полной оплатой. В рабочей CRM система сама покажет оплачено, остаток и статус заказа; сейчас я сначала соберу точный состав и программу.';
-    if (/трансфер|аэропорт|встреч/.test(q)) return 'Трансфер можно добавить к брифу: укажите отель и аэропорт/точку встречи. Я передам это менеджеру отдельным полем, чтобы не потерять деталь в переписке.';
+    if (/оплат|депозит|предоплат|30\s*%|сто процент/.test(q)) return 'Можно зафиксировать поездку депозитом или полной оплатой. Я сначала помогу собрать точный состав и программу, чтобы корректно рассчитать стоимость.';
+    if (/трансфер|аэропорт|встреч/.test(q)) return 'Трансфер можно добавить к заявке: укажите отель и аэропорт/точку встречи. Я передам эту деталь менеджеру, чтобы она не потерялась в переписке.';
     if (/ребён|ребен|дет|малыш|коляск/.test(q)) return 'Да, сложный состав — как раз то, что я фиксирую: число взрослых, возраст каждого ребёнка и малышей. После этого менеджер сможет проверить ограничения маршрута, питание, кресло и комфорт темпа.';
-    if (/что входит|включен|программ|маршрут/.test(q)) return 'В карточке выбранной экскурсии можно открыть программу и включённые услуги. Я сначала подберу подходящие варианты, а в брифе сохраню ваш вопрос, чтобы менеджер ответил по конкретному маршруту.';
+    if (/что входит|включен|программ|маршрут/.test(q)) return 'В карточке выбранной экскурсии можно открыть программу и включённые услуги. Я сначала подберу подходящие варианты, а в заявке сохраню ваш вопрос, чтобы менеджер ответил по конкретному маршруту.';
     return '';
   }
 
@@ -249,7 +249,7 @@
 
   function renderBrief() {
     const rows = summaryRows();
-    return `<aside class="ai-consultant-brief"><h3 class="ai-brief-title">Бриф поездки</h3><p class="ai-brief-caption">То, что менеджер увидит в CRM после передачи заявки.</p><div class="ai-brief-list">${rows.length ? rows.map(row => `<div class="ai-brief-row"><span>${esc(row[0])}</span><b>${esc(row[1])}</b></div>`).join('') : '<div class="ai-brief-empty">Пока пусто. Начните с города, формата и состава группы.</div>'}</div>${state.handoff ? `<div class="ai-handoff"><b>Заявка передана менеджеру</b>№ ${esc(state.handoff.id)} · статус «Новая». В рабочей версии CRM сюда добавится реальный канал связи и история диалога.</div>` : ''}${state.handoff ? '<button type="button" class="secondary ai-reset" data-ai-action="reset">Новая консультация</button>' : ''}</aside>`;
+    return `<aside class="ai-consultant-brief"><h3 class="ai-brief-title">Данные поездки</h3><p class="ai-brief-caption">Краткая информация для менеджера.</p><div class="ai-brief-list">${rows.length ? rows.map(row => `<div class="ai-brief-row"><span>${esc(row[0])}</span><b>${esc(row[1])}</b></div>`).join('') : '<div class="ai-brief-empty">Пока пусто. Начните с города, формата и состава группы.</div>'}</div>${state.handoff ? `<div class="ai-handoff"><b>Заявка передана менеджеру</b>№ ${esc(state.handoff.id)} · статус «Новая». Менеджер свяжется с вами и продолжит подбор.</div>` : ''}${state.handoff ? '<button type="button" class="secondary ai-reset" data-ai-action="reset">Новая консультация</button>' : ''}</aside>`;
   }
 
   function render(root) {
@@ -263,7 +263,7 @@
       return state.slots.contact.name || state.slots.contact.phone || state.slots.contact.telegram;
     }).length / 6) * 100);
     const quick = quickReplies(current);
-    root.innerHTML = `<div class="section-title"><h2>AI-консультант</h2><span class="hint">сложные поездки · ${progress}% брифа</span></div><div class="ai-consultant-shell"><section class="ai-consultant-main"><div class="ai-consultant-intro"><div><h3>Подберём поездку под вашу группу</h3><p>Один вопрос за раз — затем готовая заявка для менеджера с составом, возрастом детей и ориентиром по цене.</p></div><span class="ai-consultant-badge">AI · demo</span></div><div class="ai-progress" aria-label="Заполнение брифа"><span style="width:${progress}%"></span></div><div class="ai-messages" aria-live="polite">${state.messages.map(message => `<div class="ai-msg ${message.role === 'user' ? 'user' : 'bot'}">${esc(message.text)}</div>`).join('')}</div>${renderRecommendations()}${renderContactForm()}<div class="ai-quick-replies">${quick.map(item => `<button type="button" data-ai-action="quick" data-value="${esc(item[1])}">${esc(item[0])}</button>`).join('')}</div><form class="ai-consultant-input" data-ai-form="chat"><textarea name="message" rows="1" placeholder="Например: 2 взрослых, дети 7 и 10 лет, море в июле..." aria-label="Сообщение AI-консультанту"></textarea><button class="primary" type="submit" aria-label="Отправить">→</button></form></section>${renderBrief()}</div>`;
+    root.innerHTML = `<div class="section-title"><h2>AI-консультант</h2><span class="hint">сложные поездки · заполнено ${progress}%</span></div><div class="ai-consultant-shell"><section class="ai-consultant-main"><div class="ai-consultant-intro"><div><h3>Подберём поездку под вашу группу</h3><p>Один вопрос за раз — затем готовая заявка для менеджера с составом, возрастом детей и ориентиром по цене.</p></div><span class="ai-consultant-badge">Персональный подбор</span></div><div class="ai-progress" aria-label="Заполнение заявки"><span style="width:${progress}%"></span></div><div class="ai-messages" aria-live="polite">${state.messages.map(message => `<div class="ai-msg ${message.role === 'user' ? 'user' : 'bot'}">${esc(message.text)}</div>`).join('')}</div>${renderRecommendations()}${renderContactForm()}<div class="ai-quick-replies">${quick.map(item => `<button type="button" data-ai-action="quick" data-value="${esc(item[1])}">${esc(item[0])}</button>`).join('')}</div><form class="ai-consultant-input" data-ai-form="chat"><textarea name="message" rows="1" placeholder="Например: 2 взрослых, дети 7 и 10 лет, море в июле..." aria-label="Сообщение AI-консультанту"></textarea><button class="primary" type="submit" aria-label="Отправить">→</button></form></section>${renderBrief()}</div>`;
     const messages = root.querySelector('.ai-messages');
     if (messages) messages.scrollTop = messages.scrollHeight;
     persist();
@@ -278,7 +278,7 @@
     const current = stage();
     const answer = answerQuestion(text);
     const next = current === 'contact'
-      ? `Отлично, я собрал параметры. ${state.recommendations.length ? 'Ниже — подходящие варианты с ориентиром по стоимости.' : ''} Оставьте имя и Telegram или телефон — менеджер получит этот бриф целиком.`
+      ? `Отлично, я собрал параметры. ${state.recommendations.length ? 'Ниже — подходящие варианты с ориентиром по стоимости.' : ''} Оставьте имя и Telegram или телефон — менеджер получит всю заявку целиком.`
       : promptFor(current);
     addMessage('bot', answer ? `${answer}\n\n${next}` : next);
     render(root);
@@ -305,7 +305,7 @@
       const response = await fetch('/api/consultations', { method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json' }, body:JSON.stringify({ intent:'complex_tour', handoff:true, summary, payload }) });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.ok) throw new Error(result.error || 'consultation_failed');
-      state.handoff = result.consultation || { id:'AI-demo' };
+      state.handoff = result.consultation || { id:'—' };
       addMessage('bot', `Готово — заявка ${state.handoff.id} передана менеджеру вместе с составом группы, пожеланиями и предварительным подбором. Повторно объяснять всё не понадобится.`);
       render(root);
     } catch (error) {
