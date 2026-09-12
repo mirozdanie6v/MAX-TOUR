@@ -168,16 +168,35 @@
     });
   }
 
+  function installCatalogSearchFix() {
+    const current = globalThis.searchValue;
+    if (typeof current !== 'function' || current.__maxTourSearchFix) return;
+    const fixed = function(value) {
+      const active = document.activeElement;
+      const input = active?.matches?.('#catalogScreen .catalog-search-v26 input') ? active : null;
+      const start = input && Number.isInteger(input.selectionStart) ? input.selectionStart : String(value || '').length;
+      const end = input && Number.isInteger(input.selectionEnd) ? input.selectionEnd : start;
+      const content = document.getElementById('content');
+      const scrollTop = content?.scrollTop;
+      current(value);
+      const next = document.querySelector('#catalogScreen .catalog-search-v26 input');
+      if (input && next) {
+        next.focus({ preventScroll: true });
+        try { next.setSelectionRange(start, end); } catch (_) {}
+      }
+      if (content && Number.isFinite(scrollTop)) content.scrollTop = scrollTop;
+    };
+    fixed.__maxTourSearchFix = true;
+    globalThis.searchValue = fixed;
+  }
+
   function wireTripControls() {
     document.querySelectorAll('#tripsScreen button').forEach(button => {
       if (button.dataset.wired || button.hasAttribute('onclick')) return;
       button.dataset.wired = '1';
-      if (button.textContent.trim() === 'Написать менеджеру') {
-        button.addEventListener('click', () => showRuntimeModal(
-          'Связь с менеджером',
-          '<p>Заявка уже находится в системе. Менеджер свяжется с вами по указанному контакту и продолжит подбор.</p>'
-        ));
-      }
+      // Online purchase is self-service. The old prototype button invited a
+      // manager into the customer flow, so remove it from the rendered card.
+      if (button.textContent.trim() === 'Написать менеджеру') button.remove();
     });
   }
 
@@ -335,6 +354,7 @@
 
     original.renderCatalog = renderCatalog;
     renderCatalog = function(...args) { const result=original.renderCatalog.apply(this,args); wireCatalogControls(); return result; };
+    installCatalogSearchFix();
 
     original.renderTrips = renderTrips;
     renderTrips = function(...args) { const result=original.renderTrips.apply(this,args); wireTripControls(); return result; };
