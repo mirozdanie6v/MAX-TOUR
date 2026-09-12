@@ -1,6 +1,14 @@
 import type { Env } from '../db/repository';
 import { HttpError } from './booking';
 
+export const TELEGRAM_BOT_DESCRIPTION = [
+  '👋 Подберём экскурсию во Вьетнаме?',
+  '',
+  'В каталоге можно посмотреть программы, цены и доступные даты.',
+  '',
+  'Чтобы начать, нажмите кнопку START внизу 👇',
+].join('\n');
+
 function requireTelegramToken(env: Env) {
   const token = env.TELEGRAM_BOT_TOKEN?.trim();
   if (!token) throw new HttpError(503, 'Telegram bot token ещё не настроен', 'TELEGRAM_NOT_CONFIGURED');
@@ -40,12 +48,17 @@ export async function configureTelegramWebhook(env: Env, origin: string) {
       web_app: { url: miniAppUrl },
     },
   });
+  await telegramApi(token, 'setMyDescription', {
+    description: TELEGRAM_BOT_DESCRIPTION,
+  });
 
   return {
     configured: true,
     webhookUrl,
     miniAppUrl,
     menuButtonConfigured: true,
+    descriptionConfigured: true,
+    botDescription: TELEGRAM_BOT_DESCRIPTION,
   };
 }
 

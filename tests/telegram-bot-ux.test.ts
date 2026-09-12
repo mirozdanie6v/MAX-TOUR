@@ -5,7 +5,10 @@ import {
   TELEGRAM_FALLBACK_TEXT,
   TELEGRAM_WELCOME_TEXT,
 } from '../src/worker/services/notifications';
-import { configureTelegramWebhook } from '../src/worker/services/telegram-config';
+import {
+  configureTelegramWebhook,
+  TELEGRAM_BOT_DESCRIPTION,
+} from '../src/worker/services/telegram-config';
 
 const env = {
   TELEGRAM_BOT_TOKEN: '123456:TEST_BOT_TOKEN',
@@ -71,13 +74,15 @@ describe('Telegram bot catalogue entry UX', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('keeps the bottom menu button configured as a fallback', async () => {
+  it('configures the bottom menu and pre-start bot description', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => telegramSuccess());
 
     const result = await configureTelegramWebhook(env, 'https://max-tour.viiversion.com');
 
     expect(result.menuButtonConfigured).toBe(true);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.descriptionConfigured).toBe(true);
+    expect(result.botDescription).toBe(TELEGRAM_BOT_DESCRIPTION);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain('/setChatMenuButton');
     expect(sentPayload(fetchMock, 1)).toEqual({
       menu_button: {
@@ -85,6 +90,10 @@ describe('Telegram bot catalogue entry UX', () => {
         text: 'Открыть каталог',
         web_app: { url: 'https://max-tour-demo.viiversion.com' },
       },
+    });
+    expect(String(fetchMock.mock.calls[2]?.[0])).toContain('/setMyDescription');
+    expect(sentPayload(fetchMock, 2)).toEqual({
+      description: TELEGRAM_BOT_DESCRIPTION,
     });
   });
 });
