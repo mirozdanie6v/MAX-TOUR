@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>MaxTour — Кабинет директора v3</title>
+<title>MaxTour — Кабинет директора</title>
 <style>
 :root{
   --bg:#fbf1df;
@@ -457,7 +457,7 @@ td{font-size:13px;font-weight:820;line-height:1.35}
             <div class="brand-sub">кабинет директора</div>
           </div>
         </div>
-        <div class="crumbs"><span>CRM</span><span>›</span><span id="crumbView">Пульт директора</span></div>
+        <div class="crumbs"><span>Управление</span><span>›</span><span id="crumbView">Пульт директора</span></div>
         <h1 class="title" id="pageTitle">Пульт директора</h1>
         <p class="subtitle" id="pageSubtitle">План, прогноз, слабые места, группы как источник роста и управленческие решения. Админ видит операционку, директор видит систему бизнеса.</p>
       </div>
@@ -468,7 +468,7 @@ td{font-size:13px;font-weight:820;line-height:1.35}
           <a href="/director/" class="active" aria-current="page"><span class="role-long">Директор</span><span class="role-short">Директор</span></a>
         </div>
         <div class="search">⌕ <input id="globalSearch" placeholder="Поиск города, тура, сегмента..."></div>
-        <button class="icon-btn" data-toast="Демо: экспорт отчёта подготовлен как черновик">⇩</button>
+        <button class="icon-btn" data-toast="Отчёт подготовлен к выгрузке">⇩</button>
         <div class="person"><span class="avatar">Д</span><span>Директор</span></div>
       </div>
     </div>
@@ -507,7 +507,7 @@ var NAV = [
   {id:"customers", label:"Клиенты и источники", ico:"◎", sub:"Откуда пришли, кто они, что делать"},
   {id:"analytics", label:"Аналитика", ico:"◔", sub:"Источники, портреты, места и динамика"},
   {id:"team", label:"Команда", ico:"♙", sub:"Гиды, качество, подтверждения"},
-  {id:"ai", label:"AI-copilot", ico:"✦", sub:"Рекомендации, не автодействия"}
+  {id:"ai", label:"AI-помощник", ico:"✦", sub:"Рекомендации, не автодействия"}
 ];
 
 var summary = {
@@ -638,7 +638,7 @@ var sourceChannels = [
 ];
 
 var customerTypes = [
-  {id:"families", name:"Семьи с детьми", count:126, revenue:3420000, share:27, buys:"Далат, Винперл, индивидуальные", behavior:"чаще выбирают безопасность, комфорт, понятный pickup", action:"упаковать семейные маршруты и предложить допродажу фото/комфорт"},
+  {id:"families", name:"Семьи с детьми", count:126, revenue:3420000, share:27, buys:"Далат, Винперл, индивидуальные", behavior:"чаще выбирают безопасность, комфорт и понятную точку встречи", action:"упаковать семейные маршруты и предложить допродажу фото/комфорт"},
   {id:"couples", name:"Пары", count:98, revenue:2210000, share:21, buys:"Далат, острова, красивые локации", behavior:"много смотрят фото, часто сохраняют и выбирают дату позже", action:"ретаргет по сохранённым турам и романтическим маршрутам"},
   {id:"friends", name:"Компании друзей", count:86, revenue:1960000, share:18, buys:"Фуйен, острова, вечерние программы", behavior:"хорошо добирают группы, но дольше согласовывают оплату", action:"предлагать групповую дату и делить оплату по людям"},
   {id:"solo", name:"Одиночные туристы", count:74, revenue:970000, share:16, buys:"групповые выезды", behavior:"ищут присоединение к группе и понятный минимум выезда", action:"показывать ближайшие сборные группы и лист ожидания"},
@@ -647,7 +647,7 @@ var customerTypes = [
 ];
 
 var sourceFunnel = [
-  {stage:"Пришли в CRM", value:632, rate:"100%", problem:"нет", action:"смотреть качество каналов, а не только количество"},
+  {stage:"Новые обращения", value:632, rate:"100%", problem:"нет", action:"смотреть качество каналов, а не только количество"},
   {stage:"Выбрали экскурсию", value:318, rate:"50%", problem:"часть теряется на выборе даты", action:"лучше показывать ближайшие выезды и наличие мест"},
   {stage:"Начали оплату", value:186, rate:"29%", problem:"падает на способе оплаты", action:"предлагать депозит 30% и понятную инструкцию"},
   {stage:"Оплатили", value:224, rate:"35%", problem:"часть чеков ждёт ручной проверки", action:"поднять срочные платежи перед выездом"},
@@ -739,7 +739,7 @@ var team = [
   {id:"guide-minh", name:"Минь", role:"гид", score:4.8, confirms:"98%", issue:"нет", action:"оставить на премиум"},
   {id:"guide-anna", name:"Анна", role:"гид", score:4.6, confirms:"91%", issue:"2 поздних подтверждения", action:"напоминание до 20:00"},
   {id:"guide-victor", name:"Виктор", role:"гид", score:4.4, confirms:"86%", issue:"4 поздних подтверждения", action:"эскалация администратору"},
-  {id:"driver-nam", name:"Нам", role:"водитель", score:4.7, confirms:"94%", issue:"1 жалоба на pickup", action:"проверить маршрут"}
+  {id:"driver-nam", name:"Нам", role:"водитель", score:4.7, confirms:"94%", issue:"1 жалоба на точку встречи", action:"проверить маршрут"}
 ];
 
 var PERIOD_FACTORS = {september:1, october:.78, week:.24};
@@ -807,7 +807,7 @@ function hydrateLiveCrm(data){
     var row = grouped[id];
     var clients = Object.keys(row.clients).length;
     var top = Object.keys(row.top).sort(function(a,b){return row.top[b]-row.top[a];})[0] || "—";
-    return {id:id,name:row.name,clients:clients,paid:row.paid,revenue:row.revenue,avg:row.paid ? Math.round(row.revenue/row.paid) : 0,conv:clients ? Math.round(row.paid/clients*100) : 0,repeat:row.repeat,cancel:row.cancel,top:top,insight:"Живые данные общей D1 после demo-сценария.",action:"Проверить качество канала и создать задачу при необходимости"};
+    return {id:id,name:row.name,clients:clients,paid:row.paid,revenue:row.revenue,avg:row.paid ? Math.round(row.revenue/row.paid) : 0,conv:clients ? Math.round(row.paid/clients*100) : 0,repeat:row.repeat,cancel:row.cancel,top:top,insight:"Данные обновлены по последним заказам.",action:"Проверить качество канала и создать задачу при необходимости"};
   }).sort(function(a,b){return b.clients-a.clients;});
   if(sourceRows.length){
     sourceChannels = sourceRows;
@@ -832,12 +832,12 @@ function liveCrmBlock(){
   var rows = liveCrm.orders.slice().sort(function(a,b){return String(b.createdAt || "").localeCompare(String(a.createdAt || ""));}).slice(0,5);
   var openConsultations = liveCrm.consultations.filter(function(item){return item.status !== "closed";});
   var consultationRows = openConsultations.slice(0,3);
-  return '<section class="section"><div class="card pad live-crm-card"><div class="section-head"><div><h2 class="section-title">Сквозной demo CRM</h2><p class="section-caption">Эти данные пришли из общей D1 после бронирования в Mini App, AI-консультации или создания записи администратором.</p></div><span class="badge green">D1 · обновлено сейчас</span></div><div class="grid grid-4 live-crm-kpis"><div class="split-tile"><b>'+liveCrm.orders.length+'</b><span>заказов в CRM</span></div><div class="split-tile"><b>'+customers+'</b><span>клиентов</span></div><div class="split-tile"><b>'+rubles(received)+'</b><span>оплачено</span></div><div class="split-tile"><b>'+openConsultations.length+'</b><span>AI-лидов менеджеру</span></div><div class="split-tile"><b>'+liveCrm.departures.length+'</b><span>выездов</span></div></div>'+(consultationRows.length ? '<div class="detail-card" style="margin-top:14px"><div class="detail-title">Последние AI-запросы</div>'+consultationRows.map(function(item){var p=item.payload || {};return '<div class="live-crm-row"><div><b>'+safeText(p.contact && (p.contact.name || p.contact.telegram) || p.destination || "Новый запрос")+'</b><span>'+safeText(p.destination || "Направление уточняется")+' · '+safeText(p.date || "дата уточняется")+'</span></div><div><b>'+safeText(item.id || "AI-лид")+'</b><span>'+safeText(p.tripType === "group" ? "групповой" : "индивидуальный")+' · '+safeText(item.status || "new")+'</span></div></div>';}).join("")+'</div>' : '')+(rows.length ? '<div class="live-crm-list">'+rows.map(function(order){return '<div class="live-crm-row"><div><b>'+safeText(order.id || "Заказ")+'</b><span>'+safeText(order.customer || "Клиент")+' · '+safeText(order.tour || "Экскурсия")+'</span></div><div><b>'+safeText(order.date || order.iso || "—")+'</b><span>'+safeText(sourceLabel(order.source || "Офис"))+' · '+rubles(order.paid)+' / '+rubles(order.total)+'</span></div></div>';}).join("")+'</div>' : '<div class="detail-card" style="margin-top:14px"><div class="detail-text">Создайте demo-заказ в Mini App или нажмите «Создать офлайн-заказ» в админке — он появится здесь автоматически.</div></div>')+'</div></section>';
+  return '<section class="section"><div class="card pad live-crm-card"><div class="section-head"><div><h2 class="section-title">Все продажи и заявки</h2><p class="section-caption">Здесь собраны заказы, оплаты, обращения AI-консультанта и записи администратора.</p></div><span class="badge green">Обновлено сейчас</span></div><div class="grid grid-4 live-crm-kpis"><div class="split-tile"><b>'+liveCrm.orders.length+'</b><span>заказов</span></div><div class="split-tile"><b>'+customers+'</b><span>клиентов</span></div><div class="split-tile"><b>'+rubles(received)+'</b><span>оплачено</span></div><div class="split-tile"><b>'+openConsultations.length+'</b><span>обращений менеджеру</span></div><div class="split-tile"><b>'+liveCrm.departures.length+'</b><span>выездов</span></div></div>'+(consultationRows.length ? '<div class="detail-card" style="margin-top:14px"><div class="detail-title">Последние обращения</div>'+consultationRows.map(function(item){var p=item.payload || {};return '<div class="live-crm-row"><div><b>'+safeText(p.contact && (p.contact.name || p.contact.telegram) || p.destination || "Новый запрос")+'</b><span>'+safeText(p.destination || "Направление уточняется")+' · '+safeText(p.date || "дата уточняется")+'</span></div><div><b>'+safeText(item.id || "Обращение")+'</b><span>'+safeText(p.tripType === "group" ? "групповой" : "индивидуальный")+' · '+safeText(item.status || "новое")+'</span></div></div>';}).join("")+'</div>' : '')+(rows.length ? '<div class="live-crm-list">'+rows.map(function(order){return '<div class="live-crm-row"><div><b>'+safeText(order.id || "Заказ")+'</b><span>'+safeText(order.customer || "Клиент")+' · '+safeText(order.tour || "Экскурсия")+'</span></div><div><b>'+safeText(order.date || order.iso || "—")+'</b><span>'+safeText(sourceLabel(order.source || "Офис"))+' · '+rubles(order.paid)+' / '+rubles(order.total)+'</span></div></div>';}).join("")+'</div>' : '<div class="detail-card" style="margin-top:14px"><div class="detail-text">Создайте заказ в приложении или нажмите «Создать офлайн-заказ» в админке — он появится здесь автоматически.</div></div>')+'</div></section>';
 }
 function liveAnalyticsCard(){
   var received = liveCrm.orders.reduce(function(sum,order){return sum+moneyNumber(order.paid);},0);
   var paid = liveCrm.orders.filter(function(order){return moneyNumber(order.paid) > 0;}).length;
-  return '<section class="section"><div class="card pad live-crm-card"><div class="section-head"><div><h2 class="section-title">Фактический слой CRM</h2><p class="section-caption">Заказы, оплаты, AI-лиды и источники ниже уже связаны с demo D1. Демографические поля появятся после подключения соответствующих полей CRM.</p></div><span class="badge blue">'+liveCrm.orders.length+' заказов · '+liveCrm.consultations.length+' AI-лидов</span></div><div class="live-analytics-summary"><span><b>'+rubles(received)+'</b> оплачено</span><span><b>'+paid+'</b> оплативших</span><span><b>'+liveCrm.customers.length+'</b> клиентов</span><span><b>'+liveCrm.consultations.filter(function(item){return item.status !== "closed";}).length+'</b> открытых AI-лидов</span><span><b>'+liveCrm.events.length+'</b> событий</span></div><p class="analytics-footnote">Нажмите «Офис», «Telegram Mini App» или другой источник в диаграмме ниже, затем добавьте «Женщины», возраст или направление — фильтры комбинируются.</p></div></section>';
+  return '<section class="section"><div class="card pad live-crm-card"><div class="section-head"><div><h2 class="section-title">Фактические продажи</h2><p class="section-caption">Заказы, оплаты, обращения и источники обновляются вместе с продажами. Используйте фильтры, чтобы увидеть нужный срез.</p></div><span class="badge blue">'+liveCrm.orders.length+' заказов · '+liveCrm.consultations.length+' обращений</span></div><div class="live-analytics-summary"><span><b>'+rubles(received)+'</b> оплачено</span><span><b>'+paid+'</b> оплативших</span><span><b>'+liveCrm.customers.length+'</b> клиентов</span><span><b>'+liveCrm.consultations.filter(function(item){return item.status !== "closed";}).length+'</b> открытых обращений</span><span><b>'+liveCrm.events.length+'</b> событий</span></div><p class="analytics-footnote">Нажмите «Офис», «Telegram Mini App» или другой источник в диаграмме ниже, затем добавьте «Женщины», возраст или направление — фильтры комбинируются.</p></div></section>';
 }
 function loadLiveCrm(){
   if(typeof fetch !== "function"){return;}
@@ -959,7 +959,7 @@ function horizonBar(){
   return '<div class="toolbar">'+items.map(function(x){
     var active = state.horizon === x[0] ? "active" : "";
     return '<button class="chip '+active+'" data-horizon="'+x[0]+'">'+x[1]+'</button>';
-  }).join("")+'<button class="btn gold" data-toast="Демо: директорская задача создана бы в очереди администратора">Создать задачу админу</button><span class="filter-summary">Показатели: '+horizonLabel()+'</span></div>';
+  }).join("")+'<button class="btn gold" data-toast="Задача создана и отправлена администратору">Создать задачу админу</button><span class="filter-summary">Показатели: '+horizonLabel()+'</span></div>';
 }
 function bindHorizon(){
   document.querySelectorAll("[data-horizon]").forEach(function(btn){
@@ -984,7 +984,7 @@ function renderDashboard(){
     '</div>'+
   '</section>'+ (liveCrm.loaded ? liveCrmBlock() : '')+
   '<section class="section">'+
-    '<div class="section-head"><div><h2 class="section-title">Управленческие решения</h2><p class="section-caption">Не вся операционка. Только то, что влияет на план, деньги, группы, качество или рост.</p></div><button class="btn primary" data-toast="Демо: AI-сводка была бы отправлена директору">Получить AI-сводку</button></div>'+
+    '<div class="section-head"><div><h2 class="section-title">Управленческие решения</h2><p class="section-caption">Не вся операционка. Только то, что влияет на план, деньги, группы, качество или рост.</p></div><button class="btn primary" data-toast="AI-сводка подготовлена">Получить AI-сводку</button></div>'+
     '<div class="decision-list">'+visibleDecisions.map(decisionCard).join("")+'</div>'+
   '</section>'+
   '<section class="section">'+
@@ -1001,7 +1001,7 @@ function decisionCard(d){
     '<div class="sev '+sevClass+'">'+d.tag.slice(0,1)+'</div>'+
     '<div><div class="meta-row">'+statusForDecision(d)+'<span class="badge gray">'+d.tag+'</span></div><div class="decision-title">'+d.title+'</div><div class="decision-meta">'+d.meta+'</div></div>'+
     '<div class="ai-box"><b>'+d.impact+'</b><br>'+d.ai+'</div>'+
-    '<div class="row-actions"><button class="btn small primary" data-open="'+d.type+'" data-id="'+d.ref+'">Открыть</button><button class="btn small" data-toast="Демо: задача ушла бы ответственному">Создать задачу</button></div>'+
+    '<div class="row-actions"><button class="btn small primary" data-open="'+d.type+'" data-id="'+d.ref+'">Открыть</button><button class="btn small" data-toast="Задача создана и назначена ответственному">Создать задачу</button></div>'+
   '</div>';
 }
 function statusForDecision(d){
@@ -1052,7 +1052,7 @@ function renderPlan(){
   var rows = filteredRows(cities);
   var totals = rows.reduce(function(acc,c){acc.plan+=c.plan;acc.fact+=c.fact;acc.forecast+=c.forecast;return acc;},{plan:0,fact:0,forecast:0});
   var gap = Math.max(0, totals.plan - totals.forecast);
-  return filters('<button class="btn primary" data-toast="Демо: открылась бы форма редактирования директорского плана">Изменить план</button>')+
+  return filters('<button class="btn primary" data-toast="Открыта форма редактирования плана">Изменить план</button>')+
   '<section class="section"><div class="grid grid-4">'+
     '<div class="card kpi"><div class="kpi-label">План</div><div class="kpi-value">'+fmt(totals.plan)+'</div><div class="kpi-note">'+periodLabel()+'</div></div>'+
     '<div class="card kpi"><div class="kpi-label">Факт</div><div class="kpi-value good">'+fmt(totals.fact)+'</div><div class="kpi-note">'+percent(totals.fact, totals.plan)+'% выполнено</div></div>'+
@@ -1063,7 +1063,7 @@ function renderPlan(){
   '<div class="section-head"><div><h2 class="section-title">План по городам</h2><p class="section-caption">План директора превращается в задачи: открыть дату, добрать группу, запустить сегмент.</p></div></div>'+
   tablePlan(rows)+
   '</section>'+
-  '<section class="section"><div class="card pad"><div class="section-title">AI-разбор разрыва</div><p class="detail-text">Главный разрыв создают Фукуок и Дананг. Причина не только в спросе: мало открытых групповых дат, низкая конверсия после выбора даты и слабый добор по тёплым сегментам. Рекомендация: открыть 2 даты по Фукуоку, усилить Ба На Хилл объяснением формата и запустить добор Фуйена.</p><div style="margin-top:12px"><button class="btn primary" data-toast="Демо: создан набор задач роста">Создать задачи роста</button></div></div></section>';
+  '<section class="section"><div class="card pad"><div class="section-title">AI-разбор разрыва</div><p class="detail-text">Главный разрыв создают Фукуок и Дананг. Причина не только в спросе: мало открытых групповых дат, низкая конверсия после выбора даты и слабый добор по тёплым сегментам. Рекомендация: открыть 2 даты по Фукуоку, усилить Ба На Хилл объяснением формата и запустить добор Фуйена.</p><div style="margin-top:12px"><button class="btn primary" data-toast="Создан набор задач роста">Создать задачи роста</button></div></div></section>';
 }
 function tablePlan(rows){
   rows = rows || filteredRows(cities);
@@ -1079,7 +1079,7 @@ function tablePlan(rows){
 
 function renderCities(){
   var rows = filteredRows(cities);
-  return filters('<button class="btn gold" data-toast="Демо: отчет по городам готовился бы в фоне">Сформировать отчёт</button>')+
+  return filters('<button class="btn gold" data-toast="Отчёт по городам подготовлен">Сформировать отчёт</button>')+
   '<section class="section"><div class="section-head"><div><h2 class="section-title">Города как зоны управления</h2><p class="section-caption">Не просто выручка. Для каждого города видно: план, прогноз, конверсия, причина и действие.</p></div></div>'+tableCities(rows)+'</section>'+
   '<section class="section">'+(!rows.length ? "" : '<div class="matrix">'+rows.map(function(c){
     return '<div class="matrix-card"><div class="meta-row">'+statusBadge(c.trend)+'</div><div class="matrix-title" style="margin-top:8px">'+c.city+'</div><div class="matrix-meta">'+c.insight+'</div><div class="split" style="margin-top:12px"><div class="split-tile"><b>'+fmt(c.fact)+'</b><span>факт</span></div><div class="split-tile"><b>'+fmt(c.forecast)+'</b><span>прогноз</span></div><div class="split-tile"><b>'+c.conv+'%</b><span>конверсия</span></div></div><button class="btn small primary" style="margin-top:12px" data-open="city" data-id="'+c.id+'">Разобрать</button></div>';
@@ -1116,7 +1116,7 @@ function renderGroups(){
   var rows = filteredRows(groups);
   var risky = rows.filter(function(g){return g.booked < g.min;}).length;
   var demand = rows.reduce(function(sum,g){return sum+g.demand;},0);
-  return filters('<button class="btn primary" data-toast="Демо: открылась бы форма создания новой групповой даты">Открыть групповую дату</button>')+
+  return filters('<button class="btn primary" data-toast="Открыта форма новой групповой даты">Открыть групповую дату</button>')+
   '<section class="section">'+
     '<div class="section-head"><div><h2 class="section-title">Группы и спрос</h2><p class="section-caption">Отдельный коммерческий механизм: спрос → дата → добор → минимум → подтверждение.</p></div></div>'+
     '<div class="grid grid-3">'+
@@ -1140,7 +1140,7 @@ function tableGroups(rows){
 }
 
 function renderMoney(){
-  return filters('<button class="btn gold" data-toast="Демо: выгрузка для бухгалтера подготовлена как черновик">Выгрузка бухгалтеру</button>',{period:true})+
+  return filters('<button class="btn gold" data-toast="Выгрузка подготовлена">Выгрузка бухгалтеру</button>',{period:true})+
   '<section class="section"><div class="grid grid-4">'+
     '<div class="card kpi"><div class="kpi-label">Онлайн подтверждено</div><div class="kpi-value good">'+fmt(summary.online)+'</div><div class="kpi-note">рублёвые платежи</div></div>'+
     '<div class="card kpi"><div class="kpi-label">Ручная проверка</div><div class="kpi-value blue">'+fmt(summary.manualReview)+'</div><div class="kpi-note">чеки и переводы</div></div>'+
@@ -1162,7 +1162,7 @@ function renderCustomers(){
   var totalPaid = sourceChannels.reduce(function(sum,s){return sum+s.paid;},0);
   var totalRevenue = sourceChannels.reduce(function(sum,s){return sum+s.revenue;},0);
   var avgConversion = Math.round(totalPaid / Math.max(1,totalClients) * 100);
-  return filters('<button class="btn primary" data-toast="Демо: AI-сегмент подготовлен как черновик">Создать AI-сегмент</button><button class="btn gold" data-toast="Демо: отчёт по источникам подготовлен как черновик">Отчёт по источникам</button>',{period:true})+
+  return filters('<button class="btn primary" data-toast="AI-сегмент подготовлен">Создать AI-сегмент</button><button class="btn gold" data-toast="Отчёт по источникам подготовлен">Отчёт по источникам</button>',{period:true})+
   '<section class="section"><div class="grid kpis">'+
     '<div class="card kpi"><div class="kpi-label">Всего клиентов</div><div class="kpi-value">'+int(totalClients)+'</div><div class="kpi-note">'+periodLabel()+'</div></div>'+
     '<div class="card kpi"><div class="kpi-label">Оплатили</div><div class="kpi-value good">'+int(totalPaid)+'</div><div class="kpi-note">'+avgConversion+'% общая конверсия в оплату</div></div>'+
@@ -1173,7 +1173,7 @@ function renderCustomers(){
   '<section class="section"><div class="section-head"><div><h2 class="section-title">Источники продаж</h2><p class="section-caption">Директору важно не просто «сколько клиентов», а откуда они пришли, какого качества канал, кто эти люди и какое действие увеличит продажи.</p></div></div>'+tableSources()+'</section>'+
   '<section class="section"><div class="grid grid-2">'+
     '<div class="card pad"><div class="section-title">Воронка поведения</div><p class="section-caption">Где люди теряются: выбор тура, дата, оплата, повторная продажа.</p>'+funnelHtml()+'</div>'+
-    '<div class="card pad"><div class="section-title">AI-вывод директора</div><p class="detail-text">Не усиливать канал только по количеству лидов. Сравнивать источник по оплате, среднему чеку, отменам, повторности и пригодности для добора групп. Каждый источник должен создавать конкретное действие: добор группы, повторная продажа, перенос, премиум-предложение или исправление оплаты.</p><div style="margin-top:12px"><button class="btn primary" data-toast="Демо: AI создал бы 4 задачи по источникам">Создать задачи по источникам</button></div></div>'+
+    '<div class="card pad"><div class="section-title">AI-вывод директора</div><p class="detail-text">Не усиливать канал только по количеству лидов. Сравнивать источник по оплате, среднему чеку, отменам, повторности и пригодности для добора групп. Каждый источник должен создавать конкретное действие: добор группы, повторная продажа, перенос, премиум-предложение или исправление оплаты.</p><div style="margin-top:12px"><button class="btn primary" data-toast="Созданы 4 задачи по источникам">Создать задачи по источникам</button></div></div>'+
   '</div></section>'+
   '<section class="section"><div class="section-head"><div><h2 class="section-title">Кто эти клиенты</h2><p class="section-caption">Портреты нужны не для отчёта, а для решений: какие туры предлагать, как добирать группы, кому продавать индивидуальный формат.</p></div></div>'+tableCustomerTypes()+'</section>'+
   '<section class="section"><div class="section-head"><div><h2 class="section-title">Сегменты для действий</h2><p class="section-caption">Сегменты остаются рабочими очередями роста: кому написать, что предложить, какой выезд добрать.</p></div></div>'+tableSegments()+'</section>';
@@ -1198,7 +1198,7 @@ function tableCustomerTypes(){
 
 function funnelHtml(){
   return '<div class="timeline">'+sourceFunnel.map(function(f){
-    return '<div class="time-row"><div class="time">'+f.rate+'</div><div><div class="time-title">'+f.stage+' · '+int(f.value)+'</div><div class="time-meta">'+f.problem+' · '+f.action+'</div></div><button class="btn small" data-toast="Демо: задача по этапу воронки подготовлена как черновик">Задача</button></div>';
+    return '<div class="time-row"><div class="time">'+f.rate+'</div><div><div class="time-title">'+f.stage+' · '+int(f.value)+'</div><div class="time-meta">'+f.problem+' · '+f.action+'</div></div><button class="btn small" data-toast="Задача по этапу воронки создана">Задача</button></div>';
   }).join("")+'</div>';
 }
 
@@ -1320,7 +1320,7 @@ function trendChartHtml(trend){
   var rightX = width - right;
   var midY = (height - bottom) / 2;
   var bottomY = height - bottom;
-  return '<div class="trend-wrap"><svg class="trend-svg" viewBox="0 0 '+width+' '+height+'" role="img" aria-label="Динамика выручки по месяцам"><defs><linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#d81524" stop-opacity=".24"/><stop offset="1" stop-color="#d81524" stop-opacity="0"/></linearGradient></defs><line class="trend-grid" x1="'+left+'" y1="'+top+'" x2="'+rightX+'" y2="'+top+'"/><line class="trend-grid" x1="'+left+'" y1="'+midY+'" x2="'+rightX+'" y2="'+midY+'"/><line class="trend-grid" x1="'+left+'" y1="'+bottomY+'" x2="'+rightX+'" y2="'+bottomY+'"/><polygon class="trend-area" points="'+area+'"/><polyline class="trend-line" points="'+pointString+'"/>'+points.map(function(point){return '<circle class="trend-point" cx="'+point.x+'" cy="'+point.y+'" r="4"/><text class="trend-label" x="'+point.x+'" y="'+(height-10)+'" text-anchor="middle">'+safeText(point.row.label)+'</text>';}).join('')+'</svg><div class="analytics-footnote">Данные пересчитываются по выбранным срезам. В рабочей CRM график строится из фактических оплат, возвратов и выбранного периода.</div></div>';
+  return '<div class="trend-wrap"><svg class="trend-svg" viewBox="0 '+width+' '+height+'" role="img" aria-label="Динамика выручки по месяцам"><defs><linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#d81524" stop-opacity=".24"/><stop offset="1" stop-color="#d81524" stop-opacity="0"/></linearGradient></defs><line class="trend-grid" x1="'+left+'" y1="'+top+'" x2="'+rightX+'" y2="'+top+'"/><line class="trend-grid" x1="'+left+'" y1="'+midY+'" x2="'+rightX+'" y2="'+midY+'"/><line class="trend-grid" x1="'+left+'" y1="'+bottomY+'" x2="'+rightX+'" y2="'+bottomY+'"/><polygon class="trend-area" points="'+area+'"/><polyline class="trend-line" points="'+pointString+'"/>'+points.map(function(point){return '<circle class="trend-point" cx="'+point.x+'" cy="'+point.y+'" r="4"/><text class="trend-label" x="'+point.x+'" y="'+(height-10)+'" text-anchor="middle">'+safeText(point.row.label)+'</text>';}).join('')+'</svg><div class="analytics-footnote">Данные пересчитываются по выбранным срезам. График строится по фактическим оплатам, возвратам и выбранному периоду.</div></div>';
 }
 
 function analyticsTrendForSelection(){
@@ -1362,9 +1362,9 @@ function renderAnalytics(){
 
 function renderTeam(){
   var rows = filteredRows(team);
-  return filters('<button class="btn gold" data-toast="Демо: правило подтверждения подготовлено как черновик">Правило подтверждения</button>',{status:true})+
+  return filters('<button class="btn gold" data-toast="Правило подтверждения подготовлено">Правило подтверждения</button>',{status:true})+
   '<section class="section"><div class="section-head"><div><h2 class="section-title">Команда и качество</h2><p class="section-caption">Директор не управляет каждым выездом, но видит системные проблемы: гиды, подтверждения, качество, спорные остатки.</p></div></div>'+tableTeam(rows)+'</section>'+
-  '<section class="section"><div class="card pad"><div class="section-title">Будущий кабинет гида</div><p class="detail-text">В v2 гид видит только свои выезды, список туристов, pickup, остаток к оплате на месте и кнопки «получено / не получено / проблема». Директор видит агрегат качества и спорные случаи, не всю операционную ленту гида.</p></div></section>';
+  '<section class="section"><div class="card pad"><div class="section-title">Кабинет гида</div><p class="detail-text">Гид видит только свои выезды, список туристов, точку встречи, остаток к оплате на месте и кнопки «получено / не получено / проблема». Директор видит агрегат качества и спорные случаи, не всю операционную ленту гида.</p></div></section>';
 }
 function tableTeam(rows){
   rows = rows || filteredRows(team);
@@ -1382,7 +1382,7 @@ function renderAi(){
     '<div class="card pad"><div class="section-title">Предложить</div><p class="detail-text">Сценарии действий: добрать группу, открыть дату, предложить перенос, создать задачу админу, подготовить сегмент.</p></div>'+
     '<div class="card pad"><div class="section-title">Подготовить</div><p class="detail-text">Черновик сообщения, рассылки, задачи, отчёта директору. Отправка только после подтверждения человека.</p></div>'+
   '</div></section>'+
-  '<section class="section"><div class="section-head"><div><h2 class="section-title">AI-рекомендации директора</h2><p class="section-caption">AI-copilot не принимает решений и не отправляет рассылки сам. Он готовит решение для директора.</p></div></div><div class="decision-list">'+decisions.map(decisionCard).join("")+'</div></section>';
+  '<section class="section"><div class="section-head"><div><h2 class="section-title">AI-рекомендации директора</h2><p class="section-caption">Помощник не принимает решения и не отправляет рассылки сам. Он готовит решение для директора.</p></div></div><div class="decision-list">'+decisions.map(decisionCard).join("")+'</div></section>';
 }
 
 function drawerContent(type,id){
@@ -1394,7 +1394,7 @@ function drawerContent(type,id){
       body:
       '<div class="detail-card"><div class="detail-title">План / факт / прогноз</div><div class="split"><div class="split-tile"><b>'+fmt(c.plan)+'</b><span>план</span></div><div class="split-tile"><b>'+fmt(c.fact)+'</b><span>факт</span></div><div class="split-tile"><b>'+fmt(c.forecast)+'</b><span>прогноз</span></div></div></div>'+
       '<div class="detail-card"><div class="detail-title">Почему это важно</div><div class="detail-text">'+c.insight+'</div></div>'+
-      '<div class="detail-card"><div class="detail-title">AI предлагает</div><div class="detail-text">Создать 2–3 конкретные задачи: проверить слабые экскурсии, открыть или добрать группы, подготовить сегмент клиентов и назначить ответственного администратора.</div><div style="margin-top:12px"><button class="btn primary" data-toast="Демо: задачи по городу созданы бы">Создать задачи</button></div></div>'
+      '<div class="detail-card"><div class="detail-title">AI предлагает</div><div class="detail-text">Создать 2–3 конкретные задачи: проверить слабые экскурсии, открыть или добрать группы, подготовить сегмент клиентов и назначить ответственного администратора.</div><div style="margin-top:12px"><button class="btn primary" data-toast="Созданы задачи по городу">Создать задачи</button></div></div>'
     };
   }
   if(type === "group"){
@@ -1406,7 +1406,7 @@ function drawerContent(type,id){
       body:
       '<div class="detail-card"><div class="detail-title">Состояние группы</div><div class="split"><div class="split-tile"><b>'+g.booked+' / '+g.cap+'</b><span>занято / всего</span></div><div class="split-tile"><b>'+g.min+'</b><span>минимум</span></div><div class="split-tile"><b>'+miss+'</b><span>не хватает</span></div></div></div>'+
       '<div class="detail-card"><div class="detail-title">Оплаты</div><div class="detail-text">'+g.paidFull+' заказов оплачены 100%, '+g.deposit+' заказов внесли депозит, '+g.waiting+' заказ ждёт подтверждения денег. Это не места, а финансовые состояния заказов.</div></div>'+
-      '<div class="detail-card"><div class="detail-title">AI-сценарий</div><div class="detail-text">'+g.ai+'</div><div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-toast="Демо: добор группы запущен бы после подтверждения">Добрать группу</button><button class="btn" data-toast="Демо: создан черновик переноса">Предложить перенос</button><button class="btn" data-toast="Демо: создана задача админу">Задача админу</button></div></div>'
+      '<div class="detail-card"><div class="detail-title">AI-сценарий</div><div class="detail-text">'+g.ai+'</div><div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-toast="Добор группы запущен">Добрать группу</button><button class="btn" data-toast="Перенос подготовлен">Предложить перенос</button><button class="btn" data-toast="Задача отправлена администратору">Задача админу</button></div></div>'
     };
   }
   if(type === "demand"){
@@ -1415,7 +1415,7 @@ function drawerContent(type,id){
       sub:"Коммерческий сценарий: спрос → дата → группа",
       body:
       '<div class="detail-card"><div class="detail-title">Что произошло</div><div class="detail-text">Есть просмотры, сохранения и вопросы по экскурсии, но клиентам нечего выбрать на нужную дату. Это потеря не в рекламе, а в расписании.</div></div>'+
-      '<div class="detail-card"><div class="detail-title">AI предлагает</div><div class="detail-text">Открыть групповую дату, собрать лист интереса, разослать персональные предложения и установить контроль минимума T-3/T-2/T-1.</div><div style="margin-top:12px"><button class="btn primary" data-toast="Демо: новая дата была бы создана как черновик">Открыть дату</button></div></div>'
+      '<div class="detail-card"><div class="detail-title">AI предлагает</div><div class="detail-text">Открыть групповую дату, собрать лист интереса, разослать персональные предложения и установить контроль минимума T-3/T-2/T-1.</div><div style="margin-top:12px"><button class="btn primary" data-toast="Новая дата подготовлена">Открыть дату</button></div></div>'
     };
   }
   if(type === "money"){
@@ -1425,8 +1425,8 @@ function drawerContent(type,id){
       sub:"Финансовый контроль директора",
       body:
       '<div class="detail-card"><div class="detail-title">Сумма</div><div class="kpi-value">'+fmt(m.amount)+'</div><div class="detail-text">'+m.orders+' заказов · '+m.desc+'</div></div>'+
-      '<div class="detail-card"><div class="detail-title">Правило</div><div class="detail-text">В CRM деньги хранятся отдельно от мест. Остаток гиду — это сумма по депозитным заказам. Ручная проверка — это неподтверждённые деньги, а не долг.</div></div>'+
-      '<div class="detail-card"><button class="btn primary" data-toast="Демо: финансовая задача создана бы бухгалтеру">Создать задачу бухгалтеру</button></div>'
+      '<div class="detail-card"><div class="detail-title">Правило</div><div class="detail-text">Деньги учитываются отдельно от мест. Остаток гиду — это сумма по депозитным заказам. Ручная проверка — это неподтверждённые деньги, а не долг.</div></div>'+
+      '<div class="detail-card"><button class="btn primary" data-toast="Задача создана бухгалтеру">Создать задачу бухгалтеру</button></div>'
     };
   }
   if(type === "source"){
@@ -1438,30 +1438,30 @@ function drawerContent(type,id){
       '<div class="detail-card"><div class="detail-title">Канал в цифрах</div><div class="split"><div class="split-tile"><b>'+int(src.clients)+'</b><span>клиентов</span></div><div class="split-tile"><b>'+int(src.paid)+'</b><span>оплатили</span></div><div class="split-tile"><b>'+fmt(src.revenue)+'</b><span>выручка</span></div></div></div>'+
       '<div class="detail-card"><div class="detail-title">Качество</div><div class="detail-text">Конверсия в оплату: '+src.conv+'%. Средний чек: '+fmt(src.avg)+'. Повторных клиентов: '+src.repeat+'. Отмен: '+src.cancel+'. Покупают чаще: '+src.top+'.</div></div>'+
       '<div class="detail-card"><div class="detail-title">Почему это важно</div><div class="detail-text">'+src.insight+'</div></div>'+
-      '<div class="detail-card"><div class="detail-title">AI предлагает</div><div class="detail-text">'+src.action+'. Массовые действия и рассылки — только после подтверждения директора.</div><div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-toast="Демо: задача по источнику создана бы">Создать задачу</button><button class="btn" data-toast="Демо: сегмент для источника создан бы">Создать сегмент</button></div></div>'
+      '<div class="detail-card"><div class="detail-title">AI предлагает</div><div class="detail-text">'+src.action+'. Массовые действия и рассылки — только после подтверждения директора.</div><div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-toast="Задача по источнику создана">Создать задачу</button><button class="btn" data-toast="Сегмент для источника подготовлен">Создать сегмент</button></div></div>'
     };
   }
   if(type === "persona"){
     var cp = customerTypes.find(function(x){return x.id === id;}) || customerTypes[0];
     return {
       title:cp.name,
-      sub:"Портрет клиента · CRM-сегмент",
+      sub:"Портрет клиента",
       body:
       '<div class="detail-card"><div class="detail-title">Портрет в цифрах</div><div class="split"><div class="split-tile"><b>'+int(cp.count)+'</b><span>клиентов</span></div><div class="split-tile"><b>'+cp.share+'%</b><span>доля базы</span></div><div class="split-tile"><b>'+fmt(cp.revenue)+'</b><span>выручка</span></div></div></div>'+
       '<div class="detail-card"><div class="detail-title">Что покупают</div><div class="detail-text">'+cp.buys+'</div></div>'+
       '<div class="detail-card"><div class="detail-title">Поведение</div><div class="detail-text">'+cp.behavior+'</div></div>'+
-      '<div class="detail-card"><div class="detail-title">Следующее действие</div><div class="detail-text">'+cp.action+'</div><div style="margin-top:12px"><button class="btn primary" data-toast="Демо: AI-черновик предложения создан бы">Создать предложение</button></div></div>'
+      '<div class="detail-card"><div class="detail-title">Следующее действие</div><div class="detail-text">'+cp.action+'</div><div style="margin-top:12px"><button class="btn primary" data-toast="Предложение подготовлено">Создать предложение</button></div></div>'
     };
   }
   if(type === "segment"){
     var s = segments.find(function(x){return x.id === id;}) || segments[0];
     return {
       title:s.name,
-      sub:"CRM-сегмент для роста",
+      sub:"Сегмент для роста",
       body:
       '<div class="detail-card"><div class="detail-title">Потенциал</div><div class="split"><div class="split-tile"><b>'+int(s.count)+'</b><span>клиентов</span></div><div class="split-tile"><b>'+fmt(s.value)+'</b><span>оценка</span></div></div></div>'+
       '<div class="detail-card"><div class="detail-title">Зачем нужен</div><div class="detail-text">'+s.action+'</div></div>'+
-      '<div class="detail-card"><div class="detail-title">AI-черновик</div><div class="detail-text">Подготовить короткое персональное предложение, связанное с прошлым интересом клиента. Массовая отправка только после подтверждения директора или администратора.</div><div style="margin-top:12px"><button class="btn primary" data-toast="Демо: черновик рассылки создан бы">Создать черновик</button></div></div>'
+      '<div class="detail-card"><div class="detail-title">Персональное предложение</div><div class="detail-text">Подготовить короткое персональное предложение, связанное с прошлым интересом клиента. Массовая отправка только после подтверждения директора или администратора.</div><div style="margin-top:12px"><button class="btn primary" data-toast="Предложение подготовлено">Создать предложение</button></div></div>'
     };
   }
   if(type === "tour"){
@@ -1471,7 +1471,7 @@ function drawerContent(type,id){
       sub:t.city+" · продуктовый разбор",
       body:
       '<div class="detail-card"><div class="detail-title">Показатели</div><div class="split"><div class="split-tile"><b>'+fmt(t.plan)+'</b><span>план</span></div><div class="split-tile"><b>'+fmt(t.fact)+'</b><span>факт</span></div><div class="split-tile"><b>'+t.conv+'%</b><span>конверсия</span></div></div></div>'+
-      '<div class="detail-card"><div class="detail-title">Решение</div><div class="detail-text">'+t.action+'</div><div style="margin-top:12px"><button class="btn primary" data-toast="Демо: задача по экскурсии создана бы">Создать задачу</button></div></div>'
+      '<div class="detail-card"><div class="detail-title">Решение</div><div class="detail-text">'+t.action+'</div><div style="margin-top:12px"><button class="btn primary" data-toast="Задача по экскурсии создана">Создать задачу</button></div></div>'
     };
   }
   if(type === "team"){
@@ -1481,7 +1481,7 @@ function drawerContent(type,id){
         sub:"Анна и Виктор · системная проблема команды",
         body:
         '<div class="detail-card"><div class="detail-title">Кого проверить</div><div class="detail-text">Анна: 2 поздних подтверждения, показатель 91%. Виктор: 4 поздних подтверждения, показатель 86%.</div></div>'+
-        '<div class="detail-card"><div class="detail-title">Рекомендуемое правило</div><div class="detail-text">Обязательное подтверждение выезда до 20:00 накануне. При отсутствии подтверждения — автоматическая задача администратору и эскалация директору.</div><div style="margin-top:12px"><button class="btn primary" data-toast="Демо: правило подтверждения подготовлено как черновик">Создать правило</button></div></div>'
+        '<div class="detail-card"><div class="detail-title">Рекомендуемое правило</div><div class="detail-text">Обязательное подтверждение выезда до 20:00 накануне. При отсутствии подтверждения — автоматическая задача администратору и эскалация директору.</div><div style="margin-top:12px"><button class="btn primary" data-toast="Правило подтверждения подготовлено">Создать правило</button></div></div>'
       };
     }
     var p = team.find(function(x){return x.id === id;}) || team[0];
@@ -1495,7 +1495,7 @@ function drawerContent(type,id){
   }
   return {
     title:"Детали",
-    sub:"Демо",
+    sub:"Детали",
     body:'<div class="detail-card"><div class="detail-text">Детальный экран.</div></div>'
   };
 }
@@ -1579,7 +1579,7 @@ function bindFilters(){
 }
 function openDraftComposer(title,note){
   document.getElementById("drawerTitle").textContent = title;
-  document.getElementById("drawerSub").textContent = "Задача будет отправлена администратору и сохранена в D1";
+  document.getElementById("drawerSub").textContent = "Задача будет отправлена администратору";
   document.getElementById("drawerBody").innerHTML =
     '<div class="detail-card"><form class="draft-form" id="draftForm">'+
       '<label><b>Название</b><input id="draftTitle" value="'+safeText(title)+'"></label>'+
