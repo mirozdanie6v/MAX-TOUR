@@ -1,7 +1,9 @@
 (() => {
   'use strict';
 
-  const STORAGE_KEY = 'max-tour-ai-consultant-v1';
+  // Bump the client state key so an older, overly verbose conversation cannot
+  // reappear after the customer-facing copy is updated.
+  const STORAGE_KEY = 'max-tour-ai-consultant-v2';
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
   const lower = value => String(value || '').toLocaleLowerCase('ru-RU');
   const clean = (value, max = 500) => String(value ?? '').trim().slice(0, max);
@@ -16,7 +18,7 @@
   });
 
   const freshState = () => ({
-    slots: freshSlots(), messages: [{ role:'bot', text:'Я помогу собрать сложную поездку: учту взрослых, детей и возраст, формат, даты, программу, трансфер и бюджет. В конце передам менеджеру уже структурированную заявку — без повторного опроса.' }],
+    slots: freshSlots(), messages: [{ role:'bot', text:'Опишите поездку — я учту состав группы, детей и возраст, формат, даты, программу, трансфер и бюджет.' }],
     recommendations: [], handoff: null,
   });
 
@@ -64,6 +66,14 @@
     if (/ханой/.test(q)) return 'Ханой';
     if (/муйн|фантьет/.test(q)) return 'Муйне/Фантьет';
     if (/далат/.test(q)) return 'Далат';
+    if (/фуйен|фу[йи]ен|туй\s*хоа/.test(q)) return 'Фуйен';
+    if (/хойан|хой\s*ан/.test(q)) return 'Хойан';
+    if (/нин[ьъ]?бинь|чанган/.test(q)) return 'Ниньбинь';
+    if (/сапа|саппу?/.test(q)) return 'Сапа';
+    if (/халонг|ха\s*лонг/.test(q)) return 'Халонг';
+    if (/сон\s*тра/.test(q)) return 'Сон Тра';
+    if (/ба\s*на|банахилл|золот(?:ой|ого) мост/.test(q)) return 'Ба На Хилл';
+    if (/fast\s*track|фаст\s*трек|аэропорт/.test(q)) return 'Fast Track';
     return '';
   }
 
@@ -90,8 +100,17 @@
     if (/выходн/.test(q)) return { value:'Ближайшие выходные', flexible:true };
     if (/через\s+недел|на\s+недел|в\s+течени/.test(q)) return { value:'В течение ближайшей недели', flexible:true };
     if (/гибк|неважно|пока не выбрал|дат[ау].*нет/.test(q)) return { value:'Дата гибкая', flexible:true };
-    const month = q.match(/\b(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)[а-яё]*/);
-    return month ? { value:`${month[0]} — даты уточним`, flexible:true } : null;
+    // JS \b is ASCII-only and does not form a boundary before Cyrillic.
+    // Use a non-letter boundary so natural phrases like «20 сентября» parse.
+    const monthNames = ['январ','феврал','март','апрел','май','июн','июл','август','сентябр','октябр','ноябр','декабр'];
+    const named = q.match(/(?:^|[^а-яё])(\d{1,2})\s*(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)[а-яё]*(?:\s*(20\d{2}))?/);
+    if (named) {
+      const monthIndex = monthNames.findIndex(name => named[2].startsWith(name));
+      const normalized = monthIndex >= 0 ? normalizeDate(named[1], monthIndex + 1, named[3]) : '';
+      return normalized ? { value: normalized, flexible:false } : { value:`${named[2]} — даты уточним`, flexible:true };
+    }
+    const month = q.match(/(?:^|[^а-яё])(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)[а-яё]*/);
+    return month ? { value:`${month[1]} — даты уточним`, flexible:true } : null;
   }
 
   function parseMessage(text) {
@@ -110,9 +129,16 @@
     if (infantMatch) s.infants = Math.min(12, Number(infantMatch[1]));
     else if (/малыш|младен|груднич|до\s*3\s*лет/.test(q)) s.infants = Math.max(1, s.infants || 0);
     if (/дет|ребён|ребен/.test(q)) {
-      const ages = [...q.matchAll(/\b(\d{1,2})\s*(?:лет|года|год)\b/g)].map(match => Number(match[1])).filter(age => age >= 3 && age <= 17);
+      // Accept «дети 7 и 10 лет», «7-летний ребёнок» and repeated ages.
       const childCount = q.match(/(\d+)\s*(?:дет|ребён|ребен)/);
-      if (ages.length) s.children = [...new Set(ages)].slice(0, 12);
+      const ageMatches = [...q.matchAll(/(\d{1,2})\s*(?:лет|года|год|[-\u2011\u2013]?летн(?:ий|яя|ие|их))/g)];
+      const childList = q.match(/(?:дет(?:и|ей)?|реб(?:ён|ен)ок(?:а|и)?)[^.!?\n]{0,32}?\d{1,2}(?:\s*(?:и|,|\+|&)\s*\d{1,2})*\s*лет?/);
+      const ages = (childList ? (childList[0].match(/\d{1,2}/g) || []) : ageMatches.map(match => match[1]))
+        .map(Number).filter(age => age >= 3 && age <= 17);
+      if (childCount && ages.length === 1 && Number(childCount[1]) > 1) {
+        while (ages.length < Math.min(12, Number(childCount[1]))) ages.push(ages[0]);
+      }
+      if (ages.length) s.children = ages.slice(0, 12);
       else if (childCount) s.children = Array.from({ length:Math.min(12, Number(childCount[1])) }, () => 8);
       else if (!s.children.length) s.children = [8];
     }
@@ -124,7 +150,8 @@
 
     const parsedDate = parseDate(q);
     if (parsedDate) { s.date = parsedDate.value; s.dateFlexible = parsedDate.flexible; }
-    if (/море|пляж|остров|сноркл|купани/.test(q)) s.preferences = [...new Set([...s.preferences, 'море'])];
+    if (/(?:^|\s)(?:не|без)\s+(?:хочу\s+)?(?:море|пляж|остров)/.test(q)) s.preferences = s.preferences.filter(item => item !== 'море');
+    else if (/море|пляж|остров|сноркл|купани/.test(q)) s.preferences = [...new Set([...s.preferences, 'море'])];
     if (/природ|горы|горы|водопад|фото|красив/.test(q)) s.preferences = [...new Set([...s.preferences, 'природа'])];
     if (/город|культур|храм|музе|истори/.test(q)) s.preferences = [...new Set([...s.preferences, 'город и культура'])];
     if (/лёгк|легк|не тяж|без долг|спокойн/.test(q)) s.preferences = [...new Set([...s.preferences, 'лёгкая программа'])];
@@ -160,8 +187,8 @@
       party: 'Сколько едет взрослых? Напишите состав одним сообщением — например: «2 взрослых, дети 7 и 10 лет, малыш 1 год».',
       date: 'На какие даты планируете? Подойдёт точная дата, «ближайшие выходные» или диапазон — гибкие даты расширят выбор.',
       preferences: 'Что важно в поездке? Выберите или напишите несколько вариантов: море, природа, город, лёгкая программа, комфорт.',
-      contact: 'Основные параметры собраны. Я покажу подходящие варианты и попрошу один контакт, чтобы менеджер получил готовую заявку, а не начинал опрос заново.',
-      done: 'Заявка заполнена. Проверьте данные поездки справа и нажмите «Передать менеджеру», если хотите продолжить подбор в чате.',
+      contact: 'Основные параметры собраны. Ниже появятся подходящие варианты с ориентиром по стоимости — выберите нужный и переходите к бронированию.',
+      done: 'Параметры поездки собраны. Проверьте их справа, откройте подходящий вариант и переходите к бронированию.',
     })[current];
   }
 
@@ -209,11 +236,11 @@
 
   function answerQuestion(text) {
     const q = lower(text);
-    if (/отмен|перенос|возврат/.test(q)) return 'Правила зависят от момента действия: раньше чем за 48 часов отмена бесплатна; ближе к выезду может быть удержание. Перенос также пересчитывается по текущей дате — менеджер увидит запрос и предложит доступные варианты.';
+    if (/отмен|перенос|возврат/.test(q)) return 'Правила зависят от времени действия: более чем за 48 часов отмена бесплатна, до 17:00 накануне удерживается 30%, в день выезда или при неявке — 100%. Перенос бесплатен до 17:00 накануне, позже удерживается 30%.';
     if (/оплат|депозит|предоплат|30\s*%|сто процент/.test(q)) return 'Можно зафиксировать поездку депозитом или полной оплатой. Я сначала помогу собрать точный состав и программу, чтобы корректно рассчитать стоимость.';
-    if (/трансфер|аэропорт|встреч/.test(q)) return 'Трансфер можно добавить к заявке: укажите отель и аэропорт/точку встречи. Я передам эту деталь менеджеру, чтобы она не потерялась в переписке.';
-    if (/ребён|ребен|дет|малыш|коляск/.test(q)) return 'Да, сложный состав — как раз то, что я фиксирую: число взрослых, возраст каждого ребёнка и малышей. После этого менеджер сможет проверить ограничения маршрута, питание, кресло и комфорт темпа.';
-    if (/что входит|включен|программ|маршрут/.test(q)) return 'В карточке выбранной экскурсии можно открыть программу и включённые услуги. Я сначала подберу подходящие варианты, а в заявке сохраню ваш вопрос, чтобы менеджер ответил по конкретному маршруту.';
+    if (/трансфер|аэропорт|встреч/.test(q)) return 'Трансфер можно добавить к бронированию: укажите отель и аэропорт или точку встречи, чтобы подобрать подходящий вариант.';
+    if (/ребён|ребен|дет|малыш|коляск/.test(q)) return 'Учитываю число взрослых, возраст каждого ребёнка и малышей. Так точнее проверяются ограничения маршрута, питание, кресло и комфорт темпа.';
+    if (/что входит|включен|программ|маршрут/.test(q)) return 'В карточке каждой экскурсии указаны программа, маршрут, включённые услуги и что взять с собой. Откройте подходящий вариант, чтобы посмотреть детали.';
     return '';
   }
 
@@ -236,7 +263,7 @@
     if (!state.recommendations.length) return '';
     const format = state.slots.tripType === 'group' ? 'групповой' : state.slots.tripType === 'compare' ? 'оба формата' : 'индивидуальный';
     return `<div class="ai-recommendations"><div class="hint" style="font-size:10.5px;font-weight:850">Предварительный подбор · ${format} формат</div>${state.recommendations.map(item => {
-      const price = item.estimateUsd ? `примерно $${item.estimateUsd.toLocaleString('ru-RU')} за группу` : 'цену подтвердит менеджер';
+      const price = item.estimateUsd ? `примерно $${item.estimateUsd.toLocaleString('ru-RU')} за группу` : 'стоимость уточняется после выбора даты';
       return `<article class="ai-recommendation"><div><h4>${esc(item.tour.title)}</h4><p>${esc(item.tour.city || '')} · ${esc(item.note)}</p><span class="ai-price">${esc(price)}</span></div><button type="button" class="secondary" data-ai-action="open-tour" data-id="${esc(item.tour.id)}">Открыть</button></article>`;
     }).join('')}</div>`;
   }
@@ -244,12 +271,12 @@
   function renderContactForm() {
     const s = state.slots;
     if (!['contact','done'].includes(stage()) || state.handoff) return '';
-    return `<form class="ai-contact-form" data-ai-form="contact"><h4>Передать менеджеру готовую заявку</h4><p>Достаточно одного способа связи. Дополнительные поля помогают сразу посчитать сложный заказ.</p><div class="ai-contact-grid"><label>Имя<input name="name" value="${esc(s.contact.name)}" placeholder="Как к вам обращаться"></label><label>Телефон<input name="phone" value="${esc(s.contact.phone)}" placeholder="+7 ..."></label><label>Telegram<input name="telegram" value="${esc(s.contact.telegram)}" placeholder="@username"></label><label>Бюджет / комментарий<input name="budget" value="${esc(s.budget)}" placeholder="Например, до $600"></label><label class="wide">Отель и трансфер<input name="hotelTransfer" value="${esc([s.hotel && `отель: ${s.hotel}`, s.transfer && `трансфер: ${s.transfer}`].filter(Boolean).join('; '))}" placeholder="Отель, нужен ли трансфер"></label></div><div class="ai-contact-actions"><button class="primary" type="submit">Передать менеджеру</button><button class="secondary" type="button" data-ai-action="skip-contact">Только открыть варианты</button></div><div class="form-error" role="alert"></div></form>`;
+    return `<form class="ai-contact-form" data-ai-form="contact"><h4>Сохранить подбор</h4><p>Укажите один контакт, чтобы сохранить параметры поездки и вернуться к бронированию.</p><div class="ai-contact-grid"><label>Имя<input name="name" value="${esc(s.contact.name)}" placeholder="Как к вам обращаться"></label><label>Телефон<input name="phone" value="${esc(s.contact.phone)}" placeholder="+7 ..."></label><label>Telegram<input name="telegram" value="${esc(s.contact.telegram)}" placeholder="@username"></label><label>Бюджет / комментарий<input name="budget" value="${esc(s.budget)}" placeholder="Например, до $600"></label><label class="wide">Отель и трансфер<input name="hotelTransfer" value="${esc([s.hotel && `отель: ${s.hotel}`, s.transfer && `трансфер: ${s.transfer}`].filter(Boolean).join('; '))}" placeholder="Отель, нужен ли трансфер"></label></div><div class="ai-contact-actions"><button class="primary" type="submit">Сохранить подбор</button><button class="secondary" type="button" data-ai-action="skip-contact">Только открыть варианты</button></div><div class="form-error" role="alert"></div></form>`;
   }
 
   function renderBrief() {
     const rows = summaryRows();
-    return `<aside class="ai-consultant-brief"><h3 class="ai-brief-title">Данные поездки</h3><p class="ai-brief-caption">Краткая информация для менеджера.</p><div class="ai-brief-list">${rows.length ? rows.map(row => `<div class="ai-brief-row"><span>${esc(row[0])}</span><b>${esc(row[1])}</b></div>`).join('') : '<div class="ai-brief-empty">Пока пусто. Начните с города, формата и состава группы.</div>'}</div>${state.handoff ? `<div class="ai-handoff"><b>Заявка передана менеджеру</b>№ ${esc(state.handoff.id)} · статус «Новая». Менеджер свяжется с вами и продолжит подбор.</div>` : ''}${state.handoff ? '<button type="button" class="secondary ai-reset" data-ai-action="reset">Новая консультация</button>' : ''}</aside>`;
+    return `<aside class="ai-consultant-brief"><h3 class="ai-brief-title">Параметры поездки</h3><p class="ai-brief-caption">Сводка выбранных условий и пожеланий.</p><div class="ai-brief-list">${rows.length ? rows.map(row => `<div class="ai-brief-row"><span>${esc(row[0])}</span><b>${esc(row[1])}</b></div>`).join('') : '<div class="ai-brief-empty">Пока пусто. Начните с города, формата и состава группы.</div>'}</div>${state.handoff ? '<div class="ai-handoff"><b>Подбор сохранён</b>Проверьте варианты ниже и переходите к бронированию.</div>' : ''}${state.handoff ? '<button type="button" class="secondary ai-reset" data-ai-action="reset">Новая поездка</button>' : ''}</aside>`;
   }
 
   function render(root) {
@@ -263,7 +290,7 @@
       return state.slots.contact.name || state.slots.contact.phone || state.slots.contact.telegram;
     }).length / 6) * 100);
     const quick = quickReplies(current);
-    root.innerHTML = `<div class="section-title"><h2>AI-консультант</h2><span class="hint">сложные поездки · заполнено ${progress}%</span></div><div class="ai-consultant-shell"><section class="ai-consultant-main"><div class="ai-consultant-intro"><div><h3>Подберём поездку под вашу группу</h3><p>Один вопрос за раз — затем готовая заявка для менеджера с составом, возрастом детей и ориентиром по цене.</p></div><span class="ai-consultant-badge">Персональный подбор</span></div><div class="ai-progress" aria-label="Заполнение заявки"><span style="width:${progress}%"></span></div><div class="ai-messages" aria-live="polite">${state.messages.map(message => `<div class="ai-msg ${message.role === 'user' ? 'user' : 'bot'}">${esc(message.text)}</div>`).join('')}</div>${renderRecommendations()}${renderContactForm()}<div class="ai-quick-replies">${quick.map(item => `<button type="button" data-ai-action="quick" data-value="${esc(item[1])}">${esc(item[0])}</button>`).join('')}</div><form class="ai-consultant-input" data-ai-form="chat"><textarea name="message" rows="1" placeholder="Например: 2 взрослых, дети 7 и 10 лет, море в июле..." aria-label="Сообщение AI-консультанту"></textarea><button class="primary" type="submit" aria-label="Отправить">→</button></form></section>${renderBrief()}</div>`;
+    root.innerHTML = `<div class="section-title ai-section-head"><div><h2>AI-консультант</h2><span class="hint">сложные поездки · заполнено ${progress}%</span></div><button class="secondary ai-clear" type="button" data-ai-action="clear">Очистить диалог</button></div><div class="ai-consultant-shell"><section class="ai-consultant-main"><div class="ai-consultant-intro"><div><h3>Подберём поездку под вашу группу</h3><p>Опишите поездку — я подберу формат, дату и стоимость.</p></div><span class="ai-consultant-badge">Персональный подбор</span></div><div class="ai-progress" aria-label="Заполнение заявки"><span style="width:${progress}%"></span></div><div class="ai-messages" aria-live="polite">${state.messages.map(message => `<div class="ai-msg ${message.role === 'user' ? 'user' : 'bot'}">${esc(message.text)}</div>`).join('')}</div>${renderRecommendations()}${renderContactForm()}<div class="ai-quick-replies">${quick.map(item => `<button type="button" data-ai-action="quick" data-value="${esc(item[1])}">${esc(item[0])}</button>`).join('')}</div><form class="ai-consultant-input" data-ai-form="chat"><textarea name="message" rows="1" placeholder="Например: 2 взрослых, дети 7 и 10 лет, море в июле..." aria-label="Сообщение AI-консультанту"></textarea><button class="primary" type="submit" aria-label="Отправить">→</button></form></section>${renderBrief()}</div>`;
     const messages = root.querySelector('.ai-messages');
     if (messages) messages.scrollTop = messages.scrollHeight;
     persist();
@@ -278,7 +305,7 @@
     const current = stage();
     const answer = answerQuestion(text);
     const next = current === 'contact'
-      ? `Отлично, я собрал параметры. ${state.recommendations.length ? 'Ниже — подходящие варианты с ориентиром по стоимости.' : ''} Оставьте имя и Telegram или телефон — менеджер получит всю заявку целиком.`
+      ? `Параметры собраны. ${state.recommendations.length ? 'Ниже — подходящие варианты с ориентиром по стоимости.' : 'Уточним детали и покажем доступные варианты.'} Откройте нужную экскурсию и переходите к бронированию.`
       : promptFor(current);
     addMessage('bot', answer ? `${answer}\n\n${next}` : next);
     render(root);
@@ -294,7 +321,7 @@
       state.slots.transfer = /трансфер/i.test(extra) ? extra : (state.slots.transfer || extra);
     }
     if (!state.slots.contact.name && !state.slots.contact.phone && !state.slots.contact.telegram) {
-      form.querySelector('.form-error').textContent = 'Укажите имя, телефон или Telegram — иначе менеджер не сможет связаться.';
+      form.querySelector('.form-error').textContent = 'Укажите имя, телефон или Telegram — иначе подбор нельзя будет сохранить.';
       return;
     }
     const summary = summaryRows().map(row => `${row[0]}: ${row[1]}`).join('\n');
@@ -306,7 +333,7 @@
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.ok) throw new Error(result.error || 'consultation_failed');
       state.handoff = result.consultation || { id:'—' };
-      addMessage('bot', `Готово — заявка ${state.handoff.id} передана менеджеру вместе с составом группы, пожеланиями и предварительным подбором. Повторно объяснять всё не понадобится.`);
+      addMessage('bot', 'Готово — параметры поездки сохранены вместе с составом группы, пожеланиями и предварительным подбором. Откройте подходящий вариант и переходите к бронированию.');
       render(root);
     } catch (error) {
       form.querySelector('.form-error').textContent = 'Не удалось сохранить заявку. Проверьте соединение и повторите отправку.';
@@ -322,7 +349,7 @@
       addMessage('user', value);
       parseMessage(value);
       updateRecommendations();
-      addMessage('bot', stage() === 'contact' ? 'Основные параметры собраны. Проверьте варианты и оставьте контакт для менеджера.' : promptFor(stage()));
+      addMessage('bot', stage() === 'contact' ? 'Основные параметры собраны. Проверьте варианты и при желании сохраните подбор.' : promptFor(stage()));
       render(root);
     }
     if (action === 'open-tour') {
@@ -331,11 +358,16 @@
     }
     if (action === 'skip-contact') {
       addMessage('user', 'Пока только посмотрю варианты');
-      addMessage('bot', 'Конечно. Выберите экскурсию ниже — состав группы и предварительный расчёт уже сохранены в этом диалоге. Для передачи менеджеру контакт можно добавить позже.');
+      addMessage('bot', 'Конечно. Выберите экскурсию ниже — состав группы и предварительный расчёт уже сохранены в этом диалоге. Контакт можно добавить позже, если захотите сохранить подбор.');
       render(root);
     }
     if (action === 'reset') {
       state = freshState();
+      render(root);
+    }
+    if (action === 'clear') {
+      state = freshState();
+      try { sessionStorage.removeItem(STORAGE_KEY); } catch (_) {}
       render(root);
     }
   }
