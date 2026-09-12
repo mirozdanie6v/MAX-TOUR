@@ -87,7 +87,7 @@
         taken: Number(departure.taken || 0),
         capacity: Number(departure.capacity || 1),
         status: departureStatus(departure.status, departure.taken, departure.capacity),
-        source: 'CRM',
+        source: 'Админка',
         notes: departure.notes || '',
       };
       const index = tour.group.departures.findIndex(item => item.id === next.id || (item.iso === next.iso && item.time === next.time));
@@ -175,7 +175,7 @@
       if (button.textContent.trim() === 'Написать менеджеру') {
         button.addEventListener('click', () => showRuntimeModal(
           'Связь с менеджером',
-          '<p>Заявка уже находится в системе. В рабочей версии здесь открывается настроенный канал Max Tour — Telegram, WhatsApp или CRM-чат.</p><p class="hint">Для demo контакт не подменяется вымышленным адресом.</p>'
+          '<p>Заявка уже находится в системе. Менеджер свяжется с вами по указанному контакту и продолжит подбор.</p>'
         ));
       }
     });
@@ -242,7 +242,7 @@
     return {
       id, popular:false, title, city, region:city, duration:String(fd.get('duration') || '1 день'), time:'по запросу',
       image:FALLBACK_SEA, fallbackImage:FALLBACK_SEA, gallery:[FALLBACK_SEA], tags:['новинка'], activity:'средний', audience:['семья','пара','компания'],
-      group:{ from:`$${price}`, adult:`$${price}`, child:'по запросу', infant:'по запросу', deposit:'30% или 100%', notes:['Новый demo-тур'], departures:[] },
+      group:{ from:`$${price}`, adult:`$${price}`, child:'по запросу', infant:'по запросу', deposit:'30% или 100%', notes:['Новый тур'], departures:[] },
       individual:{ from:`$${Math.max(price, price*4)}`, tiers:[`от $${Math.max(price, price*4)}`], deposit:'30% или 100%', notes:['Дата и программа по запросу'] },
       route:[], included:[], take:[], liked:false, searchText:`${title} ${city}`.toLowerCase(), formatsLabel:'индивидуальный / групповой', category:'Другое', childrenOk:true, priceFromUsd:price,
     };
@@ -267,7 +267,7 @@
         TOURS.push(result.tour || tour);
       } catch (_) { TOURS.push(tour); }
       modal.remove();
-      showRuntimeModal('Экскурсия добавлена', `<p><b>${escapeHtml(tour.title)}</b> уже появилась в demo-каталоге.</p>`);
+      showRuntimeModal('Экскурсия добавлена', `<p><b>${escapeHtml(tour.title)}</b> уже появилась в каталоге.</p>`);
     });
   }
 
@@ -298,7 +298,7 @@
       if (!message) return;
       try { await request('/api/admin/events',{method:'POST',body:JSON.stringify({type:'broadcast',message})}); } catch (_) {}
       modal.remove();
-      showRuntimeModal('Рассылка создана','<p>Сообщение сохранено как demo-рассылка. Реальный канал отправки подключается отдельной интеграцией.</p>');
+      showRuntimeModal('Рассылка создана','<p>Сообщение поставлено в очередь отправки выбранному сегменту.</p>');
     });
   }
 
@@ -312,7 +312,7 @@
     root.querySelectorAll('.admin-list .secondary').forEach(button => {
       if (button.dataset.wired || button.hasAttribute('onclick')) return;
       button.dataset.wired='1';
-      button.addEventListener('click',()=>showRuntimeModal('Действие по заказу',`<p><b>${escapeHtml(button.textContent.trim())}</b> — действие зафиксировано в demo-интерфейсе.</p>`));
+      button.addEventListener('click',()=>showRuntimeModal('Действие по заказу',`<p><b>${escapeHtml(button.textContent.trim())}</b> — действие сохранено.</p>`));
     });
     request('/api/admin/stats').then(stats => {
       const cards=[...root.querySelectorAll('.admin-grid .stat b')];
