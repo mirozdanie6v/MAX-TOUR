@@ -428,6 +428,9 @@
   function render(root, options = {}) {
     const content = root.closest('.content');
     const previousContentScroll = content ? content.scrollTop : 0;
+    const wasAtContentEnd = content
+      ? content.scrollTop + content.clientHeight >= content.scrollHeight - 24
+      : true;
     const active = document.activeElement;
     const hadComposerFocus = Boolean(active && active.matches && active.matches('#aiScreen textarea[name="message"]'));
     const selectionStart = hadComposerFocus && Number.isInteger(active.selectionStart) ? active.selectionStart : 0;
@@ -442,7 +445,12 @@
     root.innerHTML = `<div class="section-title ai-section-head"><div><h2>AI-консультант</h2><p class="ai-chat-subtitle">Я AI-консультант, задайте мне любые вопросы, я подскажу вам с поездкой и помогу разобраться во всем.</p></div><button class="secondary ai-clear" type="button" data-ai-action="clear">Очистить</button></div><section class="ai-consultant-shell"><div class="ai-consultant-main ai-chat-panel"><div class="ai-messages" role="log" aria-label="Диалог с AI-консультантом" aria-live="polite">${messageMarkup}</div><form class="ai-consultant-input" data-ai-form="chat"><textarea name="message" rows="1" placeholder="Напишите сообщение..." aria-label="Сообщение AI-консультанту"></textarea><button class="primary" type="submit" aria-label="Отправить">→</button></form></div><div class="ai-chat-below">${renderQuickReplies(quick)}${renderRecommendations()}${renderContactForm()}${renderHandoff()}</div></section>`;
     const messages = root.querySelector('.ai-messages');
     if (messages) messages.scrollTop = messages.scrollHeight;
-    if (content) content.scrollTop = Math.min(previousContentScroll, Math.max(0, content.scrollHeight - content.clientHeight));
+    if (content) {
+      const nextContentEnd = Math.max(0, content.scrollHeight - content.clientHeight);
+      content.scrollTop = options.scrollToEnd || wasAtContentEnd
+        ? nextContentEnd
+        : Math.min(previousContentScroll, nextContentEnd);
+    }
     if (options.focusComposer || hadComposerFocus) {
       const textarea = root.querySelector('textarea[name="message"]');
       if (textarea) {
@@ -476,7 +484,7 @@
     // such as «Куда хотите поехать?». Continue the guided flow only when the
     // user did not ask a knowledge question.
     addMessage('bot', answer || next);
-    render(root, { focusComposer:true });
+    render(root, { focusComposer:true, scrollToEnd:true });
   }
 
   async function handleContact(form, root) {
@@ -515,7 +523,7 @@
       state.handoff = result.consultation || { id:'—' };
       state.handoffHidden = false;
       addMessage('bot', 'Готово — параметры поездки сохранены вместе с составом группы, пожеланиями и предварительным подбором. Откройте подходящий вариант и переходите к бронированию.');
-      render(root);
+      render(root, { scrollToEnd:true });
     } catch (error) {
       form.querySelector('.form-error').textContent = 'Не удалось сохранить заявку. Проверьте соединение и повторите отправку.';
       button.disabled = false;
@@ -531,7 +539,7 @@
       parseMessage(value);
       updateRecommendations();
       addMessage('bot', stage() === 'contact' ? 'Подходящие варианты уже ниже.' : promptFor(stage()));
-      render(root);
+      render(root, { scrollToEnd:true });
     }
     if (action === 'open-tour') {
       const id = event.target.closest('[data-ai-action]').dataset.id;
@@ -541,7 +549,7 @@
       state.showContact = false;
       addMessage('user', 'Пока только посмотрю варианты');
       addMessage('bot', 'Конечно. Выберите экскурсию ниже и переходите к бронированию.');
-      render(root);
+      render(root, { scrollToEnd:true });
     }
     if (action === 'show-contact') {
       state.showContact = true;

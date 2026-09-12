@@ -80,6 +80,8 @@ test('AI consultant is a simple customer-facing chat with optional saved selecti
   assert.match(aiCss, /overflow:visible/);
   assert.match(aiCss, /min-height:44px/);
   assert.match(ai, /event\.key !== 'Enter'/);
+  assert.match(ai, /wasAtContentEnd/);
+  assert.match(ai, /scrollToEnd/);
   assert.match(ai, /data-ai-action="hide-contact"/);
   assert.match(ai, /conversation:state\.messages/);
 });
