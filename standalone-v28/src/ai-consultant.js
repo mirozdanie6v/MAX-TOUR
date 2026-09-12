@@ -203,7 +203,6 @@
 
   function matchTours() {
     const s = state.slots;
-    const q = lower(`${s.destination} ${s.preferences.join(' ')}`);
     const format = s.tripType === 'group' ? 'group' : 'individual';
     const people = { adults:Math.max(1, s.adults || 1), children:s.children.length, infants:s.infants };
     return tours().map(tour => {
@@ -234,6 +233,20 @@
     state.recommendations = matchTours();
   }
 
+  function recommendationReason(item) {
+    const s = state.slots;
+    const reasons = [];
+    if (s.destination) reasons.push(`направление ${s.destination}`);
+    if (s.tripType === 'group' && item.tour.group?.from && item.tour.group.from !== '—') reasons.push('есть групповой выезд');
+    if (s.tripType === 'individual' && item.tour.individual?.from) reasons.push('подходит для индивидуальной поездки');
+    if (s.children.length && item.tour.childrenOk) reasons.push('подходит для семьи');
+    const preferenceLabels = { море:'море', природа:'природа', 'город и культура':'культура', 'лёгкая программа':'спокойный темп', 'комфорт / премиум':'комфорт' };
+    for (const preference of s.preferences) {
+      if (preferenceLabels[preference]) reasons.push(preferenceLabels[preference]);
+    }
+    return [...new Set(reasons)].slice(0, 3).join(' · ') || 'совпадает с вашим запросом';
+  }
+
   function answerQuestion(text) {
     const q = lower(text);
     if (/отмен|перенос|возврат/.test(q)) return 'Отмена бесплатна более чем за 48 часов; до 17:00 накануне удерживается 30%, позже — 100%. Перенос до 17:00 накануне бесплатный.';
@@ -261,10 +274,10 @@
 
   function renderRecommendations() {
     if (!state.recommendations.length) return '';
-    return `<div class="ai-chat-results"><div class="ai-chat-results-label">Подходящие варианты</div>${state.recommendations.map(item => {
+    return `<div class="ai-chat-results"><div class="ai-msg-author">AI-консультант</div><div class="ai-chat-results-label">Советую эти поездки</div><p class="ai-chat-results-reason">Почему: ${esc(recommendationReason(state.recommendations[0]))}</p><div class="ai-recommendations">${state.recommendations.map(item => {
       const price = item.estimateUsd ? `примерно $${item.estimateUsd.toLocaleString('ru-RU')} за группу` : 'стоимость уточняется после выбора даты';
       return `<article class="ai-recommendation"><div><h4>${esc(item.tour.title)}</h4><p>${esc(item.tour.city || '')} · ${esc(item.note)}</p><span class="ai-price">${esc(price)}</span></div><button type="button" class="secondary" data-ai-action="open-tour" data-id="${esc(item.tour.id)}">Открыть</button></article>`;
-    }).join('')}</div>`;
+    }).join('')}</div></div>`;
   }
 
   function renderContactForm() {
@@ -274,10 +287,20 @@
     return `<form class="ai-contact-form" data-ai-form="contact"><h4>Сохранить подбор</h4><p>Укажите один контакт, чтобы сохранить параметры поездки и вернуться к бронированию.</p><div class="ai-contact-grid"><label>Имя<input name="name" value="${esc(s.contact.name)}" placeholder="Как к вам обращаться"></label><label>Телефон<input name="phone" value="${esc(s.contact.phone)}" placeholder="+7 ..."></label><label>Telegram<input name="telegram" value="${esc(s.contact.telegram)}" placeholder="@username"></label><label>Бюджет / комментарий<input name="budget" value="${esc(s.budget)}" placeholder="Например, до $600"></label><label class="wide">Отель и трансфер<input name="hotelTransfer" value="${esc([s.hotel && `отель: ${s.hotel}`, s.transfer && `трансфер: ${s.transfer}`].filter(Boolean).join('; '))}" placeholder="Отель, нужен ли трансфер"></label></div><div class="ai-contact-actions"><button class="primary" type="submit">Сохранить подбор</button><button class="secondary" type="button" data-ai-action="skip-contact">Только открыть варианты</button></div><div class="form-error" role="alert"></div></form>`;
   }
 
+  function renderQuickReplies(quick) {
+    if (!quick.length) return '';
+    return `<div class="ai-quick-replies" aria-label="Варианты ответа">${quick.map(item => `<button type="button" data-ai-action="quick" data-value="${esc(item[1])}">${esc(item[0])}</button>`).join('')}</div>`;
+  }
+
   function render(root) {
     const current = stage();
     const quick = quickReplies(current);
-    root.innerHTML = `<div class="section-title ai-section-head"><div><h2>AI-консультант</h2><p class="ai-chat-subtitle">Я AI-консультант, задайте мне любые вопросы, я подскажу вам с поездкой и помогу разобраться во всем.</p></div><button class="secondary ai-clear" type="button" data-ai-action="clear">Очистить</button></div><section class="ai-consultant-shell"><div class="ai-consultant-main ai-chat-panel"><div class="ai-messages" aria-live="polite">${state.messages.map(message => `<div class="ai-msg ${message.role === 'user' ? 'user' : 'bot'}">${esc(message.text)}</div>`).join('')}</div>${renderRecommendations()}${renderContactForm()}<div class="ai-quick-replies">${quick.map(item => `<button type="button" data-ai-action="quick" data-value="${esc(item[1])}">${esc(item[0])}</button>`).join('')}</div><form class="ai-consultant-input" data-ai-form="chat"><textarea name="message" rows="1" placeholder="Напишите сообщение..." aria-label="Сообщение AI-консультанту"></textarea><button class="primary" type="submit" aria-label="Отправить">→</button></form></div></section>`;
+    const messageMarkup = state.messages.map(message => {
+      const role = message.role === 'user' ? 'user' : 'bot';
+      const author = role === 'user' ? 'Вы' : 'AI-консультант';
+      return `<div class="ai-msg ${role}"><span class="ai-msg-author">${author}</span><span class="ai-msg-text">${esc(message.text)}</span></div>`;
+    }).join('');
+    root.innerHTML = `<div class="section-title ai-section-head"><div><h2>AI-консультант</h2><p class="ai-chat-subtitle">Я AI-консультант, задайте мне любые вопросы, я подскажу вам с поездкой и помогу разобраться во всем.</p></div><button class="secondary ai-clear" type="button" data-ai-action="clear">Очистить</button></div><section class="ai-consultant-shell"><div class="ai-consultant-main ai-chat-panel"><div class="ai-messages" role="log" aria-label="Диалог с AI-консультантом" aria-live="polite">${messageMarkup}${renderRecommendations()}${renderContactForm()}${renderQuickReplies(quick)}</div><form class="ai-consultant-input" data-ai-form="chat"><textarea name="message" rows="1" placeholder="Напишите сообщение..." aria-label="Сообщение AI-консультанту"></textarea><button class="primary" type="submit" aria-label="Отправить">→</button></form></div></section>`;
     const messages = root.querySelector('.ai-messages');
     if (messages) messages.scrollTop = messages.scrollHeight;
     persist();
