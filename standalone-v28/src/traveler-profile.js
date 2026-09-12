@@ -173,6 +173,29 @@
     renderTrips();
   }
 
+  async function removeTraveler(index) {
+    normalizeDirectory();
+    const target = travelerDirectory[index];
+    if (!target || target.primary) return;
+    if (!window.confirm(`Удалить попутчика «${target.fullName}» из сохранённых данных?`)) return;
+
+    const previous = travelerDirectory.map(item => ({ ...item }));
+    travelerDirectory.splice(index, 1);
+    normalizeDirectory();
+    PROFILE_STATE.editingIndex = null;
+    PROFILE_STATE.error = '';
+    saveFallback();
+    renderTrips();
+
+    const persisted = await persistDirectory();
+    if (!persisted) {
+      travelerDirectory.splice(0, travelerDirectory.length, ...previous);
+      normalizeDirectory();
+      saveFallback();
+      renderTrips();
+    }
+  }
+
   function editFormHtml(t, index) {
     return `<div class="traveler-edit-form">
       <div class="field"><label>ФИО</label><input id="profileTravelerName-${index}" value="${escapeHtml(t.fullName)}" placeholder="Фамилия Имя"></div>
@@ -227,7 +250,7 @@
     return `<div class="traveler-profile-card ${primary ? 'main' : ''}">
       <div class="profile-traveler-head">
         <h3>${primary ? 'Основной путешественник' : escapeHtml(t.label || 'Попутчик')}</h3>
-        <button class="secondary profile-edit-button" type="button" onclick="beginTravelerEdit(${index})">Изменить</button>
+        <div class="profile-traveler-actions"><button class="secondary profile-edit-button" type="button" onclick="beginTravelerEdit(${index})">Изменить</button>${primary ? '' : `<button class="secondary danger-soft profile-delete-button" type="button" onclick="removeTraveler(${index})">Удалить</button>`}</div>
       </div>
       <div class="traveler-mini"><div><span>ФИО</span><b>${escapeHtml(t.fullName)}</b></div><small>${escapeHtml(formatBirthDate(t.birthDate))}</small></div>
     </div>`;
@@ -301,13 +324,14 @@
     style.textContent = `
       .saved-traveler-picker{margin-top:8px;padding:10px;border:1px solid var(--line,#e6e8ec);border-radius:14px;background:var(--surface,#fff)}
       .saved-traveler-title{font-size:12px;font-weight:700;margin-bottom:8px}
-      .saved-traveler-options{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}
-      .saved-traveler-option{flex:0 0 auto;min-width:150px;text-align:left;border:1px solid var(--line,#e6e8ec);border-radius:12px;background:#fff;padding:9px 10px;color:inherit}
+      .saved-traveler-options{display:grid;grid-template-columns:1fr;gap:8px;overflow:visible;padding-bottom:2px}
+      .saved-traveler-option{width:100%;min-width:0;text-align:left;border:1px solid var(--line,#e6e8ec);border-radius:12px;background:#fff;padding:9px 10px;color:inherit}
       .saved-traveler-option b,.saved-traveler-option span{display:block}.saved-traveler-option span{font-size:11px;opacity:.65;margin-top:3px}
       .saved-traveler-option.primary-person{border-color:currentColor}.saved-traveler-option:disabled{opacity:.35}
       .profile-traveler-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.profile-traveler-head h3{margin:0}
-      .profile-edit-button{flex:0 0 auto}.traveler-edit-form{margin-top:12px}.profile-edit-actions{margin-top:10px}
+      .profile-traveler-actions{display:flex;align-items:center;gap:7px;flex:0 0 auto}.profile-edit-button,.profile-delete-button{flex:0 0 auto}.traveler-edit-form{margin-top:12px}.profile-edit-actions{margin-top:10px}
       .traveler-profile-stack{display:grid;gap:10px;margin-top:10px}.companions-card>.traveler-profile-stack>.traveler-profile-card{margin:0}
+      @media(max-width:420px){.profile-traveler-head{align-items:flex-start;flex-wrap:wrap}.profile-traveler-actions{width:100%;justify-content:flex-start}}
     `;
     document.head.appendChild(style);
   }
@@ -324,5 +348,6 @@
   globalThis.beginTravelerEdit = beginTravelerEdit;
   globalThis.cancelTravelerEdit = cancelTravelerEdit;
   globalThis.saveTravelerEdit = saveTravelerEdit;
+  globalThis.removeTraveler = removeTraveler;
   globalThis.MaxTourTravelerProfile = { normalizeDirectory, persistDirectory, travelerKey };
 })();
