@@ -85,6 +85,15 @@ function withViiversionAnalytics(html) {
   return result;
 }
 
+// The supplied prototype contains a few internal demo labels in customer-visible
+// templates. Keep the archived source immutable, but present real product wording
+// in the built tourist application.
+function cleanCustomerCopy(html) {
+  return html
+    .replace(/demo-экскурсий/g, 'экскурсий')
+    .replace(/MT-DEMO-/g, 'MT-');
+}
+
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 await mkdir(resolve(dist, 'admin'), { recursive: true });
@@ -92,7 +101,7 @@ await mkdir(resolve(dist, 'director'), { recursive: true });
 const marker = '</body>';
 const injection = '<script src="/booking-pricing.js"></script>\n<script src="/traveler-profile.js"></script>\n<link rel="stylesheet" href="/traveler-picker-list.css">\n<script src="/trip-actions.js"></script>\n<link rel="stylesheet" href="/hero-redesign.css">\n<script src="/hero-redesign.js"></script>\n<link rel="stylesheet" href="/role-switch.css">\n<script src="/role-switch.js"></script>\n<link rel="stylesheet" href="/ai-consultant.css">\n<script src="/ai-consultant.js"></script>\n<script src="/runtime-api.js" defer></script>\n';
 if (!prototypeHtml.includes(marker)) throw new Error('Prototype has no </body> marker');
-const builtHtml = withViiversionAnalytics(replaceBrandLogos(replaceLegacyAdmin(prototypeHtml)).replace(marker, `${injection}${marker}`));
+const builtHtml = withViiversionAnalytics(cleanCustomerCopy(replaceBrandLogos(replaceLegacyAdmin(prototypeHtml)).replace(marker, `${injection}${marker}`)));
 await writeFile(resolve(dist, 'index.html'), builtHtml, 'utf8');
 await writeFile(resolve(dist, 'catalog.v28.json'), catalogRaw);
 await copyFile(resolve(root, 'src/booking-pricing.js'), resolve(dist, 'booking-pricing.js'));
