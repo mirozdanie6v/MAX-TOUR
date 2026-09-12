@@ -173,7 +173,7 @@
     const modal = showModal('Отменить поездку?', `
       <p>${escapeHtml(terms.detail)}</p>
       ${summaryRows(terms, 'cancel')}
-      ${terms.additionalPolicyBalance > 0 ? `<p class="hint">По правилам сумма удержания превышает уже внесённый депозит на ${cash(terms.additionalPolicyBalance)}. Без платёжной интеграции эта часть автоматически не списывается.</p>` : ''}
+      ${terms.additionalPolicyBalance > 0 ? `<p class="hint">По правилам сумма удержания превышает уже внесённый депозит на ${cash(terms.additionalPolicyBalance)}. Доплата по этому правилу будет рассчитана менеджером отдельно.</p>` : ''}
       <p class="hint">При подтверждении условия будут рассчитаны ещё раз на текущую секунду.</p>
       <div class="inline-actions trip-action-buttons">
         <button class="secondary trip-action-back" type="button">Не отменять</button>
@@ -207,7 +207,7 @@
     const persisted = await persistPatch(trip, patch);
     modal?.remove();
     renderTrips();
-    const result = showModal('Поездка отменена', `<p>${escapeHtml(patch.actionNote)}.</p><p class="hint">${persisted.ok ? 'Статус и расчёт сохранены в D1.' : 'Изменение сохранено локально, но API не подтвердил запись.'}</p><button class="primary runtime-close" type="button">Готово</button>`);
+    const result = showModal('Поездка отменена', `<p>${escapeHtml(patch.actionNote)}.</p><p class="hint">${persisted.ok ? 'Статус и расчёт обновлены.' : 'Изменение пока не подтверждено. Повторите попытку позже.'}</p><button class="primary runtime-close" type="button">Готово</button>`);
     result.querySelector('.runtime-close')?.addEventListener('click', () => result.remove());
   }
 
@@ -297,7 +297,7 @@
     const persisted = await persistPatch(trip, patch);
     modal?.remove();
     renderTrips();
-    const result = showModal('Поездка перенесена', `<p>${escapeHtml(patch.actionNote)}.</p><p class="hint">${persisted.ok ? 'Новая дата, время и статус сохранены в D1.' : 'Изменение сохранено локально, но API не подтвердил запись.'}</p><button class="primary runtime-close" type="button">Готово</button>`);
+    const result = showModal('Поездка перенесена', `<p>${escapeHtml(patch.actionNote)}.</p><p class="hint">${persisted.ok ? 'Новая дата, время и статус обновлены.' : 'Изменение пока не подтверждено. Повторите попытку позже.'}</p><button class="primary runtime-close" type="button">Готово</button>`);
     result.querySelector('.runtime-close')?.addEventListener('click', () => result.remove());
   }
 
