@@ -27,7 +27,11 @@
   display:flex;
   flex-direction:column;
   min-width:0;
-  overflow:hidden;
+  min-height:0;
+  /* Keep the composer in the page flow while allowing it to stick above the
+     Mini App navigation.  A hidden overflow ancestor can clip a sticky
+     composer as the history grows. */
+  overflow:visible;
   background:#f5eee4;
   border:1px solid var(--line);
   border-radius:22px;
@@ -37,15 +41,23 @@
   display:flex;
   flex-direction:column;
   gap:8px;
-  min-height:300px;
-  max-height:min(58vh,560px);
-  overflow:auto;
+  flex:0 1 auto;
+  /* The thread is the only scrollable area.  The available-height cap keeps
+     the composer reachable even on short mobile viewports. */
+  min-height:clamp(220px,calc(100vh - 430px),300px);
+  min-height:clamp(220px,calc(100dvh - 430px),300px);
+  max-height:min(58vh,560px,calc(100vh - 360px));
+  max-height:min(58vh,560px,calc(100dvh - 360px));
+  overflow-y:auto;
+  overflow-x:hidden;
   overscroll-behavior-y:contain;
   padding:16px 14px 12px;
+  border-radius:21px 21px 0 0;
   background:
     radial-gradient(circle at 10% 0%,rgba(255,255,255,.65),transparent 38%),
     #f5eee4;
   scroll-behavior:smooth;
+  scrollbar-gutter:stable;
 }
 #aiScreen .ai-messages .ai-msg{
   align-self:flex-start;
@@ -105,10 +117,13 @@
   display:flex;
   gap:8px;
   align-items:flex-end;
+  flex:0 0 auto;
   margin:0;
   padding:10px 14px 14px;
   position:sticky;
-  bottom:0;
+  /* The bottom navigation is position:absolute in the Mini App shell.  Keep
+     the composer above it while the user scrolls a long conversation. */
+  bottom:calc(var(--nav,76px) + env(safe-area-inset-bottom));
   z-index:2;
   border-top:1px solid rgba(125,62,29,.1);
   background:#fff;
@@ -200,7 +215,13 @@
 @media(max-width:560px){
   #aiScreen .ai-section-head{gap:8px}
   #aiScreen .ai-chat-subtitle{font-size:10.5px;max-width:34em}
-  #aiScreen .ai-messages{min-height:280px;max-height:56vh;padding:14px 10px 10px}
+  #aiScreen .ai-messages{
+    min-height:clamp(220px,calc(100vh - 420px),280px);
+    min-height:clamp(220px,calc(100dvh - 420px),280px);
+    max-height:min(56vh,520px,calc(100vh - 350px));
+    max-height:min(56vh,520px,calc(100dvh - 350px));
+    padding:14px 10px 10px;
+  }
   #aiScreen .ai-messages .ai-msg{max-width:88%;font-size:13px}
   #aiScreen .ai-quick-replies{width:100%}
   #aiScreen .ai-consultant-input{padding-left:10px;padding-right:10px;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
