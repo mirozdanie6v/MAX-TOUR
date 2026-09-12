@@ -12,7 +12,7 @@ const roleStyles = await readFile(resolve(root, 'src/role-switch.css'), 'utf8');
 const build = await readFile(resolve(root, 'build.mjs'), 'utf8');
 
 test('admin v3 keeps the approved navigation and operational views', () => {
-  for (const section of ['Обзор', 'Выезды', 'Заказы', 'Группы', 'AI-лиды', 'Клиенты', 'Оплаты', 'Каталог', 'Задачи директора', 'Уведомления', 'Аналитика']) {
+  for (const section of ['Обзор', 'Выезды', 'Заказы', 'Группы', 'Запросы клиентов', 'Клиенты', 'Оплаты', 'Каталог', 'Задачи директора', 'Уведомления', 'Аналитика']) {
     assert.match(admin, new RegExp(section));
   }
   assert.match(adminApp, /window\.renderDashboard = function\(/);
@@ -35,8 +35,8 @@ test('role switch connects tourist, administrator and director cabinets', () => 
   assert.match(roleStyles, /\.max-role-switch/);
 });
 
-test('director v3 keeps its management views and direct demo access', () => {
-  for (const section of ['Пульт директора', 'План и прогноз', 'Города', 'Экскурсии', 'Группы и спрос', 'Деньги', 'Клиенты и источники', 'Команда', 'AI-copilot']) {
+test('director cabinet keeps its management views and direct access', () => {
+  for (const section of ['Пульт директора', 'План и прогноз', 'Города', 'Экскурсии', 'Группы и спрос', 'Деньги', 'Клиенты и источники', 'Команда', 'AI-помощник']) {
     assert.match(director, new RegExp(section));
   }
   assert.match(director, /aria-label="Переключение роли"/);
@@ -74,7 +74,7 @@ test('director includes a dedicated analytics dashboard with demographic and cha
   assert.doesNotMatch(director, /NaN/);
 });
 
-test('director receives live D1 demo orders while preserving interactive slices', () => {
+test('director receives live orders while preserving interactive slices', () => {
   assert.match(director, /fetch\("\/api\/admin\/bootstrap"/);
   assert.match(director, /var liveCrm =/);
   assert.match(director, /function hydrateLiveCrm\(data\)/);
@@ -86,13 +86,13 @@ test('director receives live D1 demo orders while preserving interactive slices'
   assert.match(adminApp, /\/api\/admin\/orders/);
   assert.match(adminApp, /\/api\/admin\/departures/);
   assert.match(director, /liveCrm\.consultations/);
-  assert.match(director, /AI-лидов менеджеру/);
+  assert.match(director, /обращений менеджеру/);
 });
 
 test('AI consultant is a guided complex-tour flow, not a generic one-shot search', () => {
   assert.match(build, /ai-consultant\.css/);
   assert.match(build, /ai-consultant\.js/);
-  assert.match(adminApp, /AI-лиды для менеджера/);
+  assert.match(adminApp, /Запросы для менеджера/);
 });
 
 test('director demo actions create session drafts and every internal navigation control is bound', () => {
