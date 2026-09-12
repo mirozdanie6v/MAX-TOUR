@@ -37,6 +37,84 @@ function secureAdminAsset(response) {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
+async function safeAll(statement) {
+  try { return await statement.all(); } catch (error) {
+    console.warn('optional group departure table unavailable', error?.message || error);
+    return { results: [] };
+  }
+}
+
+function consultationText(value, max = 500) {
+  return String(value ?? '').trim().slice(0, max);
+}
+
+function normalizeConsultationPayload(body = {}) {
+  const source = body.payload && typeof body.payload === 'object'
+    ? body.payload
+    : (body.slots && typeof body.slots === 'object' ? body.slots : body);
+  const children = (Array.isArray(source.children) ? source.children : [])
+    .map(age => Math.max(0, Math.min(17, Number(age) || 0)))
+    .filter(age => Number.isFinite(age))
+    .slice(0, 12);
+  const preferences = [...new Set((Array.isArray(source.preferences) ? source.preferences : [])
+    .map(item => consultationText(item, 80)).filter(Boolean))].slice(0, 12);
+  const recommendations = (Array.isArray(source.recommendations) ? source.recommendations : [])
+    .slice(0, 5).map(item => ({
+      tourId: consultationText(item?.tourId || item?.id, 160),
+      title: consultationText(item?.title, 250),
+      estimateUsd: Math.max(0, Math.round(Number(item?.estimateUsd || item?.price || 0) || 0)),
+    })).filter(item => item.tourId || item.title);
+  const contact = source.contact && typeof source.contact === 'object' ? source.contact : {};
+  return {
+    tripType: consultationText(source.tripType || source.format, 60),
+    destination: consultationText(source.destination || source.city, 120),
+    date: consultationText(source.date || source.dateLabel, 80),
+    dateFlexible: Boolean(source.dateFlexible || source.flexible),
+    adults: Math.max(0, Math.min(30, Math.round(Number(source.adults) || 0))),
+    children,
+    infants: Math.max(0, Math.min(12, Math.round(Number(source.infants) || 0))),
+    hotel: consultationText(source.hotel, 250),
+    transfer: consultationText(source.transfer, 120),
+    budget: consultationText(source.budget, 120),
+    preferences,
+    question: consultationText(source.question || source.notes, 1200),
+    recommendations,
+    contact: {
+      name: consultationText(contact.name || source.contactName, 160),
+      phone: consultationText(contact.phone || source.phone, 80),
+      telegram: consultationText(contact.telegram || source.telegram || source.username, 120),
+    },
+    source: consultationText(source.source || body.source, 80) || 'Telegram Mini App',
+  };
+}
+
+async function saveConsultation(env, sid, body) {
+  const payload = normalizeConsultationPayload(body);
+  const summary = consultationText(body.summary, 2400);
+  if (!summary || (!payload.contact.name && !payload.contact.phone && !payload.contact.telegram)) {
+    return { error: 'consultation_contact_required' };
+  }
+  const id = `AI-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
+  const status = body.handoff === false ? 'new' : 'sent_to_manager';
+  try {
+    await env.DB.prepare(`INSERT INTO ai_consultations(id,session_id,status,intent,summary,payload_json)
+      VALUES(?,?,?,?,?,?)`).bind(id, sid, status, consultationText(body.intent, 80) || 'complex_tour', summary, JSON.stringify(payload)).run();
+  } catch (error) {
+    console.error('ai_consultations unavailable', error?.message || error);
+    return { error: 'consultation_unavailable' };
+  }
+  try {
+    await env.DB.prepare(`INSERT INTO admin_demo_events(id,event_type,entity_type,entity_id,payload_json,created_by)
+      VALUES(?,?,?,?,?,?)`).bind(crypto.randomUUID(), 'consultation_created', 'ai_consultation', id, JSON.stringify({
+        sessionId: sid, destination: payload.destination, tripType: payload.tripType,
+        people: payload.adults + payload.children.length + payload.infants, source: payload.source,
+      }), 'ai-consultant').run();
+  } catch (error) {
+    console.warn('admin_demo_events unavailable', error?.message || error);
+  }
+  return { consultation: { id, status, createdAt: new Date().toISOString(), payload, summary } };
+}
+
 async function bodyJson(request) {
   try { return await request.json(); } catch { return null; }
 }
@@ -119,20 +197,44 @@ async function saveBooking(env, sid, trip) {
       receipt=excluded.receipt,paid_at=excluded.paid_at,people=excluded.people,image=excluded.image,rules=excluded.rules,
       payload_json=excluded.payload_json,updated_at=CURRENT_TIMESTAMP`)
     .bind(String(trip.id), sid, String(trip.tourId), String(trip.title), String(trip.date), String(trip.time || ''), String(trip.status || ''), String(trip.paid || '$0'), String(trip.rest || '$0'), String(trip.total || '$0'), String(trip.type || ''), String(trip.receipt || ''), String(trip.paidAt || ''), String(trip.people || ''), String(trip.image || ''), String(trip.rules || ''), JSON.stringify(trip)).run();
+  try {
+    await env.DB.prepare(`INSERT INTO admin_demo_events(id,event_type,entity_type,entity_id,payload_json,created_by)
+      VALUES(?,?,?,?,?,?)`).bind(crypto.randomUUID(), 'booking_created', 'booking', String(trip.id), JSON.stringify({
+        source: trip.source || 'Telegram Mini App', tourId: trip.tourId, title: trip.title,
+        date: trip.date, total: trip.total, paid: trip.paid, sessionId: sid,
+      }), 'tourist').run();
+  } catch (error) {
+    console.warn('admin_demo_events unavailable', error?.message || error);
+  }
 }
 
 async function bootstrap(env, sid) {
-  const [favs, travelers, bookings, customTours] = await Promise.all([
+  const [favs, travelers, bookings, customTours, groupDepartures, allBookings, consultations] = await Promise.all([
     env.DB.prepare('SELECT tour_id FROM favorites WHERE session_id=? ORDER BY created_at').bind(sid).all(),
     env.DB.prepare('SELECT role,label,full_name,birth_date,primary_flag FROM travelers WHERE session_id=? ORDER BY primary_flag DESC, created_at').bind(sid).all(),
     env.DB.prepare('SELECT payload_json FROM bookings WHERE session_id=? ORDER BY created_at DESC').bind(sid).all(),
     env.DB.prepare('SELECT payload_json FROM admin_tours ORDER BY created_at DESC').all(),
+    safeAll(env.DB.prepare('SELECT id,tour_id,title,city,trip_date,trip_time,capacity,min_people,status,notes FROM admin_departures WHERE status IN (\'open\',\'almost_full\',\'full\') ORDER BY trip_date,trip_time')),
+    env.DB.prepare('SELECT tour_id,trip_date,trip_time,people,status FROM bookings ORDER BY created_at').all(),
+    safeAll(env.DB.prepare('SELECT id,status,intent,summary,payload_json,created_at,updated_at FROM ai_consultations WHERE session_id=? ORDER BY created_at DESC LIMIT 20').bind(sid)),
   ]);
+  const countStoredPeople = value => (String(value || '').match(/\d+/g) || []).map(Number).reduce((sum, n) => sum + n, 0);
   return {
     favorites: favs.results.map(r => r.tour_id),
     travelers: travelers.results.map(r => ({ role:r.role, label:r.label, fullName:r.full_name, birthDate:r.birth_date, primary:!!r.primary_flag })),
     bookings: bookings.results.map(r => JSON.parse(r.payload_json)),
     customTours: customTours.results.map(r => JSON.parse(r.payload_json)),
+    groupDepartures: (groupDepartures.results || []).map(row => ({
+      id: row.id, tourId: row.tour_id, title: row.title, city: row.city, date: row.trip_date,
+      time: row.trip_time, capacity: Number(row.capacity) || 1, minPeople: Number(row.min_people) || 1,
+      status: row.status, notes: row.notes || '', taken: (allBookings.results || [])
+        .filter(booking => booking.tour_id === row.tour_id && booking.trip_date === row.trip_date && booking.trip_time === row.trip_time && !/отмен|возврат/i.test(String(booking.status || '')))
+        .reduce((sum, booking) => sum + countStoredPeople(booking.people), 0),
+    })),
+    consultations: (consultations.results || []).map(row => ({
+      id: row.id, status: row.status, intent: row.intent, summary: row.summary,
+      payload: JSON.parse(row.payload_json || '{}'), createdAt: row.created_at, updatedAt: row.updated_at,
+    })),
     hasData: favs.results.length > 0 || travelers.results.length > 0 || bookings.results.length > 0,
   };
 }
@@ -165,6 +267,11 @@ async function api(request, env, url) {
     const payload = await bodyJson(request);
     await saveBooking(env, session.id, payload);
     response = json({ ok:true });
+  } else if (url.pathname === '/api/consultations' && request.method === 'POST') {
+    const result = await saveConsultation(env, session.id, await bodyJson(request) || {});
+    response = result.error
+      ? json({ ok:false, error:result.error }, { status: result.error === 'consultation_unavailable' ? 503 : 400 })
+      : json({ ok:true, ...result }, { status: 201 });
   } else if (url.pathname.startsWith('/api/bookings/') && request.method === 'PATCH') {
     const id = decodeURIComponent(url.pathname.slice('/api/bookings/'.length));
     const payload = await bodyJson(request) || {};
@@ -175,6 +282,14 @@ async function api(request, env, url) {
       await env.DB.prepare(`UPDATE bookings SET trip_date=?,trip_time=?,status=?,paid=?,rest=?,total=?,payload_json=?,updated_at=CURRENT_TIMESTAMP
         WHERE id=? AND session_id=?`)
         .bind(String(trip.date || ''), String(trip.time || ''), String(trip.status || ''), String(trip.paid || '$0'), String(trip.rest || '$0'), String(trip.total || '$0'), JSON.stringify(trip), id, session.id).run();
+      try {
+        await env.DB.prepare(`INSERT INTO admin_demo_events(id,event_type,entity_type,entity_id,payload_json,created_by)
+          VALUES(?,?,?,?,?,?)`).bind(crypto.randomUUID(), 'booking_updated', 'booking', id, JSON.stringify({
+            status: trip.status, date: trip.date, paid: trip.paid, rest: trip.rest, sessionId: session.id,
+          }), 'tourist').run();
+      } catch (error) {
+        console.warn('admin_demo_events unavailable', error?.message || error);
+      }
       response = json({ ok:true, booking:trip });
     }
   } else {
@@ -182,6 +297,8 @@ async function api(request, env, url) {
   }
   return withSession(response, session);
 }
+
+export const _test = { normalizeConsultationPayload, consultationText };
 
 export default {
   async fetch(request, env) {

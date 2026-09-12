@@ -1,0 +1,67 @@
+#aiScreen .ai-consultant-shell{
+  display:grid;
+  grid-template-columns:minmax(0,1.45fr) minmax(230px,.75fr);
+  gap:12px;
+  align-items:start;
+}
+#aiScreen .ai-consultant-main,
+#aiScreen .ai-consultant-brief{
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:24px;
+  box-shadow:0 10px 26px rgba(129,65,20,.07);
+}
+#aiScreen .ai-consultant-main{padding:14px;min-width:0}
+#aiScreen .ai-consultant-brief{padding:14px;position:sticky;top:10px}
+#aiScreen .ai-consultant-intro{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:12px}
+#aiScreen .ai-consultant-intro h3{margin:0;font-size:17px;line-height:1.15}
+#aiScreen .ai-consultant-intro p{margin:5px 0 0;color:var(--muted);font-size:11.5px;line-height:1.4;font-weight:750}
+#aiScreen .ai-consultant-badge{flex:0 0 auto;padding:6px 9px;border-radius:999px;background:#fff0d2;color:#8d3d1b;font-size:9.5px;font-weight:950;letter-spacing:.04em;text-transform:uppercase}
+#aiScreen .ai-progress{height:6px;background:#f3dfbf;border-radius:999px;overflow:hidden;margin:0 0 13px}
+#aiScreen .ai-progress span{display:block;height:100%;background:linear-gradient(90deg,var(--red),var(--orange));border-radius:inherit;transition:width .2s ease}
+#aiScreen .ai-messages{display:grid;gap:9px;max-height:420px;overflow:auto;padding-right:2px;scroll-behavior:smooth}
+#aiScreen .ai-messages .ai-msg{margin:0;max-width:94%;white-space:pre-wrap}
+#aiScreen .ai-quick-replies{display:flex;gap:7px;flex-wrap:wrap;margin:11px 0 0}
+#aiScreen .ai-quick-replies button{min-height:34px;padding:7px 10px;border-radius:999px;border:1px solid rgba(216,163,60,.45);background:#fff8eb;color:#6b401c;font-size:11px;font-weight:900;cursor:pointer}
+#aiScreen .ai-quick-replies button:hover{background:#fff0d2;border-color:#d8a33c}
+#aiScreen .ai-consultant-input{display:flex;gap:8px;margin-top:11px;align-items:flex-end}
+#aiScreen .ai-consultant-input textarea{flex:1;min-width:0;min-height:46px;max-height:120px;resize:vertical;border:1px solid var(--line);border-radius:17px;padding:11px 12px;font:750 13px/1.3 inherit;color:var(--ink);background:#fff}
+#aiScreen .ai-consultant-input textarea:focus{outline:2px solid rgba(223,31,36,.22);border-color:rgba(223,31,36,.45)}
+#aiScreen .ai-consultant-input button{width:52px;min-height:46px;padding:0;border-radius:17px}
+#aiScreen .ai-disclaimer{margin:9px 0 0;color:var(--muted2);font-size:10px;line-height:1.35;font-weight:700}
+#aiScreen .ai-brief-title{font-size:15px;font-weight:950;margin:0 0 4px}
+#aiScreen .ai-brief-caption{color:var(--muted);font-size:10.5px;line-height:1.35;font-weight:750;margin:0 0 11px}
+#aiScreen .ai-brief-list{display:grid;gap:7px;margin:0}
+#aiScreen .ai-brief-row{display:flex;justify-content:space-between;gap:9px;padding:8px 9px;border-radius:14px;background:#fff;border:1px solid rgba(125,62,29,.1);font-size:10.5px;line-height:1.25}
+#aiScreen .ai-brief-row span{color:var(--muted);font-weight:800}
+#aiScreen .ai-brief-row b{text-align:right;font-weight:950;max-width:62%;overflow-wrap:anywhere}
+#aiScreen .ai-brief-empty{color:var(--muted2);font-size:11px;line-height:1.4;font-weight:750;padding:10px 0}
+#aiScreen .ai-recommendations{display:grid;gap:8px;margin-top:12px}
+#aiScreen .ai-recommendation{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid rgba(125,62,29,.13);background:#fff;border-radius:17px;padding:10px}
+#aiScreen .ai-recommendation h4{margin:0;font-size:12.5px;line-height:1.2}
+#aiScreen .ai-recommendation p{margin:4px 0 0;color:var(--muted);font-size:10.5px;line-height:1.35;font-weight:750}
+#aiScreen .ai-recommendation .ai-price{display:block;color:var(--red);font-size:11px;font-weight:950;margin-top:5px}
+#aiScreen .ai-recommendation button{min-height:34px;padding:7px 9px;white-space:nowrap}
+#aiScreen .ai-contact-form{display:grid;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+#aiScreen .ai-contact-form h4{margin:0;font-size:13px}
+#aiScreen .ai-contact-form p{margin:0;color:var(--muted);font-size:10.5px;line-height:1.35;font-weight:750}
+#aiScreen .ai-contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#aiScreen .ai-contact-grid label{display:grid;gap:4px;color:var(--muted);font-size:9.5px;font-weight:900}
+#aiScreen .ai-contact-grid label.wide{grid-column:1/-1}
+#aiScreen .ai-contact-grid input,
+#aiScreen .ai-contact-grid select{min-width:0;height:38px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:0 9px;font:750 11px inherit;color:var(--ink)}
+#aiScreen .ai-contact-actions{display:flex;gap:8px;align-items:center}
+#aiScreen .ai-contact-actions button{flex:1;min-height:42px}
+#aiScreen .ai-handoff{margin-top:11px;padding:11px;border-radius:16px;background:#effaf3;border:1px solid rgba(22,116,76,.2);color:#145b3d;font-size:11px;line-height:1.4;font-weight:800}
+#aiScreen .ai-handoff b{display:block;font-size:13px;margin-bottom:3px}
+#aiScreen .ai-reset{margin-top:10px;width:100%;min-height:38px}
+@media(max-width:700px){
+  #aiScreen .ai-consultant-shell{grid-template-columns:1fr}
+  #aiScreen .ai-consultant-brief{position:static}
+}
+@media(max-width:430px){
+  #aiScreen .ai-contact-grid{grid-template-columns:1fr}
+  #aiScreen .ai-contact-grid label.wide{grid-column:auto}
+  #aiScreen .ai-recommendation{grid-template-columns:1fr}
+  #aiScreen .ai-recommendation button{width:100%}
+}

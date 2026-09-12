@@ -13,7 +13,18 @@ The two supplied source files are stored in `source/` as checksummed gzip+base64
 
 The build then injects the runtime adapters before `</body>`. No existing v28 source HTML is rewritten.
 
-The administrator prototype is published separately at `/admin/`, and the director prototype at `/director/`. Both are based on the approved v3 cabinet prototypes and are linked to the tourist interface through the role switch in every header. The director route is a self-contained interactive presentation prototype with demo data; it does not yet write to D1.
+The administrator prototype is published separately at `/admin/`, and the director prototype at `/director/`. Both are based on the approved v3 cabinet prototypes and are linked to the tourist interface through the role switch in every header. The demo cabinets use the same D1 source of truth: a tourist booking and demo payment appear in admin orders, an admin-created offline order or group departure is visible to the Mini App, and the director reads the resulting order/payment/source metrics. Director tasks are persisted to D1 and appear in the admin task queue.
+
+## Demonstration flow
+
+1. Create a booking and complete the demo payment in the tourist Mini App.
+2. Open `/admin/` and show the order, payment status, customer and departure.
+3. Use **Создать офлайн-заказ** to demonstrate a manual sale, or **Создать групповой выезд** to publish a new date.
+4. Refresh the Mini App to see the new group departure.
+5. Open `/director/`: the shared D1 order, payment, source and revenue layer is shown above the interactive analytical slices.
+6. Create a task in the director cabinet and complete it from **Задачи директора** in the admin cabinet.
+
+The analytics prototype keeps demographic slices as explanatory fixtures until the selected CRM supplies gender, age and origin fields; order, payment, source and departure metrics are live in the demo.
 
 ## Architecture
 
@@ -24,7 +35,9 @@ The administrator prototype is published separately at `/admin/`, and the direct
 - `docs/director-v3-*` — supplied UX and QA notes for the director prototype.
 - `src/role-switch.*` — top-level tourist/administrator/director role navigation.
 - `src/worker.js` — Cloudflare Worker API + static assets.
-- `migrations/` — dedicated D1 schema for demo sessions, bookings, travelers, favorites and admin demo actions.
+- `migrations/` — dedicated D1 schema for demo sessions, bookings, travelers, favorites, admin demo actions and qualified AI-consultant leads.
+
+The Mini App includes a domain-aware AI-consultant demo for complex tours. It collects party composition (including children and infants), format, dates, preferences, hotel/transfer and budget, shows an indicative catalog quote, and stores a structured manager brief in `ai_consultations`. The adapter is deliberately API-ready: a production deployment can replace the deterministic dialog layer with an LLM/amoCRM or Bitrix integration without changing the customer flow.
 - `build.mjs` — reconstructs exact sources and produces `dist/`.
 
 The original React project at repository root is not used by this demo.

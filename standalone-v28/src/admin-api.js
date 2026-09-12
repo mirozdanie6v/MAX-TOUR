@@ -60,9 +60,9 @@ function normalizeEmail(value) {
 }
 
 const permissions = {
-  manager: new Set(['read', 'booking.write', 'customer.write', 'message.write']),
-  admin: new Set(['read', 'booking.write', 'customer.write', 'message.write', 'tour.write', 'notification.write', 'broadcast.write', 'departure.write', 'task.write']),
-  owner: new Set(['read', 'booking.write', 'customer.write', 'message.write', 'tour.write', 'notification.write', 'broadcast.write', 'departure.write', 'user.write', 'task.write']),
+  manager: new Set(['read', 'booking.write', 'customer.write', 'message.write', 'consultation.write']),
+  admin: new Set(['read', 'booking.write', 'customer.write', 'message.write', 'consultation.write', 'tour.write', 'notification.write', 'broadcast.write', 'departure.write', 'task.write']),
+  owner: new Set(['read', 'booking.write', 'customer.write', 'message.write', 'consultation.write', 'tour.write', 'notification.write', 'broadcast.write', 'departure.write', 'user.write', 'task.write']),
 };
 
 const PUBLIC_DEMO_USER = {
@@ -160,6 +160,78 @@ function displayDate(iso) {
     : String(iso || '—');
 }
 
+function displayShortDate(iso) {
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(iso || '')) ? new Date(`${iso}T00:00:00Z`) : null;
+  return date && !Number.isNaN(date.valueOf())
+    ? new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(date)
+    : String(iso || '—');
+}
+
+function cleanText(value, max = 500) {
+  return String(value ?? '').trim().slice(0, max);
+}
+
+function validIsoDate(value) {
+  const iso = cleanText(value, 20);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+  const date = new Date(`${iso}T00:00:00Z`);
+  return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === iso;
+}
+
+function departureStatusLabel(status) {
+  return ({
+    draft: 'Черновик', open: 'Открыт набор', almost_full: 'Почти заполнен',
+    full: 'Заполнен', cancelled: 'Отменён',
+  })[status] || status || 'Открыт набор';
+}
+
+function normalizeAdminTravelers(items, fallbackName = '') {
+  const source = Array.isArray(items) && items.length ? items : [{ fullName: fallbackName, role: 'adult', primary: true }];
+  const result = [];
+  const seen = new Set();
+  for (const item of source) {
+    const fullName = cleanText(item?.fullName || item?.name, 250);
+    if (!fullName) continue;
+    const birthDate = cleanText(item?.birthDate || item?.birth_date, 32);
+    const key = `${fullName.toLocaleLowerCase('ru-RU')}|${birthDate}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push({
+      fullName,
+      birthDate,
+      role: cleanText(item?.role, 32) || 'adult',
+      primary: Boolean(item?.primary),
+    });
+  }
+  if (!result.length) return [];
+  let primary = result.findIndex(item => item.primary && item.role === 'adult');
+  if (primary < 0) primary = result.findIndex(item => item.role === 'adult');
+  if (primary < 0) primary = 0;
+  return result.map((item, index) => ({
+    ...item,
+    primary: index === primary,
+    label: index === primary ? 'Основной путешественник' : item.role === 'child' ? 'Попутчик · ребёнок' : 'Попутчик · взрослый',
+  }));
+}
+
+async function recordDemoEvent(env, eventType, entityType, entityId, payload = {}, userId = null) {
+  try {
+    await env.DB.prepare(`INSERT INTO admin_demo_events(id,event_type,entity_type,entity_id,payload_json,created_by)
+      VALUES(?,?,?,?,?,?)`).bind(crypto.randomUUID(), eventType, entityType, String(entityId), JSON.stringify(payload), userId).run();
+  } catch (error) {
+    // The event stream is additive. A legacy local database without migration
+    // 0004 must still be able to load the core booking flow.
+    console.warn('admin_demo_events unavailable', error?.message || error);
+  }
+}
+
+async function safeAll(statement) {
+  try { return await statement.all(); } catch (error) {
+    console.warn('optional admin demo table unavailable', error?.message || error);
+    return { results: [] };
+  }
+}
+
 function initials(name) {
   return String(name || 'Клиент').split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('').toUpperCase();
 }
@@ -188,7 +260,7 @@ async function getCatalog(env) {
 
 async function buildBootstrap(env) {
   const rate = Number(env.ADMIN_USD_RUB_RATE || 100) || 100;
-  const [bookingsResult, travelersResult, profilesResult, rulesResult, messagesResult, broadcastsResult, tasksResult, catalog] = await Promise.all([
+  const [bookingsResult, travelersResult, profilesResult, rulesResult, messagesResult, broadcastsResult, tasksResult, departuresResult, eventsResult, consultationsResult, catalog] = await Promise.all([
     env.DB.prepare('SELECT * FROM bookings ORDER BY trip_date,created_at DESC').all(),
     env.DB.prepare('SELECT session_id,role,label,full_name,birth_date,primary_flag FROM travelers ORDER BY session_id,primary_flag DESC,created_at').all(),
     env.DB.prepare('SELECT * FROM admin_customer_profiles').all(),
@@ -196,6 +268,9 @@ async function buildBootstrap(env) {
     env.DB.prepare('SELECT id,booking_id,customer_session_id,channel,subject,body,status,created_at FROM admin_messages ORDER BY created_at DESC LIMIT 50').all(),
     env.DB.prepare('SELECT id,segment,body,status,recipient_count,created_at FROM admin_broadcasts ORDER BY created_at DESC LIMIT 50').all(),
     env.DB.prepare('SELECT id,title,description,owner,priority,status,due_date,created_by,created_at,updated_at FROM admin_tasks ORDER BY CASE status WHEN \'new\' THEN 0 WHEN \'in_progress\' THEN 1 ELSE 2 END, CASE priority WHEN \'urgent\' THEN 0 WHEN \'high\' THEN 1 WHEN \'normal\' THEN 2 ELSE 3 END, created_at DESC LIMIT 100').all(),
+    safeAll(env.DB.prepare('SELECT id,tour_id,title,city,trip_date,trip_time,capacity,min_people,status,notes,created_by,created_at,updated_at FROM admin_departures ORDER BY trip_date,trip_time')),
+    safeAll(env.DB.prepare('SELECT id,event_type,entity_type,entity_id,payload_json,created_by,created_at FROM admin_demo_events ORDER BY created_at DESC LIMIT 80')),
+    safeAll(env.DB.prepare('SELECT id,session_id,status,intent,summary,payload_json,created_at,updated_at FROM ai_consultations ORDER BY created_at DESC LIMIT 100')),
     getCatalog(env),
   ]);
 
@@ -216,13 +291,13 @@ async function buildBootstrap(env) {
     const rest = Math.max(0, numberFromMoney(row.rest, rate));
     const order = {
       id: row.id, sessionId: row.session_id, customer: primary?.name || 'Клиент без ФИО',
-      username: profile.username || '', phone: profile.phone || '', source: profile.source || 'Mini App',
+      username: profile.username || '', phone: profile.phone || '', source: payload.source || profile.source || 'Mini App',
       tourId: row.tour_id, tour: row.title, iso: row.trip_date, date: displayDate(row.trip_date), time: row.trip_time || '',
       city: payload.city || payload.destination || '', type: row.booking_type || '', people: row.people || '',
       peopleCount: peopleCount(row.people, payload.travelers), paid, total, guideDue: rest,
       paymentStatus: paymentStatus(paid, total, row.status), method: payload.paymentMethod || payload.method || 'Не указан',
       orderStatus: row.status || 'Новый', action: /жд|нуж|нов/i.test(row.status || '') || paid < total,
-      travelers: travelers.map(t => [t.name, t.birthDate, t.label]), updatedAt: row.updated_at,
+      travelers: travelers.map(t => [t.name, t.birthDate, t.label]), createdAt: row.created_at, paidAt: row.paid_at || '', updatedAt: row.updated_at,
     };
     if (!sessionOrders.has(row.session_id)) sessionOrders.set(row.session_id, []);
     sessionOrders.get(row.session_id).push(order);
@@ -251,7 +326,7 @@ async function buildBootstrap(env) {
   for (const order of orders) {
     const key = `${order.tourId}|${order.iso}|${order.time}|${order.type}`;
     if (!departureMap.has(key)) departureMap.set(key, {
-      id: `dep-${await sha256Hex(key).then(x => x.slice(0, 12))}`, tour: order.tour, date: order.date, iso: order.iso,
+      id: `dep-${await sha256Hex(key).then(x => x.slice(0, 12))}`, tourId: order.tourId, tour: order.tour, date: order.date, iso: order.iso,
       time: order.time || 'Время не указано', city: order.city, type: /индив/i.test(order.type) ? 'individual' : 'group',
       manager: 'Не назначен', status: order.orderStatus, action: false, capacity: 0, booked: 0, min: 0, waitlist: 0,
       transport: 'Не назначен', payments: { fullOrders: 0, fullTravelers: 0, depositOrders: 0, depositTravelers: 0, pendingOrders: 0, pendingTravelers: 0, online: 0, guideDue: 0, refund: 0 },
@@ -259,9 +334,10 @@ async function buildBootstrap(env) {
     });
     const dep = departureMap.get(key);
     dep.orders.push(order.id);
-    dep.booked += order.peopleCount;
-    dep.payments.online += order.paid;
-    dep.payments.guideDue += order.guideDue;
+    const activeOrder = !/отмен|возврат/i.test(order.orderStatus);
+    if (activeOrder) dep.booked += order.peopleCount;
+    dep.payments.online += activeOrder ? order.paid : 0;
+    dep.payments.guideDue += activeOrder ? order.guideDue : 0;
     if (order.paymentStatus.includes('100')) { dep.payments.fullOrders += 1; dep.payments.fullTravelers += order.peopleCount; }
     else if (order.paymentStatus.includes('Депозит')) { dep.payments.depositOrders += 1; dep.payments.depositTravelers += order.peopleCount; }
     else { dep.payments.pendingOrders += 1; dep.payments.pendingTravelers += order.peopleCount; dep.action = true; }
@@ -272,15 +348,53 @@ async function buildBootstrap(env) {
     dep.min = Number(tour?.minPeople || 1);
   }
 
+  /* Staff-created group dates exist even before the first booking. Merge them
+     into the same departure collection so every cabinet sees one schedule. */
+  for (const row of departuresResult.results || []) {
+    let dep = [...departureMap.values()].find(item => item.tourId === row.tour_id && item.iso === row.trip_date && item.time === (row.trip_time || 'Время не указано'));
+    if (!dep) {
+      dep = {
+        id: row.id, tourId: row.tour_id, tour: row.title, date: displayDate(row.trip_date), iso: row.trip_date,
+        time: row.trip_time || 'Время не указано', city: row.city || '', type: 'group', manager: 'Не назначен',
+        status: departureStatusLabel(row.status), action: false, capacity: Number(row.capacity) || 1, booked: 0,
+        min: Number(row.min_people) || 1, waitlist: 0, transport: 'Не назначен',
+        payments: { fullOrders: 0, fullTravelers: 0, depositOrders: 0, depositTravelers: 0, pendingOrders: 0, pendingTravelers: 0, online: 0, guideDue: 0, refund: 0 },
+        notes: row.notes || '', orders: [], source: 'Администратор',
+      };
+      departureMap.set(`${row.tour_id}|${row.trip_date}|${row.trip_time}|admin`, dep);
+    } else {
+      dep.id = row.id;
+      dep.capacity = Number(row.capacity) || dep.capacity;
+      dep.min = Number(row.min_people) || dep.min;
+      dep.status = departureStatusLabel(row.status);
+      dep.notes = row.notes || dep.notes;
+      dep.source = 'Администратор';
+    }
+    dep.action = dep.status !== 'Отменён' && dep.booked < dep.min;
+  }
+
   const received = orders.reduce((sum, o) => sum + o.paid, 0);
   const guideDue = orders.reduce((sum, o) => sum + o.guideDue, 0);
   const sources = Object.entries(orders.reduce((acc, o) => { acc[o.source] = (acc[o.source] || 0) + 1; return acc; }, {})).sort((a, b) => b[1] - a[1]);
   const popular = Object.entries(orders.reduce((acc, o) => { acc[o.tour] = (acc[o.tour] || 0) + 1; return acc; }, {})).sort((a, b) => b[1] - a[1]);
+  const consultations = (consultationsResult.results || []).map(row => ({
+    id: row.id, sessionId: row.session_id, status: row.status, intent: row.intent,
+    summary: row.summary, payload: safePayload(row.payload_json), createdAt: row.created_at, updatedAt: row.updated_at,
+  }));
+  const consultationSources = Object.entries(consultations.reduce((acc, item) => {
+    const source = item.payload?.source || 'AI-консультант'; acc[source] = (acc[source] || 0) + 1; return acc;
+  }, {})).sort((a, b) => b[1] - a[1]);
   return {
     orders, customers, departures: [...departureMap.values()], catalog,
     notificationRules: (rulesResult.results || []).map(r => ({ key: r.rule_key, title: r.title, description: r.description, enabled: !!r.enabled, requiresConfirmation: !!r.requires_confirmation })),
     messages: messagesResult.results || [], broadcasts: broadcastsResult.results || [], tasks: tasksResult.results || [],
-    analytics: { received, guideDue, orderCount: orders.length, customerCount: customers.length, sources, popular },
+    events: (eventsResult.results || []).map(row => ({ ...row, payload: safePayload(row.payload_json) })),
+    consultations,
+    analytics: { received, guideDue, orderCount: orders.length, customerCount: customers.length, sources, popular,
+      consultationCount: consultations.length,
+      consultationOpenCount: consultations.filter(item => item.status !== 'closed').length,
+      consultationSources,
+    },
   };
 }
 
@@ -361,7 +475,84 @@ async function patchBooking(request, env, id) {
   await env.DB.prepare(`UPDATE bookings SET trip_date=?,trip_time=?,status=?,paid=?,rest=?,total=?,payload_json=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
     .bind(String(allowed.date), String(allowed.time || ''), String(allowed.status), String(allowed.paid), String(allowed.rest), String(allowed.total), JSON.stringify(payload), id).run();
   await audit(env, checked.auth.user.id, 'update', 'booking', id, allowed);
+  await recordDemoEvent(env, 'booking_updated', 'booking', id, {
+    status: allowed.status, date: allowed.date, paid: allowed.paid, rest: allowed.rest,
+  }, checked.auth.user.id);
   return json({ ok: true });
+}
+
+async function createAdminOrder(request, env) {
+  const checked = await requireAuth(request, env, 'booking.write');
+  if (checked.response) return checked.response;
+  const body = await readBody(request) || {};
+  const customerName = cleanText(body.customerName || body.customer || body.name, 250);
+  const tourId = cleanText(body.tourId, 160);
+  const title = cleanText(body.title || body.tour, 250);
+  const date = cleanText(body.date, 20);
+  const time = cleanText(body.time, 32);
+  const source = cleanText(body.source, 80) || 'Офис';
+  if (!customerName || !tourId || !title || !validIsoDate(date)) return bad('order_invalid');
+
+  const id = `OFF-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
+  const sessionId = `admin-customer-${crypto.randomUUID()}`;
+  const travelers = normalizeAdminTravelers(body.travelers, customerName);
+  const peopleCountValue = Math.max(1, Math.round(Number(body.peopleCount || travelers.length || 1) || 1));
+  const totalRubles = Math.max(0, Math.round(Number(body.total || 0) || 0));
+  const paidRubles = Math.max(0, Math.min(totalRubles, Math.round(Number(body.paid || 0) || 0)));
+  const restRubles = Math.max(0, totalRubles - paidRubles);
+  const status = cleanText(body.status, 80) || (paidRubles >= totalRubles && totalRubles > 0 ? 'Подтверждён' : 'Новый');
+  const type = cleanText(body.type || body.bookingType, 80) || 'Офлайн-покупка';
+  const city = cleanText(body.city || body.destination, 120);
+  const payload = {
+    source, city, destination: city, paymentMethod: cleanText(body.paymentMethod, 80) || 'Офис',
+    adminNote: cleanText(body.adminNote, 4000), travelers: travelers.map(item => ({
+      fullName: item.fullName, birthDate: item.birthDate, role: item.role, primary: item.primary,
+    })),
+    createdBy: checked.auth.user.id,
+  };
+
+  await env.DB.prepare('INSERT INTO sessions(id) VALUES(?)').bind(sessionId).run();
+  for (const traveler of travelers) {
+    const travelerKey = `${traveler.fullName.toLocaleLowerCase('ru-RU')}|${traveler.birthDate}`;
+    await env.DB.prepare(`INSERT INTO travelers(session_id,traveler_key,role,label,full_name,birth_date,primary_flag)
+      VALUES(?,?,?,?,?,?,?)`).bind(sessionId, travelerKey, traveler.role, traveler.label, traveler.fullName, traveler.birthDate, traveler.primary ? 1 : 0).run();
+  }
+  await env.DB.prepare(`INSERT INTO admin_customer_profiles(session_id,phone,username,source,segment,status,notes,updated_by)
+    VALUES(?,?,?,?,?,?,?,?)`).bind(sessionId, cleanText(body.phone, 80), cleanText(body.username, 120), source,
+    'Офлайн-покупка', status, cleanText(body.adminNote, 4000), checked.auth.user.id).run();
+  await env.DB.prepare(`INSERT INTO bookings(id,session_id,tour_id,title,trip_date,trip_time,status,paid,rest,total,booking_type,receipt,paid_at,people,image,rules,payload_json)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(
+      id, sessionId, tourId, title, date, time, status, `${paidRubles} ₽`, `${restRubles} ₽`, `${totalRubles} ₽`, type,
+      `OFFICE-DEMO-${id}`, paidRubles > 0 ? new Date().toISOString() : '', `${peopleCountValue} человек`, '', '', JSON.stringify(payload),
+    ).run();
+  await audit(env, checked.auth.user.id, 'create', 'booking', id, { source, type, tourId, date, totalRubles, paidRubles });
+  await recordDemoEvent(env, 'booking_created', 'booking', id, { source, type, tourId, title, date, totalRubles, paidRubles }, checked.auth.user.id);
+  return json({ ok: true, orderId: id, sessionId, source, status }, { status: 201 });
+}
+
+async function createDeparture(request, env) {
+  const checked = await requireAuth(request, env, 'departure.write');
+  if (checked.response) return checked.response;
+  const body = await readBody(request) || {};
+  const tourId = cleanText(body.tourId, 160);
+  const title = cleanText(body.title || body.tour, 250);
+  const city = cleanText(body.city, 120);
+  const date = cleanText(body.date, 20);
+  const time = cleanText(body.time, 32) || '09:00';
+  const capacity = Math.max(1, Math.round(Number(body.capacity || 1) || 1));
+  const minPeople = Math.max(1, Math.min(capacity, Math.round(Number(body.minPeople || body.min || 1) || 1)));
+  const status = ['draft', 'open', 'almost_full', 'full', 'cancelled'].includes(String(body.status)) ? String(body.status) : 'open';
+  if (!tourId || !title || !validIsoDate(date)) return bad('departure_invalid');
+  const existing = await env.DB.prepare('SELECT id FROM admin_departures WHERE tour_id=? AND trip_date=? AND trip_time=? AND status<>\'cancelled\'').bind(tourId, date, time).first();
+  if (existing) return bad('departure_exists', 409);
+  const id = `DEP-${date.replace(/-/g, '')}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
+  const notes = cleanText(body.notes, 4000);
+  await env.DB.prepare(`INSERT INTO admin_departures(id,tour_id,title,city,trip_date,trip_time,capacity,min_people,status,notes,created_by)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?)`).bind(id, tourId, title, city, date, time, capacity, minPeople, status, notes, checked.auth.user.id).run();
+  const departure = { id, tourId, title, city, date, dateLabel: displayShortDate(date), time, capacity, minPeople, status, statusLabel: departureStatusLabel(status), notes };
+  await audit(env, checked.auth.user.id, 'create', 'departure', id, departure);
+  await recordDemoEvent(env, 'departure_created', 'departure', id, departure, checked.auth.user.id);
+  return json({ ok: true, departure }, { status: 201 });
 }
 
 async function patchCustomer(request, env, sessionId) {
@@ -475,6 +666,21 @@ async function patchTask(request, env, id) {
   return json({ ok: true, task });
 }
 
+const consultationStatuses = new Set(['new', 'sent_to_manager', 'in_progress', 'closed']);
+
+async function patchConsultation(request, env, id) {
+  const checked = await requireAuth(request, env, 'consultation.write');
+  if (checked.response) return checked.response;
+  const body = await readBody(request) || {};
+  const existing = await env.DB.prepare('SELECT * FROM ai_consultations WHERE id=?').bind(id).first();
+  if (!existing) return bad('consultation_not_found', 404);
+  const status = consultationStatuses.has(String(body.status)) ? String(body.status) : existing.status;
+  await env.DB.prepare('UPDATE ai_consultations SET status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(status, id).run();
+  await audit(env, checked.auth.user.id, 'update', 'ai_consultation', id, { status });
+  await recordDemoEvent(env, 'consultation_updated', 'ai_consultation', id, { status }, checked.auth.user.id);
+  return json({ ok: true, id, status });
+}
+
 export async function handleAdminApi(request, env, url = new URL(request.url)) {
   if (!url.pathname.startsWith('/api/admin/')) return null;
   const path = url.pathname;
@@ -490,6 +696,8 @@ export async function handleAdminApi(request, env, url = new URL(request.url)) {
   }
   const booking = path.match(/^\/api\/admin\/bookings\/([^/]+)$/);
   if (booking && request.method === 'PATCH') return patchBooking(request, env, decodeURIComponent(booking[1]));
+  if (path === '/api/admin/orders' && request.method === 'POST') return createAdminOrder(request, env);
+  if (path === '/api/admin/departures' && request.method === 'POST') return createDeparture(request, env);
   const customer = path.match(/^\/api\/admin\/customers\/([^/]+)$/);
   if (customer && request.method === 'PATCH') return patchCustomer(request, env, decodeURIComponent(customer[1]));
   const tour = path.match(/^\/api\/admin\/tours\/([^/]+)$/);
@@ -501,6 +709,8 @@ export async function handleAdminApi(request, env, url = new URL(request.url)) {
   if (path === '/api/admin/tasks' && request.method === 'POST') return createTask(request, env);
   const task = path.match(/^\/api\/admin\/tasks\/([^/]+)$/);
   if (task && request.method === 'PATCH') return patchTask(request, env, decodeURIComponent(task[1]));
+  const consultation = path.match(/^\/api\/admin\/consultations\/([^/]+)$/);
+  if (consultation && request.method === 'PATCH') return patchConsultation(request, env, decodeURIComponent(consultation[1]));
   return bad('not_found', 404);
 }
 

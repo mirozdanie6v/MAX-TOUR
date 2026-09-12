@@ -313,6 +313,17 @@ td{font-size:13px;font-weight:820;line-height:1.35}
 .trend-point{fill:#fff8ee;stroke:#d81524;stroke-width:2}
 .trend-label{fill:#755a45;font-size:10px;font-weight:800}
 .analytics-footnote{margin-top:12px;color:var(--muted);font-size:11px;line-height:1.4;font-weight:720}
+.live-crm-card{border-color:rgba(37,91,216,.24);background:linear-gradient(135deg,rgba(255,253,248,.96),rgba(240,246,255,.92))}
+.live-crm-kpis{grid-template-columns:repeat(4,minmax(0,1fr));margin-top:14px}
+.live-analytics-summary{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.live-analytics-summary span{padding:10px 12px;border:1px solid rgba(37,91,216,.16);border-radius:14px;background:rgba(255,255,255,.72);color:var(--muted);font-size:12px;font-weight:800}
+.live-analytics-summary b{display:block;color:var(--ink);font-size:18px;font-weight:950}
+.live-crm-list{display:grid;gap:8px;margin-top:14px}
+.live-crm-row{display:flex;justify-content:space-between;gap:14px;padding:11px 13px;border:1px solid rgba(226,196,155,.68);border-radius:15px;background:rgba(255,255,255,.72)}
+.live-crm-row>div:last-child{text-align:right}
+.live-crm-row b,.live-crm-row span{display:block}
+.live-crm-row b{font-size:13px;font-weight:950}
+.live-crm-row span{margin-top:3px;color:var(--muted);font-size:11px;font-weight:750}
 .matrix{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .matrix-card{padding:13px;border-radius:18px;border:1px solid rgba(226,196,155,.68);background:#fffdf8}
 .matrix-title{font-size:14px;font-weight:950;line-height:1.2}
@@ -402,6 +413,9 @@ td{font-size:13px;font-weight:820;line-height:1.35}
   .donut-layout{grid-template-columns:1fr;justify-items:center}
   .analytics-legend{width:100%}
   .analytics-bar-row{grid-template-columns:104px 1fr 70px}
+  .live-crm-kpis{grid-template-columns:1fr 1fr}
+  .live-crm-row{display:grid;grid-template-columns:1fr}
+  .live-crm-row>div:last-child{text-align:left}
   .time-row{grid-template-columns:1fr}
   .drawer{padding:12px}
   .drawer-title{font-size:25px}
@@ -738,6 +752,100 @@ var state = {
   drafts:loadDrafts()
 };
 
+/* The director cabinet is a presentational prototype, but its demo scenario
+   reads the same D1 bootstrap as the admin cabinet. Static fixtures remain as
+   a fallback so the cabinet still explains the future CRM when the database is
+   empty. As soon as a tourist or admin creates an order, live CRM numbers take
+   over the source and revenue views below. */
+var liveCrm = {loaded:false, orders:[], customers:[], departures:[], events:[], consultations:[]};
+function moneyNumber(value){
+  if(typeof value === "number"){return Number.isFinite(value) ? value : 0;}
+  var raw = String(value || "").replace(/\s/g,"").replace(",",".");
+  var n = Number.parseFloat(raw.replace(/[^0-9.-]/g,""));
+  return Number.isFinite(n) ? n : 0;
+}
+function rubles(value){return Math.round(moneyNumber(value)).toLocaleString("ru-RU")+" ₽";}
+function sourceId(value){
+  var text = String(value || "Источник");
+  var known = {"Telegram Mini App":"telegram","Сайт MaxTour":"site","Instagram / соцсети":"instagram","QR отеля":"hotelqr","Рекомендация":"referral","Офис":"manager","Телефон менеджера":"manager"};
+  return known[text] || text.toLowerCase().replace(/[^a-zа-яё0-9]+/gi,"-").replace(/^-|-$/g,"") || "other";
+}
+function sourceLabel(value){
+  var text = String(value || "Офис");
+  return text === "Mini App" ? "Telegram Mini App" : text;
+}
+function hydrateLiveCrm(data){
+  liveCrm.loaded = true;
+  liveCrm.orders = Array.isArray(data.orders) ? data.orders : [];
+  liveCrm.customers = Array.isArray(data.customers) ? data.customers : [];
+  liveCrm.departures = Array.isArray(data.departures) ? data.departures : [];
+  liveCrm.events = Array.isArray(data.events) ? data.events : [];
+  liveCrm.consultations = Array.isArray(data.consultations) ? data.consultations : [];
+  if(!liveCrm.orders.length){return;}
+  var grouped = {};
+  var customerOrders = {};
+  liveCrm.orders.forEach(function(order){
+    var label = sourceLabel(order.source || "Офис");
+    var id = sourceId(label);
+    if(!grouped[id]){grouped[id] = {id:id,name:label,clients:{},paid:0,revenue:0,repeat:0,cancel:0,top:{}};}
+    var row = grouped[id];
+    var customerId = order.sessionId || order.customer || order.id;
+    row.clients[customerId] = true;
+    customerOrders[customerId] = (customerOrders[customerId] || 0) + 1;
+    var paid = moneyNumber(order.paid);
+    row.revenue += paid;
+    if(paid > 0){row.paid += 1;}
+    if(/отмен|возврат/i.test(String(order.orderStatus || ""))){row.cancel += 1;}
+    var tour = order.tour || "Экскурсия";
+    row.top[tour] = (row.top[tour] || 0) + 1;
+  });
+  Object.keys(grouped).forEach(function(id){
+    var row = grouped[id];
+    row.repeat = Object.keys(row.clients).filter(function(customerId){return customerOrders[customerId] > 1;}).length;
+  });
+  var sourceRows = Object.keys(grouped).map(function(id){
+    var row = grouped[id];
+    var clients = Object.keys(row.clients).length;
+    var top = Object.keys(row.top).sort(function(a,b){return row.top[b]-row.top[a];})[0] || "—";
+    return {id:id,name:row.name,clients:clients,paid:row.paid,revenue:row.revenue,avg:row.paid ? Math.round(row.revenue/row.paid) : 0,conv:clients ? Math.round(row.paid/clients*100) : 0,repeat:row.repeat,cancel:row.cancel,top:top,insight:"Живые данные общей D1 после demo-сценария.",action:"Проверить качество канала и создать задачу при необходимости"};
+  }).sort(function(a,b){return b.clients-a.clients;});
+  if(sourceRows.length){
+    sourceChannels = sourceRows;
+    analyticsDimensions.source = sourceChannels.map(function(source,index){return {id:source.id,name:source.name,color:analyticsColors[index % analyticsColors.length]};});
+    if(state.analyticsFilters.source !== "all" && !sourceChannels.some(function(source){return source.id === state.analyticsFilters.source;})){state.analyticsFilters.source = "all";}
+  }
+  var destinations = {};
+  liveCrm.orders.forEach(function(order){
+    var destination = order.city || "Другие маршруты";
+    destinations[destination] = (destinations[destination] || 0) + 1;
+  });
+  if(Object.keys(destinations).length){
+    var destinationRows = Object.keys(destinations).sort(function(a,b){return destinations[b]-destinations[a];}).slice(0,6).map(function(name){return {name:name,value:destinations[name]};});
+    analyticsDestinations = destinationRows;
+    analyticsDimensions.destination = destinationRows.map(function(row,index){return {id:sourceId(row.name),name:row.name,color:analyticsColors[index % analyticsColors.length]};});
+    if(state.analyticsFilters.destination !== "all" && !analyticsDimensions.destination.some(function(item){return item.id === state.analyticsFilters.destination;})){state.analyticsFilters.destination = "all";}
+  }
+}
+function liveCrmBlock(){
+  var received = liveCrm.orders.reduce(function(sum,order){return sum+moneyNumber(order.paid);},0);
+  var customers = liveCrm.customers.length || new Set(liveCrm.orders.map(function(order){return order.sessionId || order.customer;})).size;
+  var rows = liveCrm.orders.slice().sort(function(a,b){return String(b.createdAt || "").localeCompare(String(a.createdAt || ""));}).slice(0,5);
+  var openConsultations = liveCrm.consultations.filter(function(item){return item.status !== "closed";});
+  var consultationRows = openConsultations.slice(0,3);
+  return '<section class="section"><div class="card pad live-crm-card"><div class="section-head"><div><h2 class="section-title">Сквозной demo CRM</h2><p class="section-caption">Эти данные пришли из общей D1 после бронирования в Mini App, AI-консультации или создания записи администратором.</p></div><span class="badge green">D1 · обновлено сейчас</span></div><div class="grid grid-4 live-crm-kpis"><div class="split-tile"><b>'+liveCrm.orders.length+'</b><span>заказов в CRM</span></div><div class="split-tile"><b>'+customers+'</b><span>клиентов</span></div><div class="split-tile"><b>'+rubles(received)+'</b><span>оплачено</span></div><div class="split-tile"><b>'+openConsultations.length+'</b><span>AI-лидов менеджеру</span></div><div class="split-tile"><b>'+liveCrm.departures.length+'</b><span>выездов</span></div></div>'+(consultationRows.length ? '<div class="detail-card" style="margin-top:14px"><div class="detail-title">Последние AI-запросы</div>'+consultationRows.map(function(item){var p=item.payload || {};return '<div class="live-crm-row"><div><b>'+safeText(p.contact && (p.contact.name || p.contact.telegram) || p.destination || "Новый запрос")+'</b><span>'+safeText(p.destination || "Направление уточняется")+' · '+safeText(p.date || "дата уточняется")+'</span></div><div><b>'+safeText(item.id || "AI-лид")+'</b><span>'+safeText(p.tripType === "group" ? "групповой" : "индивидуальный")+' · '+safeText(item.status || "new")+'</span></div></div>';}).join("")+'</div>' : '')+(rows.length ? '<div class="live-crm-list">'+rows.map(function(order){return '<div class="live-crm-row"><div><b>'+safeText(order.id || "Заказ")+'</b><span>'+safeText(order.customer || "Клиент")+' · '+safeText(order.tour || "Экскурсия")+'</span></div><div><b>'+safeText(order.date || order.iso || "—")+'</b><span>'+safeText(sourceLabel(order.source || "Офис"))+' · '+rubles(order.paid)+' / '+rubles(order.total)+'</span></div></div>';}).join("")+'</div>' : '<div class="detail-card" style="margin-top:14px"><div class="detail-text">Создайте demo-заказ в Mini App или нажмите «Создать офлайн-заказ» в админке — он появится здесь автоматически.</div></div>')+'</div></section>';
+}
+function liveAnalyticsCard(){
+  var received = liveCrm.orders.reduce(function(sum,order){return sum+moneyNumber(order.paid);},0);
+  var paid = liveCrm.orders.filter(function(order){return moneyNumber(order.paid) > 0;}).length;
+  return '<section class="section"><div class="card pad live-crm-card"><div class="section-head"><div><h2 class="section-title">Фактический слой CRM</h2><p class="section-caption">Заказы, оплаты, AI-лиды и источники ниже уже связаны с demo D1. Демографические поля появятся после подключения соответствующих полей CRM.</p></div><span class="badge blue">'+liveCrm.orders.length+' заказов · '+liveCrm.consultations.length+' AI-лидов</span></div><div class="live-analytics-summary"><span><b>'+rubles(received)+'</b> оплачено</span><span><b>'+paid+'</b> оплативших</span><span><b>'+liveCrm.customers.length+'</b> клиентов</span><span><b>'+liveCrm.consultations.filter(function(item){return item.status !== "closed";}).length+'</b> открытых AI-лидов</span><span><b>'+liveCrm.events.length+'</b> событий</span></div><p class="analytics-footnote">Нажмите «Офис», «Telegram Mini App» или другой источник в диаграмме ниже, затем добавьте «Женщины», возраст или направление — фильтры комбинируются.</p></div></section>';
+}
+function loadLiveCrm(){
+  if(typeof fetch !== "function"){return;}
+  fetch("/api/admin/bootstrap", {credentials:"same-origin",cache:"no-store"}).then(function(response){if(!response.ok){throw new Error("bootstrap");}return response.json();}).then(function(data){
+    if(data && data.ok !== false){hydrateLiveCrm(data);render();}
+  }).catch(function(){liveCrm.loaded = true;render();});
+}
+
 function loadDrafts(){
   try{return JSON.parse(sessionStorage.getItem("maxtourDirectorDrafts") || "[]");}
   catch(e){return [];}
@@ -874,7 +982,7 @@ function renderDashboard(){
       '<div class="card kpi"><div class="kpi-label">Группы под риском</div><div class="kpi-value bad">3</div><div class="kpi-note">нужен добор или решение</div></div>'+
       '<div class="card kpi"><div class="kpi-label">Деньги на контроле</div><div class="kpi-value blue">'+fmt(summary.manualReview + summary.refunds)+'</div><div class="kpi-note">проверка оплат + возвраты</div></div>'+
     '</div>'+
-  '</section>'+
+  '</section>'+ (liveCrm.loaded ? liveCrmBlock() : '')+
   '<section class="section">'+
     '<div class="section-head"><div><h2 class="section-title">Управленческие решения</h2><p class="section-caption">Не вся операционка. Только то, что влияет на план, деньги, группы, качество или рост.</p></div><button class="btn primary" data-toast="Демо: AI-сводка была бы отправлена директору">Получить AI-сводку</button></div>'+
     '<div class="decision-list">'+visibleDecisions.map(decisionCard).join("")+'</div>'+
@@ -921,7 +1029,7 @@ function cityChartHtml(){
 }
 
 function sourceMiniHtml(){
-  var totalRevenue = sourceChannels.reduce(function(sum,s){return sum+s.revenue;},0);
+  var totalRevenue = sourceChannels.reduce(function(sum,s){return sum+s.revenue;},0) || 1;
   return '<div class="chart-list">'+sourceChannels.slice(0,4).map(function(s){
     return '<div class="bar-row"><div>'+s.name+'</div><div class="bar-bg"><span style="width:'+Math.min(100,Math.round(s.revenue/totalRevenue*220))+'%"></span></div><div class="num">'+s.conv+'% · '+fmt(s.revenue)+'</div></div>';
   }).join("")+'<div style="margin-top:10px"><button class="btn small primary" data-nav="customers">Открыть разбор</button></div></div>';
@@ -1236,7 +1344,7 @@ function renderAnalytics(){
   var originRows = analyticsRows("origin");
   var destinationRows = analyticsRows("destination");
   var sourceMix = sourceRows.map(function(row){return {id:row.id,name:row.name,value:row.value,color:row.color};});
-  return filters('',{period:true,city:false,status:false})+
+  return filters('',{period:true,city:false,status:false})+(liveCrm.loaded ? liveAnalyticsCard() : '')+
   analyticsFilterNote()+
   '<section class="section"><div class="grid kpis">'+
     '<div class="card kpi"><div class="kpi-label">Клиенты в срезе</div><div class="kpi-value">'+int(totalClients)+'</div><div class="kpi-note">'+safeText(analyticsActiveLabel())+'</div></div>'+
@@ -1591,6 +1699,8 @@ document.getElementById("draftsButton").addEventListener("click",openDrafts);
 document.getElementById("globalSearch").addEventListener("input",function(e){renderSearch(e.target.value);});
 document.getElementById("mobileGlobalSearch").addEventListener("input",function(e){renderSearch(e.target.value);});
 render();
+loadLiveCrm();
+if(typeof window.setInterval === "function"){window.setInterval(loadLiveCrm, 10000);}
 })();
 </script>
 </body>

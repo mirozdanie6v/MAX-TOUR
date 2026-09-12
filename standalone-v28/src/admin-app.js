@@ -2,7 +2,7 @@
   'use strict';
 
   const state = {
-    csrf: '', user: null, catalog: [], rules: [], analytics: {}, messages: [], broadcasts: [], tasks: [],
+    csrf: '', user: null, catalog: [], rules: [], analytics: {}, messages: [], broadcasts: [], tasks: [], events: [], consultations: [],
     query: '', orderFilter: 'all', customerFilter: 'all', selectedCustomerId: '', busy: false,
   };
 
@@ -28,7 +28,7 @@
       credentials_invalid:'Неверная почта или пароль.', login_rate_limited:'Слишком много попыток. Повторите через 15 минут.',
       setup_token_invalid:'Неверный одноразовый код настройки.', setup_not_configured:'На сервере ещё не задан ADMIN_SETUP_TOKEN.',
       setup_closed:'Первый администратор уже создан.', csrf_invalid:'Сессия устарела. Обновите страницу.',
-      forbidden:'Для вашей роли это действие недоступно.', unauthorized:'Необходимо войти.',
+      forbidden:'Для вашей роли это действие недоступно.', unauthorized:'Необходимо войти.', consultation_not_found:'AI-лид уже недоступен.',
     })[code] || 'Не удалось выполнить действие. Повторите попытку.';
   }
 
@@ -94,6 +94,8 @@
     state.messages = data.messages || [];
     state.broadcasts = data.broadcasts || [];
     state.tasks = data.tasks || [];
+    state.events = data.events || [];
+    state.consultations = data.consultations || [];
     state.csrf = data.csrfToken || state.csrf;
     state.user = data.user || state.user;
   }
@@ -121,6 +123,10 @@
   }
 
   function setupHeader() {
+    const headerDate = document.getElementById('headerDate');
+    if (headerDate) {
+      headerDate.textContent = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
+    }
     const pill = document.querySelector('.user-pill');
     if (pill) {
       const demo = state.user?.id === 'demo-public-admin';
@@ -155,8 +161,30 @@
 
   function roleName(role) { return ({ manager:'Менеджер', admin:'Администратор', owner:'Владелец' })[role] || role || ''; }
 
+  function todayIso() {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone:'Asia/Ho_Chi_Minh', year:'numeric', month:'2-digit', day:'2-digit' }).formatToParts(new Date());
+    const get = type => parts.find(part => part.type === type)?.value;
+    return `${get('year')}-${get('month')}-${get('day')}`;
+  }
+
+  function orderAttention(o) {
+    if (/отмен|возврат/i.test(o.orderStatus || '')) return 'Системное событие: проверить возврат';
+    if (/жд/i.test(o.paymentStatus || '')) return 'Ожидает оплату';
+    if (/нов/i.test(o.orderStatus || '')) return 'Новая заявка — проверить заказ';
+    if (Number(o.guideDue || 0) > 0) return 'Есть остаток по заказу';
+    return 'Проверить заказ';
+  }
+
+  function taskDueLabel(task) {
+    if (!task.due_date) return 'срок не задан';
+    const today = todayIso();
+    if (task.due_date < today) return `просрочено · ${task.due_date}`;
+    if (task.due_date === today) return 'срок сегодня';
+    return `срок ${task.due_date}`;
+  }
+
   function renderAll() {
-    renderDashboard(); renderDepartures(); renderOrders(); renderGroups(); renderCustomers();
+    renderDashboard(); renderDepartures(); renderOrders(); renderGroups(); renderConsultations(); renderCustomers();
     renderPayments(); renderCatalog(); renderTasks(); renderNotifications(); renderAnalytics();
   }
 
@@ -164,6 +192,7 @@
     const current = document.querySelector('.view.active')?.id;
     ({ dashboard:renderDashboard, departures:renderDepartures, orders:renderOrders, groups:renderGroups,
       customers:renderCustomers, payments:renderPayments, catalog:renderCatalog, tasks:renderTasks, notifications:renderNotifications,
+      'ai-leads':renderConsultations,
       analytics:renderAnalytics })[current]?.();
   }
 
@@ -180,26 +209,31 @@
   };
 
   window.renderDashboard = function() {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayIso();
     const todayDeps = departuresData.filter(d => d.iso === today);
-    const actionOrders = ordersData.filter(o => o.action);
+    const actionOrders = ordersData.filter(o => o.action && !/отмен|возврат/i.test(o.orderStatus || ''));
+    const openTasks = state.tasks.filter(task => task.status === 'new' || task.status === 'in_progress');
+    const openConsultations = state.consultations.filter(item => item.status !== 'closed');
     const paid = ordersData.reduce((sum, o) => sum + Number(o.paid || 0), 0);
     const due = ordersData.reduce((sum, o) => sum + Number(o.guideDue || 0), 0);
     document.getElementById('dashboard').innerHTML = `<section class="section"><div class="grid kpi-grid">
       <div class="card kpi"><div class="label">Выезды сегодня</div><div class="value">${todayDeps.length}</div><div class="hint">по данным D1</div></div>
       <div class="card kpi good"><div class="label">Туристов сегодня</div><div class="value">${todayDeps.reduce((s,d)=>s+d.booked,0)}</div><div class="hint">по участникам заказов</div></div>
-      <div class="card kpi"><div class="label">Онлайн оплачено</div><div class="value">${money(paid)}</div><div class="hint">все подтверждённые суммы</div></div>
-      <div class="card kpi warn"><div class="label">К оплате</div><div class="value">${money(due)}</div><div class="hint">остатки по заказам</div></div>
-      <div class="card kpi danger"><div class="label">Требует действия</div><div class="value">${actionOrders.length}</div><div class="hint">оплата или статус</div></div>
-    </div></section><section class="section status-strip"><div class="card card-pad"><div class="section-head"><div><h2 class="section-title">Что сделать сейчас</h2><p class="section-caption">Живая очередь по данным заказов.</p></div></div><div class="action-list">
-      ${actionOrders.slice(0, 6).map(o => `<div class="action-item"><div class="action-dot">!</div><div><strong>${h(o.id)} · ${h(o.customer)}</strong><span>${h(o.tour)} · ${h(o.paymentStatus)}</span></div><button class="btn small primary" data-admin-action="open-order" data-id="${attrId(o.id)}">Открыть</button></div>`).join('') || '<div class="empty">Срочных задач нет</div>'}
-    </div></div><div class="card card-pad"><h2 class="section-title">Контроль мест</h2><div class="chart-bar" style="margin-top:14px">${departuresData.filter(d=>d.type==='group').map(d=>`<div class="bar-row"><span>${h(d.tour)}</span><div class="bar-bg"><span style="width:${pct(d)}%"></span></div><b>${d.booked}/${d.capacity}</b></div>`).join('') || '<div class="empty">Групповых выездов пока нет</div>'}</div></div></section>
-    <section class="section"><div class="section-head"><div><h2 class="section-title">Выезды сегодня</h2><p class="section-caption">Данные формируются из реальных заказов.</p></div><button class="btn" data-admin-action="go" data-view-target="departures">Все выезды</button></div><div class="departure-grid">${todayDeps.map(departureCard).join('') || empty('На сегодня выездов нет')}</div></section>`;
+      <div class="card kpi"><div class="label">Получено за весь период</div><div class="value">${money(paid)}</div><div class="hint">единая CRM · все заказы</div></div>
+      <div class="card kpi warn"><div class="label">Остаток по заказам</div><div class="value">${money(due)}</div><div class="hint">депозиты и неполная оплата</div></div>
+      <div class="card kpi danger"><div class="label">Очередь администратора</div><div class="value">${actionOrders.length + openTasks.length + openConsultations.length}</div><div class="hint">${actionOrders.length} заказа · ${openConsultations.length} AI-лида · ${openTasks.length} задачи</div></div>
+    </div></section><section class="section status-strip"><div class="card card-pad"><div class="section-head"><div><h2 class="section-title">Входящие заявки и задачи</h2><p class="section-caption">Только то, где требуется решение сотрудника. Обычные автоматические события сюда не попадают.</p></div><button class="btn primary" data-admin-action="new-order">Создать офлайн-заказ</button></div><div class="action-list">
+      ${openConsultations.slice(0, 3).map(item => { const p=item.payload||{}; return `<div class="action-item"><div class="action-dot">✦</div><div><strong>AI-лид · ${h(p.contact?.name || p.destination || 'Новый запрос')}</strong><span>${h(consultationPeople(p))} · ${h(p.date || 'дата уточняется')} · менеджеру нужен ответ</span></div><button class="btn small primary" data-admin-action="open-consultation" data-id="${attrId(item.id)}">Открыть</button></div>`; }).join('')}
+      ${actionOrders.slice(0, 5).map(o => `<div class="action-item"><div class="action-dot">↗</div><div><strong>${h(o.id)} · ${h(o.customer)}</strong><span>${h(orderAttention(o))} · ${h(o.tour)} · выезд ${h(o.date)} · ${h(o.source)}</span></div><button class="btn small primary" data-admin-action="open-order" data-id="${attrId(o.id)}">Открыть</button></div>`).join('')}
+      ${openTasks.slice(0, 3).map(task => `<div class="action-item task-action-item"><div class="action-dot">✓</div><div><strong>Задача директора · ${h(task.title)}</strong><span>${h(task.description || 'Без комментария')} · ${h(taskDueLabel(task))}</span></div><button class="btn small" data-admin-action="go" data-view-target="tasks">Открыть</button></div>`).join('')}
+      ${!actionOrders.length && !openTasks.length && !openConsultations.length ? '<div class="empty">Очередь пуста — автоматические процессы работают штатно</div>' : ''}
+    </div></div><div class="card card-pad"><div class="section-head"><div><h2 class="section-title">Контроль мест</h2><p class="section-caption">Активные туристы / вместимость по групповым выездам.</p></div><button class="btn small" data-admin-action="new-departure">Создать выезд</button></div><div class="chart-bar" style="margin-top:14px">${departuresData.filter(d=>d.type==='group').map(d=>`<div class="bar-row"><span>${h(d.tour)}<small class="bar-date">${h(d.date)}</small></span><div class="bar-bg"><span style="width:${pct(d)}%"></span></div><b>${d.booked}/${d.capacity}</b></div>`).join('') || '<div class="empty">Групповых выездов пока нет</div>'}</div></div></section>
+    <section class="section"><div class="section-head"><div><h2 class="section-title">Выезды сегодня</h2><p class="section-caption">Данные формируются из активных заказов и выездов, созданных администратором.</p></div><button class="btn" data-admin-action="go" data-view-target="departures">Все выезды</button></div><div class="departure-grid">${todayDeps.map(departureCard).join('') || empty('На сегодня выездов нет')}</div></section>`;
   };
 
   window.renderDepartures = function() {
     const list = departuresData.filter(d => matches(d, ['tour','date','city','status']));
-    document.getElementById('departures').innerHTML = `<section class="section"><div class="section-head"><div><h2 class="section-title">Календарь выездов</h2><p class="section-caption">Сформирован из сохранённых заказов; поиск работает по туру, дате, городу и статусу.</p></div></div><div class="tabs"><button class="tab active" data-dep-filter="all">Все</button><button class="tab" data-dep-filter="group">Групповые</button><button class="tab" data-dep-filter="individual">Индивидуальные</button><button class="tab" data-dep-filter="action">Нужно действие</button></div><div id="departuresList" class="departure-grid">${list.map(departureCard).join('') || empty('Выездов пока нет')}</div></section>`;
+    document.getElementById('departures').innerHTML = `<section class="section"><div class="section-head"><div><h2 class="section-title">Календарь выездов</h2><p class="section-caption">Сформирован из заказов и дат, созданных в CRM. Автоматические переносы и отмены из пользовательского кабинета уже отражаются здесь.</p></div><button class="btn primary" data-admin-action="new-departure">Создать групповой выезд</button></div><div class="tabs"><button class="tab active" data-dep-filter="all">Все</button><button class="tab" data-dep-filter="group">Групповые</button><button class="tab" data-dep-filter="individual">Индивидуальные</button><button class="tab" data-dep-filter="action">Нужно действие</button></div><div id="departuresList" class="departure-grid">${list.map(departureCard).join('') || empty('Выездов пока нет')}</div></section>`;
   };
 
   function filteredOrders() {
@@ -212,12 +246,52 @@
   window.renderOrders = function() {
     const rows = filteredOrders().map(o => `<tr><td><div class="table-main">${h(o.id)}</div><div class="table-muted">${h(o.source)}</div></td><td><div class="table-main">${h(o.customer)}</div><div class="table-muted">${h(o.username)} ${h(o.phone)}</div></td><td><div class="table-main">${h(o.tour)}</div><div class="table-muted">${h(o.date)} · ${h(o.city)} · ${h(o.type)}</div></td><td>${h(o.people || o.peopleCount)}</td><td>${badgeStatus(h(o.paymentStatus))}<div class="table-muted">${money(o.paid)} / ${money(o.total)}</div></td><td>${badgeStatus(h(o.orderStatus))}</td><td><button class="btn small primary" data-admin-action="open-order" data-id="${attrId(o.id)}">Открыть</button></td></tr>`).join('');
     const tabs = [['all','Все'],['new','Новые'],['waiting','Ждут оплаты'],['deposit','Депозит'],['paid','Оплачено 100%'],['transfer','Переносы'],['refund','Возвраты']];
-    document.getElementById('orders').innerHTML = `<section class="section"><div class="tabs">${tabs.map(([id,label])=>`<button class="tab ${state.orderFilter===id?'active':''}" data-order-filter="${id}">${label}</button>`).join('')}</div><div class="card data-table-card"><div class="table-scroll"><table><thead><tr><th>Заказ</th><th>Клиент</th><th>Поездка</th><th>Участники</th><th>Оплата</th><th>Статус</th><th></th></tr></thead><tbody>${rows || `<tr><td colspan="7"><div class="empty">Заказов по этому фильтру нет</div></td></tr>`}</tbody></table></div></div></section>`;
+    document.getElementById('orders').innerHTML = `<section class="section"><div class="section-head"><div><h2 class="section-title">Заказы и бронирования</h2><p class="section-caption">Заявки из Mini App, сайта и офлайн-продаж в одной воронке.</p></div><button class="btn primary" data-admin-action="new-order">Создать офлайн-заказ</button></div><div class="tabs">${tabs.map(([id,label])=>`<button class="tab ${state.orderFilter===id?'active':''}" data-order-filter="${id}">${label}</button>`).join('')}</div><div class="card data-table-card"><div class="table-scroll"><table><thead><tr><th>Заказ</th><th>Клиент</th><th>Поездка</th><th>Участники</th><th>Оплата</th><th>Статус</th><th></th></tr></thead><tbody>${rows || `<tr><td colspan="7"><div class="empty">Заказов по этому фильтру нет</div></td></tr>`}</tbody></table></div></div></section>`;
   };
 
   window.renderGroups = function() {
     const groups = departuresData.filter(d => d.type === 'group' && matches(d, ['tour','date','city','status']));
-    document.getElementById('groups').innerHTML = `<section class="section"><div class="section-head"><div><h2 class="section-title">Управление групповым набором</h2><p class="section-caption">Вместимость и оплаты рассчитаны по текущим заказам.</p></div></div><div class="departure-grid">${groups.map(departureCard).join('') || empty('Групповых выездов пока нет')}</div></section>`;
+    document.getElementById('groups').innerHTML = `<section class="section"><div class="section-head"><div><h2 class="section-title">Управление групповым набором</h2><p class="section-caption">Вместимость и оплаты рассчитаны по текущим заказам. Новая дата сразу появится в Mini App после обновления.</p></div><button class="btn primary" data-admin-action="new-departure">Создать групповой выезд</button></div><div class="departure-grid">${groups.map(departureCard).join('') || empty('Групповых выездов пока нет')}</div></section>`;
+  };
+
+  function consultationStatusLabel(status) {
+    return ({ new:'Новый AI-лид', sent_to_manager:'Передан менеджеру', in_progress:'В работе', closed:'Закрыт' })[status] || 'Новый AI-лид';
+  }
+
+  function consultationPeople(payload) {
+    const adults = Number(payload?.adults || 0);
+    const children = Array.isArray(payload?.children) ? payload.children.length : 0;
+    const infants = Number(payload?.infants || 0);
+    const total = adults + children + infants;
+    return total ? `${total} чел. · ${adults} взр. + ${children} дет. + ${infants} мал.` : 'Состав уточняется';
+  }
+
+  function consultationContact(payload) {
+    return [payload?.contact?.name, payload?.contact?.phone, payload?.contact?.telegram].filter(Boolean).join(' · ') || 'Контакт через Mini App';
+  }
+
+  function consultationCard(item) {
+    const payload = item.payload || {};
+    const created = item.createdAt ? new Date(String(item.createdAt).replace(' ', 'T') + (String(item.createdAt).includes('Z') ? '' : 'Z')).toLocaleString('ru-RU') : 'только что';
+    return `<article class="card card-pad"><div class="meta-row"><span class="badge ${item.status === 'closed' ? 'gray' : item.status === 'in_progress' ? 'blue' : 'red'}">${h(consultationStatusLabel(item.status))}</span><span class="badge gold">Сложный тур</span></div><h3 class="entity-title" style="margin-top:10px">${h(payload.destination || 'Направление уточняется')} · ${h(payload.tripType === 'group' ? 'группа' : payload.tripType === 'individual' ? 'индивидуально' : 'формат уточняется')}</h3><p class="section-caption">${h(consultationPeople(payload))} · ${h(payload.date || 'дата уточняется')}<br>${h(consultationContact(payload))}</p><div class="editor-box"><div class="editor-title">Краткий запрос</div><p class="section-caption">${h(item.summary || 'Без текста')}</p></div><div class="row-actions"><button class="btn primary" data-admin-action="open-consultation" data-id="${attrId(item.id)}">Открыть бриф</button>${item.status !== 'closed' ? `<button class="btn" data-admin-action="consultation-status" data-id="${attrId(item.id)}" data-status="in_progress">В работу</button>` : ''}</div><div class="entity-meta">Получен: ${h(created)} · ${h(payload.source || 'Telegram Mini App')}</div></article>`;
+  }
+
+  window.renderConsultations = function() {
+    const leads = state.consultations.filter(item => {
+      const payload = item.payload || {};
+      return !state.query || [item.id, item.summary, payload.destination, payload.tripType, consultationContact(payload)].some(value => lower(value).includes(state.query));
+    });
+    const open = state.consultations.filter(item => item.status !== 'closed').length;
+    document.getElementById('ai-leads').innerHTML = `<section class="section"><div class="section-head"><div><h2 class="section-title">AI-лиды для менеджера</h2><p class="section-caption">Консультант собирает сложный запрос до передачи: состав группы, возраст детей, формат, даты, пожелания, трансфер и бюджет.</p></div><span class="badge ${open ? 'red' : 'green'}">Открытых: ${open}</span></div><div class="card card-pad" style="margin-bottom:14px"><div class="section-caption"><b>Зачем этот раздел:</b> менеджер получает не «хочу тур, перезвоните», а структурированный бриф и может продолжить продажу с нужного места.</div></div><div class="grid responsive-2">${leads.map(consultationCard).join('') || empty('AI-заявок пока нет. Откройте ИИ-консультанта в Mini App и передайте первый бриф.')}</div></section>`;
+  };
+
+  window.openConsultation = function(id) {
+    const item = state.consultations.find(x => x.id === id);
+    if (!item) return showToast('AI-лид не найден');
+    const p = item.payload || {};
+    const rows = [['Направление',p.destination],['Формат',p.tripType === 'group' ? 'Групповой' : p.tripType === 'individual' ? 'Индивидуальный' : 'Уточнить'],['Состав',consultationPeople(p)],['Дата',p.date],['Пожелания',(p.preferences || []).join(', ')],['Отель',p.hotel],['Трансфер',p.transfer],['Бюджет',p.budget],['Контакт',consultationContact(p)]].filter(row => row[1]);
+    const picks = (p.recommendations || []).map(x => `${x.title || x.tourId}${x.estimateUsd ? ` · около $${Number(x.estimateUsd).toLocaleString('ru-RU')}` : ''}`).join('<br>');
+    openDrawer(`<div class="drawer-head"><div><h2 class="drawer-title">${h(item.id)}</h2><p class="drawer-sub">AI-консультант · ${h(consultationStatusLabel(item.status))}</p></div><button class="close" onclick="closeDrawer()">×</button></div><div class="card card-pad"><div class="profile-name">${h(p.contact?.name || 'Клиент из Mini App')}</div><div class="section-caption">${h(consultationContact(p))}</div></div><div class="info-grid" style="margin-top:12px">${rows.map(row => `<div class="info-tile"><span>${h(row[0])}</span><b>${h(row[1])}</b></div>`).join('')}</div><div class="card card-pad" style="margin-top:12px"><h3 class="section-title" style="font-size:17px">Запрос клиента</h3><p class="section-caption" style="white-space:pre-wrap">${h(item.summary || '—')}</p>${picks ? `<div class="editor-box"><div class="editor-title">Предварительный подбор</div><p class="section-caption">${picks}</p></div>` : ''}</div><div class="drawer-actions"><button class="btn primary" data-admin-action="message-consultation" data-id="${attrId(item.id)}">Написать клиенту</button>${item.status !== 'closed' ? `<button class="btn" data-admin-action="consultation-status" data-id="${attrId(item.id)}" data-status="in_progress">Взять в работу</button>` : ''}<button class="btn gold" data-admin-action="new-order">Создать заказ после подтверждения</button></div>`);
   };
 
   function filteredCustomers() {
@@ -288,6 +362,33 @@
     document.getElementById('analytics').innerHTML = `<section class="section"><div class="grid kpi-grid"><div class="card kpi"><div class="label">Заказы</div><div class="value">${a.orderCount||0}</div><div class="hint">в D1</div></div><div class="card kpi good"><div class="label">Клиенты</div><div class="value">${a.customerCount||0}</div></div><div class="card kpi"><div class="label">Получено</div><div class="value">${money(a.received)}</div></div><div class="card kpi warn"><div class="label">Остаток</div><div class="value">${money(a.guideDue)}</div></div></div></section><section class="section status-strip"><div class="card card-pad"><h2 class="section-title">Источники заказов</h2><div class="chart-bar" style="margin-top:14px">${(a.sources||[]).map(x=>`<div class="bar-row"><span>${h(x[0])}</span><div class="bar-bg"><span style="width:${Math.round(x[1]/maxSource*100)}%"></span></div><b>${x[1]}</b></div>`).join('') || '<div class="empty">Данных нет</div>'}</div></div><div class="card card-pad"><h2 class="section-title">Популярные экскурсии</h2><div class="chart-bar" style="margin-top:14px">${(a.popular||[]).map(x=>`<div class="bar-row"><span>${h(x[0])}</span><div class="bar-bg"><span style="width:${Math.round(x[1]/maxTour*100)}%"></span></div><b>${x[1]}</b></div>`).join('') || '<div class="empty">Данных нет</div>'}</div></div></section>`;
   };
 
+  function datePlus(days = 7) {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year:'numeric', month:'2-digit', day:'2-digit' }).formatToParts(date);
+    const get = type => parts.find(part => part.type === type)?.value;
+    return `${get('year')}-${get('month')}-${get('day')}`;
+  }
+
+  function tourOptions(selected = '') {
+    return state.catalog.map(tour => {
+      const view = tourView(tour);
+      return `<option value="${h(tour.id)}" ${String(tour.id) === String(selected) ? 'selected' : ''}>${h(view.title || tour.id)} · ${h(view.city)}</option>`;
+    }).join('');
+  }
+
+  function newOrderForm() {
+    const first = state.catalog[0] || {};
+    const view = tourView(first);
+    openDrawer(`<div class="drawer-head"><div><h2 class="drawer-title">Офлайн-заказ</h2><p class="drawer-sub">Создаёт реальную запись в общей D1. После сохранения заказ появится у администратора и директора.</p></div><button class="close" onclick="closeDrawer()">×</button></div><form class="admin-form" data-admin-form="order"><div class="card card-pad"><div class="section-title" style="font-size:18px">Клиент и источник</div><p class="section-caption">Используйте этот сценарий, чтобы показать клиенту продажу в офисе или по телефону.</p></div><div class="form-grid"><label>ФИО клиента<input name="customerName" required maxlength="250" placeholder="Иван Иванов"></label><label>Телефон<input name="phone" maxlength="80" placeholder="+7 ..."></label><label>Username / контакт<input name="username" maxlength="120" placeholder="@username"></label><label>Источник<select name="source"><option value="Офис">Офис</option><option value="Телефон менеджера">Телефон менеджера</option><option value="Сайт MaxTour">Сайт MaxTour</option><option value="Telegram Mini App">Telegram Mini App</option><option value="Instagram / соцсети">Instagram / соцсети</option><option value="QR отеля">QR отеля</option><option value="Рекомендация">Рекомендация</option></select></label></div><div class="card card-pad"><div class="section-title" style="font-size:18px">Поездка и оплата</div><p class="section-caption">Эта запись будет видна в заказах, оплатах, выезде и аналитике директора.</p></div><div class="form-grid"><label>Экскурсия<select name="tourId" required>${tourOptions(first.id)}</select></label><label>Дата выезда<input name="date" type="date" value="${datePlus(7)}" required></label><label>Время<input name="time" value="09:00" required></label><label>Количество туристов<input name="peopleCount" type="number" min="1" value="1" required></label><label>Стоимость, ₽<input name="total" type="number" min="0" step="1" value="0"></label><label>Оплачено, ₽<input name="paid" type="number" min="0" step="1" value="0"></label><label>Тип заказа<select name="type"><option>Офлайн-покупка</option><option>Бронирование по телефону</option><option>Ручная заявка</option></select></label><label>Метод оплаты<select name="paymentMethod"><option>Офис</option><option>Наличные</option><option>Перевод</option><option>Демо-оплата</option></select></label><label class="wide">Комментарий администратора<textarea name="adminNote" rows="3" maxlength="4000" placeholder="Например: покупка в офисе, нужна встреча у отеля"></textarea></label></div><div class="form-note">Отмены и переносы туриста по-прежнему обрабатываются автоматическими правилами пользовательского кабинета. Здесь администратор только фиксирует новую продажу или ручную заявку.</div><div class="drawer-actions"><button class="btn primary" type="submit">Создать заказ в D1</button></div><div class="form-error" role="alert"></div></form>`);
+  }
+
+  function newDepartureForm() {
+    const first = state.catalog[0] || {};
+    const view = tourView(first);
+    openDrawer(`<div class="drawer-head"><div><h2 class="drawer-title">Новый групповой выезд</h2><p class="drawer-sub">Дата станет доступна туристу в Mini App после обновления и будет видна директору в аналитике.</p></div><button class="close" onclick="closeDrawer()">×</button></div><form class="admin-form" data-admin-form="departure"><div class="form-grid"><label>Экскурсия<select name="tourId" required>${tourOptions(first.id)}</select></label><label>Город<input name="city" value="${h(view.city === '—' ? '' : view.city)}" placeholder="Нячанг"></label><label>Дата выезда<input name="date" type="date" value="${datePlus(10)}" required></label><label>Время<input name="time" value="09:00" required></label><label>Вместимость<input name="capacity" type="number" min="1" value="${Number(view.capacity) || 14}" required></label><label>Минимум туристов<input name="minPeople" type="number" min="1" value="${Math.min(Number(view.capacity) || 14, 8)}" required></label><label>Статус<select name="status"><option value="open">Открыт набор</option><option value="draft">Черновик</option><option value="almost_full">Почти заполнен</option></select></label><label class="wide">Комментарий для CRM / Mini App<textarea name="notes" rows="4" maxlength="4000" placeholder="Например: трансфер отеля включён"></textarea></label></div><div class="form-note">Новая дата не создаёт фиктивные брони: места начнут заполняться только реальными заказами из Mini App или офлайн-заказами.</div><div class="drawer-actions"><button class="btn primary" type="submit">Опубликовать выезд</button></div><div class="form-error" role="alert"></div></form>`);
+  }
+
   window.openOrder = function(id) {
     const o = ordersData.find(x => x.id === id);
     if (!o) return showToast('Заказ не найден');
@@ -344,8 +445,21 @@
     if (action === 'logout') { try { await api('/api/admin/auth/logout', { method:'POST', body:'{}' }); } finally { location.reload(); } }
     if (action === 'go') return go(target.dataset.viewTarget);
     if (action === 'attention') { state.orderFilter='all'; state.query=''; go('orders'); renderOrders(); return; }
+    if (action === 'new-order') return newOrderForm();
+    if (action === 'new-departure') return newDepartureForm();
     if (action === 'open-order') return openOrder(id);
     if (action === 'open-departure') return openDeparture(id);
+    if (action === 'open-consultation') return openConsultation(id);
+    if (action === 'message-consultation') {
+      const lead = state.consultations.find(item => item.id === id);
+      return messageForm({ customerSessionId:lead?.sessionId || '', title:`Сообщение по AI-лиду ${id}`, preset:'Здравствуйте! Я менеджер MAX TOUR. Уточню детали вашей поездки и предложу финальный вариант: ' });
+    }
+    if (action === 'consultation-status') {
+      target.disabled = true;
+      try { await api(`/api/admin/consultations/${encodeURIComponent(id)}`, { method:'PATCH', body:JSON.stringify({ status:target.dataset.status }) }); await loadWorkspace('Статус AI-лида сохранён'); }
+      catch (err) { showToast(err.message); target.disabled = false; }
+      return;
+    }
     if (action === 'select-customer') { state.selectedCustomerId=id; renderCustomers(); return; }
     if (action === 'edit-customer') return customerForm(customersData.find(c=>c.id===id));
     if (action === 'message-customer') return messageForm({ customerSessionId:id, title:`Сообщение: ${customersData.find(c=>c.id===id)?.name || 'клиент'}` });
@@ -393,6 +507,27 @@
     try {
       if (form.dataset.adminForm === 'booking') await api(`/api/admin/bookings/${encodeURIComponent(decodeId(form.dataset.id))}`, { method:'PATCH', body:JSON.stringify(data) });
       if (form.dataset.adminForm === 'customer') await api(`/api/admin/customers/${encodeURIComponent(decodeId(form.dataset.id))}`, { method:'PATCH', body:JSON.stringify(data) });
+      if (form.dataset.adminForm === 'order') {
+        const tour = state.catalog.find(item => String(item.id) === String(data.tourId));
+        if (!tour) throw new Error('Выберите экскурсию из каталога.');
+        const view = tourView(tour);
+        data.title = view.title || tour.title || data.tourId;
+        data.city = view.city === '—' ? '' : view.city;
+        data.peopleCount = Number(data.peopleCount || 1);
+        data.total = Number(data.total || 0);
+        data.paid = Number(data.paid || 0);
+        await api('/api/admin/orders', { method:'POST', body:JSON.stringify(data) });
+      }
+      if (form.dataset.adminForm === 'departure') {
+        const tour = state.catalog.find(item => String(item.id) === String(data.tourId));
+        if (!tour) throw new Error('Выберите экскурсию из каталога.');
+        const view = tourView(tour);
+        data.title = view.title || tour.title || data.tourId;
+        data.city = data.city || (view.city === '—' ? '' : view.city);
+        data.capacity = Number(data.capacity || 1);
+        data.minPeople = Number(data.minPeople || 1);
+        await api('/api/admin/departures', { method:'POST', body:JSON.stringify(data) });
+      }
       if (form.dataset.adminForm === 'message') await api('/api/admin/messages', { method:'POST', body:JSON.stringify(data) });
       if (form.dataset.adminForm === 'broadcast') await api('/api/admin/broadcasts', { method:'POST', body:JSON.stringify(data) });
       if (form.dataset.adminForm === 'tour') {

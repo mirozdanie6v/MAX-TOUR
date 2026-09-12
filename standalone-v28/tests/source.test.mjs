@@ -18,6 +18,7 @@ async function restore(entry){
 const html = (await restore(manifest.html)).toString('utf8');
 const catalog = JSON.parse((await restore(manifest.catalog)).toString('utf8'));
 const runtime = await readFile(resolve(root,'src/runtime-api.js'),'utf8');
+const ai = await readFile(resolve(root,'src/ai-consultant.js'),'utf8');
 
 test('exact supplied v28 sources restore by checksum', () => {
   assert.equal(manifest.html.sha256,'be7cceb157e1169f869ad11ead32bdc012f076d7aeddf5a36adf10fe25ca9472');
@@ -47,4 +48,12 @@ test('runtime adds persistence without replacing visual renderers', () => {
   assert.match(runtime,/persistTrip/);
   assert.match(runtime,/original\.renderCatalog/);
   assert.doesNotMatch(runtime,/Ваш лучший отдых во Вьетнаме/);
+});
+
+test('AI consultant keeps the original v28 renderer and adds a structured handoff layer', () => {
+  assert.match(runtime, /MaxTourAI\?\.mount/);
+  for (const slot of ['adults', 'children', 'infants', 'tripType', 'date', 'preferences', 'contact']) assert.match(ai, new RegExp(slot));
+  assert.match(ai, /\/api\/consultations/);
+  assert.match(ai, /Передать менеджеру/);
+  assert.match(ai, /answerQuestion/);
 });

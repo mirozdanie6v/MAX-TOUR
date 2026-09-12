@@ -54,6 +54,46 @@
         if (index >= 0) TOURS[index] = tour; else TOURS.push(tour);
       });
     }
+    applyGroupDepartures(data.groupDepartures);
+  }
+
+  function departureLabel(iso) {
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(String(iso || '')) ? new Date(`${iso}T00:00:00Z`) : null;
+    return date && !Number.isNaN(date.valueOf())
+      ? new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(date)
+      : String(iso || '');
+  }
+
+  function departureStatus(status, taken, capacity) {
+    if (status === 'cancelled') return 'отменена';
+    if (Number(taken) >= Number(capacity)) return 'лист ожидания';
+    if (status === 'almost_full') return 'почти собрана';
+    if (status === 'full') return 'лист ожидания';
+    return 'собирается';
+  }
+
+  function applyGroupDepartures(departures) {
+    if (!Array.isArray(departures)) return;
+    departures.forEach(departure => {
+      const tour = TOURS.find(item => String(item.id) === String(departure.tourId));
+      if (!tour) return;
+      tour.group = tour.group || { departures: [] };
+      tour.group.departures = Array.isArray(tour.group.departures) ? tour.group.departures : [];
+      const next = {
+        id: departure.id,
+        iso: departure.date,
+        date: departureLabel(departure.date),
+        time: departure.time || '09:00',
+        taken: Number(departure.taken || 0),
+        capacity: Number(departure.capacity || 1),
+        status: departureStatus(departure.status, departure.taken, departure.capacity),
+        source: 'CRM',
+        notes: departure.notes || '',
+      };
+      const index = tour.group.departures.findIndex(item => item.id === next.id || (item.iso === next.iso && item.time === next.time));
+      if (index >= 0) tour.group.departures[index] = { ...tour.group.departures[index], ...next };
+      else tour.group.departures.push(next);
+    });
   }
 
   async function loadCanonicalCatalog() {
@@ -160,6 +200,10 @@
   function wireAI() {
     const root = document.getElementById('aiScreen');
     if (!root) return;
+    if (globalThis.MaxTourAI?.mount) {
+      globalThis.MaxTourAI.mount(root);
+      return;
+    }
     const input = root.querySelector('.chatbar input');
     const send = root.querySelector('.chatbar button');
     if (!input || !send || send.dataset.wired) return;

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { _test } from '../src/admin-api.js';
+import { _test as workerTest } from '../src/worker.js';
 
 const root = resolve(import.meta.dirname, '..');
 const html = await readFile(resolve(root, 'src/admin-v3.html'), 'utf8');
@@ -11,6 +12,8 @@ const api = await readFile(resolve(root, 'src/admin-api.js'), 'utf8');
 const worker = await readFile(resolve(root, 'src/worker.js'), 'utf8');
 const migration = await readFile(resolve(root, 'migrations/0002_admin_crm.sql'), 'utf8');
 const taskMigration = await readFile(resolve(root, 'migrations/0003_admin_tasks.sql'), 'utf8');
+const demoFlowMigration = await readFile(resolve(root, 'migrations/0004_demo_crm_flow.sql'), 'utf8');
+const aiMigration = await readFile(resolve(root, 'migrations/0005_ai_consultations.sql'), 'utf8');
 const wrangler = await readFile(resolve(root, 'wrangler.jsonc'), 'utf8');
 
 test('admin prototype contains no hardcoded customer, order or payment records', () => {
@@ -72,4 +75,34 @@ test('director tasks have a persistent D1 queue and admin API contract', () => {
   assert.match(api, /path === '\/api\/admin\/tasks' && request.method === 'POST'/);
   assert.match(api, /const task = path\.match/);
   assert.match(api, /task\.write/);
+});
+
+test('demo CRM flow shares orders, departures and events across cabinets', () => {
+  assert.match(demoFlowMigration, /CREATE TABLE IF NOT EXISTS admin_departures/);
+  assert.match(demoFlowMigration, /CREATE TABLE IF NOT EXISTS admin_demo_events/);
+  assert.match(api, /path === '\/api\/admin\/orders' && request\.method === 'POST'/);
+  assert.match(api, /path === '\/api\/admin\/departures' && request\.method === 'POST'/);
+  assert.match(api, /events: \(eventsResult\.results \|\| \[\]\)/);
+  assert.match(worker, /groupDepartures/);
+  assert.match(worker, /admin_demo_events/);
+  assert.match(app, /Создать офлайн-заказ/);
+  assert.match(app, /Создать групповой выезд/);
+});
+
+test('AI consultant stores a structured manager brief and exposes a CRM queue', () => {
+  assert.match(aiMigration, /CREATE TABLE IF NOT EXISTS ai_consultations/);
+  for (const field of ['session_id', 'status', 'intent', 'summary', 'payload_json']) assert.match(aiMigration, new RegExp(field));
+  assert.match(worker, /url\.pathname === '\/api\/consultations' && request\.method === 'POST'/);
+  assert.match(worker, /normalizeConsultationPayload/);
+  assert.match(worker, /consultation_created/);
+  assert.match(api, /ai_consultations/);
+  assert.match(api, /consultation\.write/);
+  assert.match(app, /AI-лиды для менеджера/);
+  assert.match(app, /open-consultation/);
+  const payload = workerTest.normalizeConsultationPayload({ payload: { adults: 2, children: [7, 10], infants: 1, contact: { telegram: '@family_demo' }, preferences: ['море', 'море'] } });
+  assert.equal(payload.adults, 2);
+  assert.deepEqual(payload.children, [7, 10]);
+  assert.equal(payload.infants, 1);
+  assert.deepEqual(payload.preferences, ['море']);
+  assert.equal(payload.contact.telegram, '@family_demo');
 });

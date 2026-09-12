@@ -16,6 +16,8 @@
 .auth-error,.form-error{min-height:18px;color:#b82417;font-size:13px;font-weight:700}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .form-grid .wide{grid-column:1/-1}
+.form-note{padding:12px 14px;border:1px solid rgba(226,196,155,.75);border-radius:14px;background:#fff8ec;color:#765641;font-size:13px;line-height:1.45}
+.bar-date{display:block;color:var(--muted-2);font-size:11px;font-weight:700;margin-top:3px}
 .check-label{display:flex!important;grid-template-columns:22px 1fr!important;align-items:center!important}
 .check-label input{width:20px!important;min-height:20px!important}
 .drawer-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}

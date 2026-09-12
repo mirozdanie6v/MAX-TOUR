@@ -774,7 +774,7 @@ svg{display:block}
     <header class="topbar">
       <div>
         <div class="mobile-logo"><img alt="MaxTour" src="/max-tour-logo.svg"></div>
-        <div class="breadcrumbs"><span id="crumbIcon"></span><span id="crumbLabel">Dashboard</span><span>·</span><span>10 сентября</span></div>
+        <div class="breadcrumbs"><span id="crumbIcon"></span><span id="crumbLabel">Dashboard</span><span>·</span><span id="headerDate">Сегодня</span></div>
         <h1 class="page-title" id="pageTitle">Пульт управления</h1>
         <p class="page-subtitle" id="pageSubtitle">Что требует внимания сегодня: выезды, места, оплаты, клиенты и уведомления.</p>
       </div>
@@ -798,6 +798,7 @@ svg{display:block}
     <section class="view" id="departures"></section>
     <section class="view" id="orders"></section>
     <section class="view" id="groups"></section>
+    <section class="view" id="ai-leads"></section>
     <section class="view" id="customers"></section>
     <section class="view" id="payments"></section>
     <section class="view" id="catalog"></section>
@@ -820,6 +821,7 @@ const icons = {
   payments:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="5" width="18" height="14" rx="4"/><path d="M3 10h18M7 15h4"/></svg>`,
   catalog:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 4h14v16H5z"/><path d="M9 4v16M5 9h14M5 14h14"/></svg>`,
   tasks:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="m8 9 1.5 1.5L12 8M14 10h3M8 15l1.5 1.5L12 14M14 16h3"/></svg>`,
+  "ai-leads":`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3.5 13.7 8l4.8 1.7-4.8 1.8L12 16l-1.7-4.5-4.8-1.8L10.3 8 12 3.5Z"/><path d="M18.5 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z"/></svg>`,
   notifications:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 9a6 6 0 0 0-12 0c0 7-2.5 7-2.5 9h17S18 16 18 9Z"/><path d="M9.7 21a2.6 2.6 0 0 0 4.6 0"/></svg>`,
   analytics:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 19V5M4 19h16"/><path d="M8 16v-5M12 16V8M16 16v-9"/></svg>`,
   search:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" width="20" height="20"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>`
@@ -829,6 +831,7 @@ const navItems = [
   ["departures","Выезды",icons.departures,"Выезды","Календарь фактических поездок: отдельно групповые места и индивидуальные заказы."],
   ["orders","Заказы",icons.orders,"Заказы","Очередь обработки заявок: новые, оплата, переносы, отмены, возвраты."],
   ["groups","Группы",icons.groups,"Группы","Набор групповых выездов, свободные места, лист ожидания и подтверждение."],
+  ["ai-leads","AI-лиды",icons["ai-leads"],"AI-лиды","Сложные запросы, собранные AI-консультантом для передачи менеджеру."],
   ["customers","Клиенты",icons.customers,"Клиенты","CRM-профили: основной путешественник, попутчики, история и согласия."],
   ["payments","Оплаты",icons.payments,"Оплаты","Финансовый реестр: 30%, 100%, ручная проверка, остаток гиду, возвраты."],
   ["catalog","Каталог",icons.catalog,"Каталог","Единый источник туров, цен, расписаний и правил для Mini App и сайта."],
