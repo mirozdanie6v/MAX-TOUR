@@ -62,6 +62,9 @@ test('AI consultant is a simple customer-facing chat with optional saved selecti
   assert.match(ai, /Я AI-консультант, задайте мне любые вопросы/);
   assert.match(ai, /ai-chat-subtitle/);
   assert.match(ai, /data-ai-action="show-contact"/);
+  assert.match(ai, /recommendationReason/);
+  assert.match(ai, /role="log"/);
+  assert.match(ai, /renderQuickReplies\(quick\)/);
   assert.match(ai, /Очистить/);
   assert.doesNotMatch(ai, /ai-progress|ai-consultant-brief|ai-consultant-intro|Персональный подбор|заполнено/);
   assert.doesNotMatch(ai, /менеджер|передать/iu);
