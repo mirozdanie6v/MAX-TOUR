@@ -173,7 +173,7 @@
     const modal = showModal('Отменить поездку?', `
       <p>${escapeHtml(terms.detail)}</p>
       ${summaryRows(terms, 'cancel')}
-      ${terms.additionalPolicyBalance > 0 ? `<p class="hint">По правилам сумма удержания превышает уже внесённый депозит на ${cash(terms.additionalPolicyBalance)}. Доплата по этому правилу будет рассчитана менеджером отдельно.</p>` : ''}
+      ${terms.additionalPolicyBalance > 0 ? `<p class="hint">Текущий депозит меньше суммы удержания на ${cash(terms.additionalPolicyBalance)}. Перед подтверждением приложение покажет полный расчёт по поездке.</p>` : ''}
       <p class="hint">При подтверждении условия будут рассчитаны ещё раз на текущую секунду.</p>
       <div class="inline-actions trip-action-buttons">
         <button class="secondary trip-action-back" type="button">Не отменять</button>
