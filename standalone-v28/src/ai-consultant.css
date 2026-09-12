@@ -23,6 +23,8 @@
 }
 #aiScreen .ai-consultant-shell{display:block;max-width:900px}
 #aiScreen .ai-chat-panel{
+  display:flex;
+  flex-direction:column;
   min-width:0;
   overflow:hidden;
   background:#f5eee4;
@@ -37,6 +39,7 @@
   min-height:300px;
   max-height:min(58vh,560px);
   overflow:auto;
+  overscroll-behavior-y:contain;
   padding:16px 14px 12px;
   background:
     radial-gradient(circle at 10% 0%,rgba(255,255,255,.65),transparent 38%),
@@ -58,6 +61,16 @@
   white-space:pre-wrap;
   box-shadow:0 2px 6px rgba(129,65,20,.05);
 }
+#aiScreen .ai-msg-author{
+  display:block;
+  margin-bottom:3px;
+  color:#8d6b52;
+  font-size:9px;
+  line-height:1.1;
+  font-weight:950;
+  letter-spacing:.02em;
+}
+#aiScreen .ai-msg-text{display:block}
 #aiScreen .ai-messages .ai-msg.user{
   align-self:flex-end;
   border-color:transparent;
@@ -66,12 +79,15 @@
   color:#fff;
   box-shadow:0 3px 8px rgba(196,50,35,.18);
 }
+#aiScreen .ai-messages .ai-msg.user .ai-msg-author{color:rgba(255,255,255,.78);text-align:right}
 #aiScreen .ai-quick-replies{
   display:flex;
   gap:7px;
   flex-wrap:wrap;
-  padding:10px 14px 0;
-  background:#fff;
+  align-self:flex-start;
+  width:min(92%,620px);
+  padding:2px 0 0;
+  background:transparent;
 }
 #aiScreen .ai-quick-replies button{
   min-height:32px;
@@ -91,6 +107,10 @@
   align-items:flex-end;
   margin:0;
   padding:10px 14px 14px;
+  position:sticky;
+  bottom:0;
+  z-index:2;
+  border-top:1px solid rgba(125,62,29,.1);
   background:#fff;
 }
 #aiScreen .ai-consultant-input textarea{
@@ -113,8 +133,25 @@
   display:grid;
   gap:7px;
   margin:0;
-  padding:0 14px 10px;
-  background:#f5eee4;
+  align-self:flex-start;
+  width:min(92%,620px);
+  box-sizing:border-box;
+}
+#aiScreen .ai-chat-results{
+  display:block;
+  padding:10px 11px;
+  border:1px solid rgba(125,62,29,.08);
+  border-radius:8px 17px 17px 17px;
+  background:#fff;
+  box-shadow:0 2px 6px rgba(129,65,20,.05);
+}
+#aiScreen .ai-chat-results .ai-msg-author{margin-bottom:4px}
+#aiScreen .ai-chat-results-reason{
+  margin:4px 0 0;
+  color:var(--muted);
+  font-size:10.5px;
+  line-height:1.35;
+  font-weight:750;
 }
 #aiScreen .ai-chat-results-label{
   color:var(--muted);
@@ -134,12 +171,13 @@
   background:#fff;
   box-shadow:0 2px 6px rgba(129,65,20,.04);
 }
+#aiScreen .ai-chat-results .ai-recommendations{display:grid;width:100%;margin-top:8px;padding:0;background:transparent}
 #aiScreen .ai-recommendation h4{margin:0;font-size:12px;line-height:1.2}
 #aiScreen .ai-recommendation p{margin:3px 0 0;color:var(--muted);font-size:10px;line-height:1.3;font-weight:750}
 #aiScreen .ai-recommendation .ai-price{display:block;margin-top:4px;color:var(--red);font-size:10.5px;font-weight:950}
 #aiScreen .ai-recommendation button{min-height:32px;padding:6px 9px;white-space:nowrap;font-size:10.5px}
-#aiScreen .ai-save-selection{padding:0 14px 10px;background:#f5eee4}
-#aiScreen .ai-save-selection button{min-height:32px;padding:6px 10px;border-radius:11px;font-size:10.5px}
+#aiScreen .ai-save-selection{align-self:flex-start;width:min(92%,620px);padding:0;background:transparent}
+#aiScreen .ai-save-selection button{min-height:36px;padding:7px 11px;border-radius:11px;font-size:16px;line-height:1.15}
 #aiScreen .ai-contact-form{
   display:grid;
   gap:8px;
@@ -165,11 +203,11 @@
   #aiScreen .ai-chat-subtitle{font-size:10.5px;max-width:34em}
   #aiScreen .ai-messages{min-height:280px;max-height:56vh;padding:14px 10px 10px}
   #aiScreen .ai-messages .ai-msg{max-width:88%;font-size:13px}
-  #aiScreen .ai-quick-replies{padding-left:10px;padding-right:10px}
+  #aiScreen .ai-quick-replies{width:92%}
   #aiScreen .ai-consultant-input{padding-left:10px;padding-right:10px;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
   #aiScreen .ai-recommendations,
   #aiScreen .ai-chat-results,
-  #aiScreen .ai-save-selection{padding-left:10px;padding-right:10px}
+  #aiScreen .ai-save-selection{width:94%}
 }
 @media(max-width:430px){
   #aiScreen .ai-contact-grid{grid-template-columns:1fr}
