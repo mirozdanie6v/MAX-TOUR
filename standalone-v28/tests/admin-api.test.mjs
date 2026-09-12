@@ -106,3 +106,18 @@ test('AI consultant stores a structured manager request and exposes it to the te
   assert.deepEqual(payload.preferences, ['море']);
   assert.equal(payload.contact.telegram, '@family_demo');
 });
+
+test('AI consultation keeps a bounded conversation transcript for the saved selection', () => {
+  const payload = workerTest.normalizeConsultationPayload({ payload: {
+    conversation: [
+      { role:'user', text:'Нячанг' },
+      { role:'bot', text:'Покажу варианты' },
+      { role:'system', text:'служебная строка' },
+    ],
+  } });
+  assert.deepEqual(payload.conversation, [
+    { role:'user', text:'Нячанг' },
+    { role:'bot', text:'Покажу варианты' },
+    { role:'bot', text:'служебная строка' },
+  ]);
+});

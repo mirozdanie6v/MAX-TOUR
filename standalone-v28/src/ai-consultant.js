@@ -1,9 +1,10 @@
 (() => {
   'use strict';
 
-  // Bump the client state key so an older, overly verbose conversation cannot
-  // reappear after the compact customer-facing chat is published.
-  const STORAGE_KEY = 'max-tour-ai-consultant-v3';
+  // Bump the client state key so an older conversation created by the previous
+  // guided flow cannot reappear after the chat interaction model changes.
+  const STORAGE_KEY = 'max-tour-ai-consultant-v4';
+  const MAX_MESSAGES = 120;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
   const lower = value => String(value || '').toLocaleLowerCase('ru-RU');
   const clean = (value, max = 500) => String(value ?? '').trim().slice(0, max);
@@ -19,7 +20,7 @@
 
   const freshState = () => ({
     slots: freshSlots(), messages: [{ role:'bot', text:'Задавайте вопрос — я помогу с поездкой.' }],
-    recommendations: [], handoff: null, showContact: false,
+    recommendations: [], handoff: null, handoffHidden: false, showContact: false,
   });
 
   let state = freshState();
@@ -31,7 +32,7 @@
   } catch (_) {}
 
   function persist() {
-    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, messages: state.messages.slice(-36) })); } catch (_) {}
+    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, messages: state.messages.slice(-MAX_MESSAGES) })); } catch (_) {}
   }
 
   function addMessage(role, text) {
@@ -40,7 +41,7 @@
     const last = state.messages[state.messages.length - 1];
     if (last?.role === role && last.text === message) return;
     state.messages.push({ role, text: message });
-    state.messages = state.messages.slice(-36);
+    state.messages = state.messages.slice(-MAX_MESSAGES);
   }
 
   function firstMoney(value) {
@@ -113,6 +114,27 @@
     return month ? { value:`${month[1]} — даты уточним`, flexible:true } : null;
   }
 
+  function parseBudget(text) {
+    const q = lower(text);
+    // A bare «до 3 лет» is an age, not a budget.  Only parse an amount when
+    // the user explicitly names a budget/price or supplies a currency.
+    const amount = '[\\d\\s.,]+';
+    const unit = '(тыс|к|млн)?';
+    const currency = '(?:\\$|usd|доллар(?:ов|а)?|руб(?:лей|ля)?\\.?|₽)';
+    const explicit = q.match(new RegExp(`(?:бюджет|цена|стоимость)[^\\d]{0,32}(?:${currency})?\\s*(${amount})\\s*${unit}`));
+    const withCurrency = q.match(new RegExp(`(?:до|около|примерно)\\s*(?:${currency})\\s*(${amount})\\s*${unit}`));
+    const suffixCurrency = q.match(new RegExp(`(?:до|около|примерно)\\s*(${amount})\\s*(?:${currency})\\s*${unit}`));
+    const match = explicit || withCurrency || suffixCurrency;
+    if (!match) return '';
+    const number = String(match[1] || '').replace(/\s/g, '').replace(',', '.');
+    if (!/^\d+(?:\.\d+)?$/.test(number)) return '';
+    const raw = Number(number);
+    if (!Number.isFinite(raw) || raw <= 0 || raw > 100000000) return '';
+    const suffix = match[2] || '';
+    const hasRubles = /руб|₽/.test(match[0]);
+    return `${number}${suffix ? ` ${suffix === 'к' ? 'тыс.' : suffix}` : ''}${hasRubles ? ' ₽' : ''}`.trim();
+  }
+
   function parseMessage(text) {
     const q = lower(text);
     const s = state.slots;
@@ -158,8 +180,8 @@
     if (/премиум|vip|вип|комфорт/.test(q)) s.preferences = [...new Set([...s.preferences, 'комфорт / премиум'])];
     if (/трансфер/.test(q)) s.transfer = /без\s+трансфер|трансфер не нужен|сами добер/.test(q) ? 'не нужен' : 'нужен';
     if (/отел/.test(q)) s.hotel = /без\s+отел|отель не нужен/.test(q) ? 'не нужен' : 'нужен / уточнить';
-    const budget = q.match(/(?:бюджет|до|примерно)\s*(?:на группу\s*)?(?:\$|usd|доллар(?:ов|а)?|руб(?:лей|ля)?\.?\s*)?\s*([\d\s.,]+)\s*(?:тыс|к|млн)?/);
-    if (budget) s.budget = clean(`${budget[1].replace(/\s/g, '')}${/млн/.test(q) ? ' млн' : /тыс|\bk\b/.test(q) ? ' тыс.' : ''}`);
+    const budget = parseBudget(q);
+    if (budget) s.budget = clean(budget);
     const phone = text.match(/(?:\+?\d[\d\s()\-]{8,}\d)/);
     if (phone) s.contact.phone = clean(phone[0]);
     const telegram = text.match(/@[a-zA-Z0-9_]{4,32}/);
@@ -201,45 +223,127 @@
     return [];
   }
 
-  function matchTours() {
+  function hasParty() {
     const s = state.slots;
-    const format = s.tripType === 'group' ? 'group' : 'individual';
+    return Boolean(Number(s.adults || 0) || s.children.length || Number(s.infants || 0));
+  }
+
+  function budgetNumber(value) {
+    const match = String(value || '').replace(/\s/g, '').match(/\d+(?:[.,]\d+)?/);
+    if (!match) return 0;
+    const number = Number(match[0].replace(',', '.'));
+    if (!Number.isFinite(number)) return 0;
+    return /млн/i.test(value) ? number * 1000000 : /тыс|к/i.test(value) ? number * 1000 : number;
+  }
+
+  function departureMatchesDate(departure, isoDate) {
+    if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return true;
+    const date = new Date(`${isoDate}T00:00:00Z`);
+    const day = date.getUTCDate();
+    const month = date.getUTCMonth();
+    const months = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+    const label = lower(departure?.date || '');
+    const days = (label.match(/\d{1,2}/g) || []).map(Number);
+    return days.includes(day) && label.includes(months[month]);
+  }
+
+  function evaluateTour(tour, format) {
+    const s = state.slots;
     const people = { adults:Math.max(1, s.adults || 1), children:s.children.length, infants:s.infants };
-    return tours().map(tour => {
-      const hay = lower(`${tour.title} ${tour.city} ${tour.region} ${tour.category} ${(tour.tags || []).join(' ')} ${tour.searchText || ''}`);
-      let score = Number(tour.popular) ? 1 : 0;
-      if (s.destination && hay.includes(lower(s.destination).split('/')[0])) score += 7;
-      if (s.destination === 'Далат' && /далат/.test(hay)) score += 8;
-      if (s.tripType === 'group' && tour.group?.from && tour.group.from !== '—') score += 3;
-      if (s.tripType === 'individual' && tour.individual?.from) score += 3;
-      if (s.children.length && tour.childrenOk) score += 4;
-      if (!s.children.length && /дети|семья/.test(hay) && score > 0) score += 1;
-      for (const pref of s.preferences) {
-        if (pref === 'море' && /море|остров|пляж|сноркл/.test(hay)) score += 4;
-        if (pref === 'природа' && /природ|горы|фото|дюны|водопад/.test(hay)) score += 4;
-        if (pref.includes('город') && /город|культур|мост|храм/.test(hay)) score += 3;
-        if (pref.includes('лёг') && /легк|обзорн|трансфер/.test(hay)) score += 3;
-        if (pref.includes('премиум') && /премиум|vip|вип|комфорт/.test(hay)) score += 3;
+    const formatData = format === 'group' ? tour.group : tour.individual;
+    const hay = lower(`${tour.title} ${tour.city} ${tour.region} ${tour.category} ${(tour.tags || []).join(' ')} ${tour.searchText || ''} ${(Array.isArray(formatData?.notes) ? formatData.notes : []).join(' ')}`);
+    let score = Number(tour.popular) ? 1 : 0;
+    if (!formatData?.from || formatData.from === '—') score -= 100;
+    if (s.destination && s.destination !== 'Любое направление' && hay.includes(lower(s.destination).split('/')[0])) score += 7;
+    if (s.destination === 'Далат' && /далат/.test(hay)) score += 8;
+    if (format === 'group' && formatData?.from && formatData.from !== '—') score += 3;
+    if (format === 'individual' && formatData?.from) score += 3;
+    if (s.children.length && tour.childrenOk !== false) score += 4;
+    if (!s.children.length && /дети|семья/.test(hay) && score > 0) score += 1;
+    for (const pref of s.preferences) {
+      if (pref === 'море' && /море|остров|пляж|сноркл/.test(hay)) score += 4;
+      if (pref === 'природа' && /природ|горы|фото|дюны|водопад/.test(hay)) score += 4;
+      if (pref.includes('город') && /город|культур|мост|храм/.test(hay)) score += 3;
+      if (pref.includes('лёг') && /легк|обзорн|трансфер/.test(hay)) score += 3;
+      if (pref.includes('премиум') && /премиум|vip|вип|комфорт/.test(hay)) score += 3;
+    }
+
+    const base = format === 'group' ? firstMoney(formatData?.adult || formatData?.from) : firstMoney(formatData?.from);
+    const total = globalThis.MaxTourBookingPricing?.calculateTotal?.(tour, people, format) || 0;
+    const fallback = format === 'group' ? base * (people.adults + people.children) : base;
+    const estimateUsd = total || fallback;
+    let availability = 'даты уточняются';
+    let available = true;
+    if (format === 'group') {
+      const departures = Array.isArray(formatData?.departures) ? formatData.departures : [];
+      const matching = departures.filter(item => departureMatchesDate(item, s.dateFlexible ? '' : s.date));
+      const suitable = matching.find(item => Number(item.capacity || 0) - Number(item.taken || 0) >= people.adults + people.children + people.infants && !/лист ожидания|полон/i.test(String(item.status || '')));
+      const open = suitable || matching.find(item => !/лист ожидания|полон/i.test(String(item.status || '')));
+      if (open) {
+        const remaining = Math.max(0, Number(open.capacity || 0) - Number(open.taken || 0));
+        availability = remaining ? `ближайший выезд ${open.date || ''}${open.time ? ` · ${open.time}` : ''}`.trim() : 'осталось мало мест';
+        available = !s.date || s.dateFlexible || Boolean(suitable);
+        score += suitable ? 5 : 1;
+      } else if (departures.length) {
+        availability = s.date && !s.dateFlexible ? 'на эту дату выезд не найден' : 'сейчас нет свободного выезда';
+        available = false;
+        score -= 4;
       }
-      const base = format === 'group' ? firstMoney(tour.group?.adult || tour.group?.from) : firstMoney(tour.individual?.from);
-      const total = globalThis.MaxTourBookingPricing?.calculateTotal?.(tour, people, format) || 0;
-      const fallback = format === 'group' ? base * (people.adults + people.children) : base;
-      const estimateUsd = total || fallback;
-      return { tour, score, estimateUsd, note: s.children.length && tour.childrenOk ? 'подходит для семьи' : tour.category || 'по каталогу' };
-    }).sort((a,b) => b.score - a.score || Number(b.tour.popular) - Number(a.tour.popular)).slice(0, 3);
+    } else if (formatData?.from) {
+      availability = s.date ? 'дата подтверждается при бронировании' : 'дата выбирается при бронировании';
+    }
+    if (s.hotel && /нужен/.test(lower(s.hotel)) && /отел|размещ|номер|прожив/.test(hay)) score += 2;
+    if (s.transfer === 'нужен' && /трансфер|отел/.test(hay)) score += 2;
+    const budget = budgetNumber(s.budget);
+    if (budget && estimateUsd) score += estimateUsd <= budget ? 3 : -3;
+    const note = s.children.length && tour.childrenOk !== false
+      ? 'подходит для семьи'
+      : availability;
+    return { tour, format, score, estimateUsd, availability, available, note };
+  }
+
+  function matchTours() {
+    const mode = state.slots.tripType === 'group' ? 'group' : state.slots.tripType === 'compare' ? 'compare' : 'individual';
+    if (mode === 'compare') {
+      return tours().map(tour => {
+        const individual = evaluateTour(tour, 'individual');
+        const group = evaluateTour(tour, 'group');
+        return {
+          tour,
+          format: 'compare',
+          score: Math.max(individual.score, group.score) + (individual.available && group.available ? 1 : 0),
+          estimateUsd: individual.estimateUsd,
+          individual,
+          group,
+          note: 'сравнение двух форматов',
+        };
+      }).filter(item => item.individual.estimateUsd || item.group.estimateUsd)
+        .sort((a,b) => b.score - a.score || Number(b.tour.popular) - Number(a.tour.popular)).slice(0, 3);
+    }
+    return tours().map(tour => evaluateTour(tour, mode))
+      .filter(item => item.estimateUsd)
+      .sort((a,b) => b.score - a.score || Number(b.tour.popular) - Number(a.tour.popular)).slice(0, 3);
+  }
+
+  function shouldShowRecommendations() {
+    const s = state.slots;
+    const explicit = /подбер|подобра|покаж|вариант|тур|экскурс|что есть/.test(lower(s.question));
+    return Boolean(s.destination && (explicit || (s.tripType && hasParty() && s.date && s.preferences.length)));
   }
 
   function updateRecommendations() {
-    state.recommendations = matchTours();
+    state.recommendations = shouldShowRecommendations() ? matchTours() : [];
   }
 
   function recommendationReason(item) {
     const s = state.slots;
     const reasons = [];
     if (s.destination) reasons.push(`направление ${s.destination}`);
-    if (s.tripType === 'group' && item.tour.group?.from && item.tour.group.from !== '—') reasons.push('есть групповой выезд');
+    if (item.format === 'compare') reasons.push('сравнила индивидуальный и групповой форматы');
+    if (s.tripType === 'group' && item.availability) reasons.push(item.availability);
     if (s.tripType === 'individual' && item.tour.individual?.from) reasons.push('подходит для индивидуальной поездки');
     if (s.children.length && item.tour.childrenOk) reasons.push('подходит для семьи');
+    if (s.date && item.format !== 'compare') reasons.push(item.availability || 'дата учитывается');
     const preferenceLabels = { море:'море', природа:'природа', 'город и культура':'культура', 'лёгкая программа':'спокойный темп', 'комфорт / премиум':'комфорт' };
     for (const preference of s.preferences) {
       if (preferenceLabels[preference]) reasons.push(preferenceLabels[preference]);
@@ -250,11 +354,27 @@
   function answerQuestion(text) {
     const q = lower(text);
     if (/отмен|перенос|возврат/.test(q)) return 'Отмена бесплатна более чем за 48 часов; до 17:00 накануне удерживается 30%, позже — 100%. Перенос до 17:00 накануне бесплатный.';
-    if (/оплат|депозит|предоплат|30\s*%|сто процент/.test(q)) return 'Можно выбрать депозит или полную оплату — сумма появится при бронировании.';
-    if (/трансфер|аэропорт|встреч/.test(q)) return 'Трансфер можно добавить к бронированию — укажите отель или точку встречи.';
-    if (/ребён|ребен|дет|малыш|коляск/.test(q)) return 'Укажите возраст каждого ребёнка и малышей — я учту это при подборе.';
-    if (/что входит|включен|программ|маршрут/.test(q)) return 'Программа и включённые услуги указаны в карточке каждой экскурсии.';
-    return '';
+    if (/оплат|депозит|предоплат|30\s*%|сто процент|карт|наличн|рубл|доллар/.test(q)) return 'Для поездки можно выбрать депозит 30–100% или полную оплату. Точная сумма появится перед подтверждением бронирования.';
+    if (/трансфер|аэропорт|встреч|заберут|забрать/.test(q)) return 'Трансфер из отеля или к точке встречи можно добавить к поездке. Напишите название отеля — я учту его при подборе.';
+    if (/отел|прожив|номер|где ноч/.test(q)) return 'Если поездка с проживанием, это указано в карточке и входит в параметры выбранной программы. Напишите, нужен ли отель.';
+    if (/ребён|ребен|дет|малыш|коляск|возраст/.test(q)) return 'Дети участвуют по возрастным условиям конкретной экскурсии. Напишите возраст каждого ребёнка и малыша — я учту это в расчёте.';
+    if (/питан|обед|ужин|завтрак|еда|wi[ -]?fi|интернет|связь/.test(q)) return 'Питание и другие включённые услуги зависят от программы. Откройте понравившуюся поездку — в карточке будет полный состав включённых услуг.';
+    if (/что входит|включен|программ|маршрут|посмотрим|увидим|локац/.test(q)) return 'Маршрут, длительность, точки поездки и включённые услуги указаны в карточке каждой экскурсии.';
+    if (/сколько дл|продолж|во сколько|время выезда|рано/.test(q)) return 'Время и длительность зависят от маршрута. Откройте карточку подходящей поездки, чтобы увидеть точное расписание.';
+    if (/гид|язык|русск|экскурсовод/.test(q)) return 'В карточке каждой поездки указано, предусмотрен ли русскоязычный гид и какой формат сопровождения входит в программу.';
+    if (/багаж|вещ|одежд|обув|что взять|подготов/.test(q)) return 'Для поездки обычно нужны удобная обувь, лёгкая одежда, вода и защита от солнца. Точные рекомендации зависят от маршрута.';
+    if (/погода|дожд|сезон|температур|море холод/.test(q)) return 'Погода во Вьетнаме зависит от региона и даты. Напишите город и период поездки — я помогу подобрать подходящий формат.';
+    if (/безопас|страхов|документ|паспорт|виза/.test(q)) return 'Возьмите паспорт и документы, необходимые для вашей поездки. Перед выездом приложение покажет важные детали выбранной программы.';
+    if (/цена|стоим|сколько стоит|бюджет|дорог|дешев|дешёв/.test(q)) return state.recommendations.length
+      ? 'Стоимость уже рассчитана по составу вашей поездки и показана в карточках ниже.'
+      : 'Стоимость зависит от маршрута, формата, даты и состава группы. Укажите эти параметры — я покажу подходящие варианты.';
+    if (/дата|когда|выезд|свобод|места|заброниров/.test(q)) return 'Укажите желаемую дату и количество участников — я покажу доступные варианты и ближайшие выезды.';
+    if (/тур|экскурс|вариант|подбер|покаж/.test(q)) return 'Покажу подходящие поездки ниже. Укажите город, формат, состав группы и желаемую дату.';
+    // These are answers to the guided slots, not knowledge questions.  Let
+    // the flow continue with its next prompt instead of showing a generic
+    // help message after every chip or short typed reply.
+    if (destinationAlias(q) || parseDate(q) || /индив|групп|сравн|взросл|дет|ребён|ребен|малыш|младен|море|пляж|остров|природ|горы|водопад|фото|город|культур|храм|лёгк|легк|премиум|комфорт/.test(q)) return '';
+    return 'Я подскажу по маршрутам, цене, датам, детям, трансферу, оплате и условиям поездки. Напишите вопрос своими словами.';
   }
 
   function summaryRows() {
@@ -275,8 +395,15 @@
   function renderRecommendations() {
     if (!state.recommendations.length) return '';
     return `<div class="ai-chat-results"><div class="ai-msg-author">AI-консультант</div><div class="ai-chat-results-label">Советую эти поездки</div><p class="ai-chat-results-reason">Почему: ${esc(recommendationReason(state.recommendations[0]))}</p><div class="ai-recommendations">${state.recommendations.map(item => {
-      const price = item.estimateUsd ? `примерно $${item.estimateUsd.toLocaleString('ru-RU')} за группу` : 'стоимость уточняется после выбора даты';
-      return `<article class="ai-recommendation"><div><h4>${esc(item.tour.title)}</h4><p>${esc(item.tour.city || '')} · ${esc(item.note)}</p><span class="ai-price">${esc(price)}</span></div><button type="button" class="secondary" data-ai-action="open-tour" data-id="${esc(item.tour.id)}">Открыть</button></article>`;
+      const price = item.format === 'compare'
+        ? `Индивидуально: ${item.individual.estimateUsd ? `$${item.individual.estimateUsd.toLocaleString('ru-RU')}` : 'уточняется'} · групповой выезд: ${item.group.estimateUsd ? `$${item.group.estimateUsd.toLocaleString('ru-RU')}` : 'уточняется'}`
+        : item.estimateUsd
+          ? `ориентировочно $${item.estimateUsd.toLocaleString('ru-RU')} · ${item.format === 'group' ? 'за состав поездки' : 'за поездку'}`
+          : 'стоимость уточняется после выбора даты';
+      const note = item.format === 'compare'
+        ? 'два формата для сравнения'
+        : [item.note, item.availability && item.note !== item.availability ? item.availability : ''].filter(Boolean).join(' · ');
+      return `<article class="ai-recommendation"><div><h4>${esc(item.tour.title)}</h4><p>${esc(item.tour.city || '')} · ${esc(note)}</p><span class="ai-price">${esc(price)}</span></div><button type="button" class="secondary" data-ai-action="open-tour" data-id="${esc(item.tour.id)}" aria-label="Открыть ${esc(item.tour.title)}">Открыть</button></article>`;
     }).join('')}</div></div>`;
   }
 
@@ -284,7 +411,13 @@
     const s = state.slots;
     if (!['contact','done'].includes(stage()) || state.handoff) return '';
     if (!state.showContact) return '<div class="ai-save-selection"><button type="button" class="secondary" data-ai-action="show-contact">Сохранить подбор</button></div>';
-    return `<form class="ai-contact-form" data-ai-form="contact"><h4>Сохранить подбор</h4><p>Укажите один контакт, чтобы сохранить параметры поездки и вернуться к бронированию.</p><div class="ai-contact-grid"><label>Имя<input name="name" value="${esc(s.contact.name)}" placeholder="Как к вам обращаться"></label><label>Телефон<input name="phone" value="${esc(s.contact.phone)}" placeholder="+7 ..."></label><label>Telegram<input name="telegram" value="${esc(s.contact.telegram)}" placeholder="@username"></label><label>Бюджет / комментарий<input name="budget" value="${esc(s.budget)}" placeholder="Например, до $600"></label><label class="wide">Отель и трансфер<input name="hotelTransfer" value="${esc([s.hotel && `отель: ${s.hotel}`, s.transfer && `трансфер: ${s.transfer}`].filter(Boolean).join('; '))}" placeholder="Отель, нужен ли трансфер"></label></div><div class="ai-contact-actions"><button class="primary" type="submit">Сохранить подбор</button><button class="secondary" type="button" data-ai-action="skip-contact">Только открыть варианты</button></div><div class="form-error" role="alert"></div></form>`;
+    return `<form class="ai-contact-form" data-ai-form="contact"><div class="ai-contact-heading"><h4>Сохранить подбор</h4><button class="ai-contact-close" type="button" data-ai-action="hide-contact" aria-label="Свернуть форму">Свернуть</button></div><p>Укажите один контакт, чтобы сохранить параметры поездки и вернуться к бронированию.</p><div class="ai-contact-grid"><label>Имя<input name="name" value="${esc(s.contact.name)}" placeholder="Как к вам обращаться"></label><label>Телефон<input name="phone" value="${esc(s.contact.phone)}" placeholder="+7 ..."></label><label>Telegram<input name="telegram" value="${esc(s.contact.telegram)}" placeholder="@username"></label><label>Бюджет / комментарий<input name="budget" value="${esc(s.budget)}" placeholder="Например, до $600"></label><label class="wide">Отель и трансфер<input name="hotelTransfer" value="${esc([s.hotel && `отель: ${s.hotel}`, s.transfer && `трансфер: ${s.transfer}`].filter(Boolean).join('; '))}" placeholder="Отель, нужен ли трансфер"></label></div><div class="ai-contact-actions"><button class="primary" type="submit">Сохранить подбор</button><button class="secondary" type="button" data-ai-action="skip-contact">Только открыть варианты</button></div><div class="form-error" role="alert"></div></form>`;
+  }
+
+  function renderHandoff() {
+    if (!state.handoff || state.handoffHidden) return '';
+    const id = state.handoff.id || '—';
+    return `<div class="ai-handoff" role="status"><div><b>Подбор сохранён</b><span>Номер подбора: ${esc(id)}</span></div><button type="button" class="secondary" data-ai-action="hide-handoff">Скрыть</button></div>`;
   }
 
   function renderQuickReplies(quick) {
@@ -292,7 +425,13 @@
     return `<div class="ai-quick-replies" aria-label="Варианты ответа">${quick.map(item => `<button type="button" data-ai-action="quick" data-value="${esc(item[1])}">${esc(item[0])}</button>`).join('')}</div>`;
   }
 
-  function render(root) {
+  function render(root, options = {}) {
+    const content = root.closest('.content');
+    const previousContentScroll = content ? content.scrollTop : 0;
+    const active = document.activeElement;
+    const hadComposerFocus = Boolean(active && active.matches && active.matches('#aiScreen textarea[name="message"]'));
+    const selectionStart = hadComposerFocus && Number.isInteger(active.selectionStart) ? active.selectionStart : 0;
+    const selectionEnd = hadComposerFocus && Number.isInteger(active.selectionEnd) ? active.selectionEnd : selectionStart;
     const current = stage();
     const quick = quickReplies(current);
     const messageMarkup = state.messages.map(message => {
@@ -300,15 +439,31 @@
       const author = role === 'user' ? 'Вы' : 'AI-консультант';
       return `<div class="ai-msg ${role}"><span class="ai-msg-author">${author}</span><span class="ai-msg-text">${esc(message.text)}</span></div>`;
     }).join('');
-    root.innerHTML = `<div class="section-title ai-section-head"><div><h2>AI-консультант</h2><p class="ai-chat-subtitle">Я AI-консультант, задайте мне любые вопросы, я подскажу вам с поездкой и помогу разобраться во всем.</p></div><button class="secondary ai-clear" type="button" data-ai-action="clear">Очистить</button></div><section class="ai-consultant-shell"><div class="ai-consultant-main ai-chat-panel"><div class="ai-messages" role="log" aria-label="Диалог с AI-консультантом" aria-live="polite">${messageMarkup}</div><form class="ai-consultant-input" data-ai-form="chat"><textarea name="message" rows="1" placeholder="Напишите сообщение..." aria-label="Сообщение AI-консультанту"></textarea><button class="primary" type="submit" aria-label="Отправить">→</button></form></div><div class="ai-chat-below">${renderQuickReplies(quick)}${renderRecommendations()}${renderContactForm()}</div></section>`;
+    root.innerHTML = `<div class="section-title ai-section-head"><div><h2>AI-консультант</h2><p class="ai-chat-subtitle">Я AI-консультант, задайте мне любые вопросы, я подскажу вам с поездкой и помогу разобраться во всем.</p></div><button class="secondary ai-clear" type="button" data-ai-action="clear">Очистить</button></div><section class="ai-consultant-shell"><div class="ai-consultant-main ai-chat-panel"><div class="ai-messages" role="log" aria-label="Диалог с AI-консультантом" aria-live="polite">${messageMarkup}</div><form class="ai-consultant-input" data-ai-form="chat"><textarea name="message" rows="1" placeholder="Напишите сообщение..." aria-label="Сообщение AI-консультанту"></textarea><button class="primary" type="submit" aria-label="Отправить">→</button></form></div><div class="ai-chat-below">${renderQuickReplies(quick)}${renderRecommendations()}${renderContactForm()}${renderHandoff()}</div></section>`;
     const messages = root.querySelector('.ai-messages');
     if (messages) messages.scrollTop = messages.scrollHeight;
+    if (content) content.scrollTop = Math.min(previousContentScroll, Math.max(0, content.scrollHeight - content.clientHeight));
+    if (options.focusComposer || hadComposerFocus) {
+      const textarea = root.querySelector('textarea[name="message"]');
+      if (textarea) {
+        try { textarea.focus({ preventScroll:true }); } catch (_) { textarea.focus(); }
+        try { textarea.setSelectionRange(selectionStart, selectionEnd); } catch (_) {}
+      }
+    }
+    if (options.focusContact) {
+      const contactInput = root.querySelector('.ai-contact-form input[name="name"]');
+      if (contactInput) {
+        try { contactInput.focus({ preventScroll:false }); } catch (_) { contactInput.focus(); }
+        try { contactInput.scrollIntoView({ block:'center', behavior:'smooth' }); } catch (_) {}
+      }
+    }
     persist();
   }
 
   function handleChat(form, root) {
     const text = String(new FormData(form).get('message') || '').trim();
     if (!text) return;
+    state.showContact = false;
     addMessage('user', text);
     parseMessage(text);
     updateRecommendations();
@@ -317,8 +472,11 @@
     const next = current === 'contact'
       ? (state.recommendations.length ? 'Подходящие варианты уже ниже — выберите понравившийся.' : 'Уточните ещё один момент, и я покажу варианты.')
       : promptFor(current);
-    addMessage('bot', answer ? `${answer}${current === 'contact' || current === 'done' ? '' : ` ${next}`}` : next);
-    render(root);
+    // An informational answer must not be followed by an unrelated question
+    // such as «Куда хотите поехать?». Continue the guided flow only when the
+    // user did not ask a knowledge question.
+    addMessage('bot', answer || next);
+    render(root, { focusComposer:true });
   }
 
   async function handleContact(form, root) {
@@ -335,7 +493,19 @@
       return;
     }
     const summary = summaryRows().map(row => `${row[0]}: ${row[1]}`).join('\n');
-    const payload = { ...state.slots, recommendations:state.recommendations.map(item => ({ tourId:item.tour.id, title:item.tour.title, estimateUsd:item.estimateUsd })) };
+    const payload = {
+      ...state.slots,
+      recommendations:state.recommendations.map(item => ({
+        tourId:item.tour.id,
+        title:item.tour.title,
+        format:item.format,
+        estimateUsd:item.estimateUsd,
+        individualUsd:item.individual?.estimateUsd || 0,
+        groupUsd:item.group?.estimateUsd || 0,
+        availability:item.availability || item.group?.availability || '',
+      })),
+      conversation:state.messages.slice(-MAX_MESSAGES),
+    };
     const button = form.querySelector('button[type="submit"]');
     button.disabled = true;
     try {
@@ -343,6 +513,7 @@
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.ok) throw new Error(result.error || 'consultation_failed');
       state.handoff = result.consultation || { id:'—' };
+      state.handoffHidden = false;
       addMessage('bot', 'Готово — параметры поездки сохранены вместе с составом группы, пожеланиями и предварительным подбором. Откройте подходящий вариант и переходите к бронированию.');
       render(root);
     } catch (error) {
@@ -367,12 +538,21 @@
       try { if (typeof openTour === 'function') openTour(id); } catch (_) {}
     }
     if (action === 'skip-contact') {
+      state.showContact = false;
       addMessage('user', 'Пока только посмотрю варианты');
       addMessage('bot', 'Конечно. Выберите экскурсию ниже и переходите к бронированию.');
       render(root);
     }
     if (action === 'show-contact') {
       state.showContact = true;
+      render(root, { focusContact:true });
+    }
+    if (action === 'hide-contact') {
+      state.showContact = false;
+      render(root);
+    }
+    if (action === 'hide-handoff') {
+      state.handoffHidden = true;
       render(root);
     }
     if (action === 'reset') {
@@ -390,6 +570,19 @@
     if (!root) return;
     render(root);
     root.onclick = event => handle(root, event);
+    root.oninput = event => {
+      const textarea = event.target.closest('textarea[name="message"]');
+      if (!textarea) return;
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.min(120, Math.max(45, textarea.scrollHeight))}px`;
+    };
+    root.onkeydown = event => {
+      const textarea = event.target.closest('textarea[name="message"]');
+      if (!textarea || event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+      event.preventDefault();
+      const form = textarea.closest('[data-ai-form="chat"]');
+      if (form) handleChat(form, root);
+    };
     root.onsubmit = event => {
       const form = event.target.closest('[data-ai-form]');
       if (!form) return;
@@ -399,5 +592,5 @@
     };
   }
 
-  globalThis.MaxTourAI = { mount };
+  globalThis.MaxTourAI = { mount, _test: { parseBudget, departureMatchesDate } };
 })();

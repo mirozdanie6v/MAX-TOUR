@@ -20,6 +20,7 @@ const catalog = JSON.parse((await restore(manifest.catalog)).toString('utf8'));
 const runtime = await readFile(resolve(root,'src/runtime-api.js'),'utf8');
 const ai = await readFile(resolve(root,'src/ai-consultant.js'),'utf8');
 const aiCss = await readFile(resolve(root,'src/ai-consultant.css'),'utf8');
+await import('../src/ai-consultant.js?source-test');
 const adminHtml = await readFile(resolve(root,'src/admin-v3.html'),'utf8');
 const adminApp = await readFile(resolve(root,'src/admin-app.js'),'utf8');
 const directorHtml = await readFile(resolve(root,'src/director-v3.html'),'utf8');
@@ -72,11 +73,21 @@ test('AI consultant is a simple customer-facing chat with optional saved selecti
   assert.doesNotMatch(ai, /ai-progress|ai-consultant-brief|ai-consultant-intro|Персональный подбор|заполнено/);
   assert.doesNotMatch(ai, /менеджер|передать/iu);
   assert.match(ai, /answerQuestion/);
-  assert.match(aiCss, /\.ai-messages\{[\s\S]*overflow-y:auto/);
+  assert.match(aiCss, /\.ai-messages\{[\s\S]*overflow:visible/);
+  assert.doesNotMatch(aiCss, /overscroll-behavior-y:contain/);
   assert.match(aiCss, /\.ai-consultant-input\{[\s\S]*position:sticky/);
   assert.match(aiCss, /bottom:calc\(var\(--nav,76px\)/);
   assert.match(aiCss, /overflow:visible/);
-  assert.match(aiCss, /max-height:min\(56vh,520px,calc\(100dvh - 350px\)\)/);
+  assert.match(aiCss, /min-height:44px/);
+  assert.match(ai, /event\.key !== 'Enter'/);
+  assert.match(ai, /data-ai-action="hide-contact"/);
+  assert.match(ai, /conversation:state\.messages/);
+});
+
+test('AI consultant parser does not turn child age into a budget', () => {
+  assert.equal(globalThis.MaxTourAI._test.parseBudget('ребёнок до 3 лет'), '');
+  assert.equal(globalThis.MaxTourAI._test.parseBudget('бюджет до $600'), '600');
+  assert.equal(globalThis.MaxTourAI._test.parseBudget('примерно 600 долларов'), '600');
 });
 
 test('customer interactions preserve mobile input and allow removing a companion', async () => {

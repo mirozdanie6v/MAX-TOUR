@@ -62,8 +62,17 @@ function normalizeConsultationPayload(body = {}) {
     .slice(0, 5).map(item => ({
       tourId: consultationText(item?.tourId || item?.id, 160),
       title: consultationText(item?.title, 250),
+      format: consultationText(item?.format, 40),
       estimateUsd: Math.max(0, Math.round(Number(item?.estimateUsd || item?.price || 0) || 0)),
+      individualUsd: Math.max(0, Math.round(Number(item?.individualUsd) || 0)),
+      groupUsd: Math.max(0, Math.round(Number(item?.groupUsd) || 0)),
+      availability: consultationText(item?.availability, 160),
     })).filter(item => item.tourId || item.title);
+  const conversation = (Array.isArray(source.conversation) ? source.conversation : [])
+    .slice(-120).map(item => ({
+      role: item?.role === 'user' ? 'user' : 'bot',
+      text: consultationText(item?.text, 1600),
+    })).filter(item => item.text);
   const contact = source.contact && typeof source.contact === 'object' ? source.contact : {};
   return {
     tripType: consultationText(source.tripType || source.format, 60),
@@ -79,6 +88,7 @@ function normalizeConsultationPayload(body = {}) {
     preferences,
     question: consultationText(source.question || source.notes, 1200),
     recommendations,
+    conversation,
     contact: {
       name: consultationText(contact.name || source.contactName, 160),
       phone: consultationText(contact.phone || source.phone, 80),
