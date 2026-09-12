@@ -188,6 +188,15 @@
     };
     fixed.__maxTourSearchFix = true;
     globalThis.searchValue = fixed;
+    // The v28 renderer creates the search input again after every keystroke.
+    // Capture the event before the old inline handler runs, then re-focus the
+    // newly rendered input inside `fixed` so mobile keyboards keep typing.
+    document.addEventListener('input', event => {
+      const input = event.target;
+      if (!input?.matches?.('#catalogScreen .catalog-search-v26 input')) return;
+      event.stopImmediatePropagation();
+      fixed(input.value);
+    }, true);
   }
 
   function wireTripControls() {
