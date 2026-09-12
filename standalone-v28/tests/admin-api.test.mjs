@@ -89,7 +89,7 @@ test('demo CRM flow shares orders, departures and events across cabinets', () =>
   assert.match(app, /Создать групповой выезд/);
 });
 
-test('AI consultant stores a structured manager brief and exposes a CRM queue', () => {
+test('AI consultant stores a structured manager request and exposes it to the team', () => {
   assert.match(aiMigration, /CREATE TABLE IF NOT EXISTS ai_consultations/);
   for (const field of ['session_id', 'status', 'intent', 'summary', 'payload_json']) assert.match(aiMigration, new RegExp(field));
   assert.match(worker, /url\.pathname === '\/api\/consultations' && request\.method === 'POST'/);
@@ -97,7 +97,7 @@ test('AI consultant stores a structured manager brief and exposes a CRM queue', 
   assert.match(worker, /consultation_created/);
   assert.match(api, /ai_consultations/);
   assert.match(api, /consultation\.write/);
-  assert.match(app, /AI-лиды для менеджера/);
+  assert.match(app, /Запросы для менеджера/);
   assert.match(app, /open-consultation/);
   const payload = workerTest.normalizeConsultationPayload({ payload: { adults: 2, children: [7, 10], infants: 1, contact: { telegram: '@family_demo' }, preferences: ['море', 'море'] } });
   assert.equal(payload.adults, 2);
