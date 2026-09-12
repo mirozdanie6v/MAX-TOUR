@@ -19,6 +19,10 @@ const html = (await restore(manifest.html)).toString('utf8');
 const catalog = JSON.parse((await restore(manifest.catalog)).toString('utf8'));
 const runtime = await readFile(resolve(root,'src/runtime-api.js'),'utf8');
 const ai = await readFile(resolve(root,'src/ai-consultant.js'),'utf8');
+const adminHtml = await readFile(resolve(root,'src/admin-v3.html'),'utf8');
+const adminApp = await readFile(resolve(root,'src/admin-app.js'),'utf8');
+const directorHtml = await readFile(resolve(root,'src/director-v3.html'),'utf8');
+const buildScript = await readFile(resolve(root,'build.mjs'),'utf8');
 
 test('exact supplied v28 sources restore by checksum', () => {
   assert.equal(manifest.html.sha256,'be7cceb157e1169f869ad11ead32bdc012f076d7aeddf5a36adf10fe25ca9472');
@@ -56,4 +60,13 @@ test('AI consultant keeps the original v28 renderer and adds a structured handof
   assert.match(ai, /\/api\/consultations/);
   assert.match(ai, /Передать менеджеру/);
   assert.match(ai, /answerQuestion/);
+});
+
+test('customer-facing copy hides implementation details', () => {
+  assert.doesNotMatch(ai, /рабочей CRM|в рабочей версии CRM|CRM|D1|AI\s*[·•]\s*demo|бриф/iu);
+  assert.doesNotMatch(runtime, /CRM|D1|demo-(?:интерфейс|рассылка)|платёжной интеграции/iu);
+  assert.doesNotMatch(adminHtml, /CRM-профили|back-office|Создать заказ в D1/iu);
+  assert.doesNotMatch(adminApp, /CRM\s*[·:]|по данным D1|из D1|сохраняются в (?:CRM|D1)|master-source|AI-лид|AI-заяв/iu);
+  assert.doesNotMatch(directorHtml, /<span>CRM<\/span>|demo CRM|demo D1|Фактический слой CRM|Пришли в CRM|AI-copilot|data-toast="Демо:/iu);
+  assert.match(buildScript, /cleanCustomerCopy/);
 });
