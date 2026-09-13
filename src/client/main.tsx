@@ -5,9 +5,14 @@ import { PremiumApp } from './PremiumApp';
 import './styles/premium.css';
 import './styles/commerce-v6.css';
 import './styles/v6.css';
+import './styles/production-polish.css';
 
 declare global {
   interface Window { Telegram?: { WebApp?: { ready?:()=>void; expand?:()=>void; BackButton?:any; MainButton?:any } } }
+}
+
+if (window.location.hostname === 'max-tour.viiversion.com') {
+  document.documentElement.classList.add('is-max-tour-production');
 }
 
 try {
