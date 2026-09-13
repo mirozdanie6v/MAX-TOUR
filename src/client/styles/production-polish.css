@@ -2,16 +2,29 @@
 html.is-max-tour-production *,
 html.is-max-tour-production *::before,
 html.is-max-tour-production *::after {
-  word-break: normal !important;
+  word-break: keep-all !important;
   overflow-wrap: normal !important;
   hyphens: none !important;
   -webkit-hyphens: none !important;
 }
 
-html.is-max-tour-production button,
-html.is-max-tour-production [role='button'],
-html.is-max-tour-production a.px-button {
+/* The hero already contains deliberate <br> line breaks. Keep those lines intact. */
+html.is-max-tour-production .px-hero-copy h1 {
+  white-space: nowrap;
+}
+
+/* Short action labels stay on one line and are optically centered. */
+html.is-max-tour-production .px-button,
+html.is-max-tour-production a.px-button,
+html.is-max-tour-production .px-text-button,
+html.is-max-tour-production .px-link,
+html.is-max-tour-production .px-channel-link,
+html.is-max-tour-production .px-office-tabs button,
+html.is-max-tour-production .px-filter-row button,
+html.is-max-tour-production .px-admin-group-actions button {
   text-align: center;
+  white-space: nowrap;
+  line-height: 1.2;
 }
 
 html.is-max-tour-production .px-button,
@@ -20,11 +33,21 @@ html.is-max-tour-production a.px-button {
   align-items: center;
   justify-content: center;
   vertical-align: middle;
-  line-height: 1.2;
 }
 
 html.is-max-tour-production .px-block.px-button {
   display: flex;
+}
+
+/* Bottom navigation labels and compact badges must never split. */
+html.is-max-tour-production .px-bottom-nav small,
+html.is-max-tour-production .px-status,
+html.is-max-tour-production .px-demo-pill,
+html.is-max-tour-production .px-source-badge,
+html.is-max-tour-production .px-count-pill,
+html.is-max-tour-production .px-promo,
+html.is-max-tour-production .px-floating-label {
+  white-space: nowrap;
 }
 
 html.is-max-tour-production .px-status,
@@ -36,4 +59,48 @@ html.is-max-tour-production .px-floating-label {
   text-align: center;
   align-items: center;
   justify-content: center;
+}
+
+/* Make every destination tile use the same internal alignment. */
+html.is-max-tour-production .px-destination-strip button {
+  grid-template-columns: minmax(0, 1fr) 24px;
+  grid-template-rows: auto 1fr;
+  grid-template-areas: "n e" "b e";
+  align-items: stretch;
+}
+
+html.is-max-tour-production .px-destination-strip span {
+  align-self: start;
+  justify-self: start;
+  line-height: 1;
+}
+
+html.is-max-tour-production .px-destination-strip b {
+  align-self: end;
+  justify-self: start;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+html.is-max-tour-production .px-destination-strip em {
+  align-self: center;
+  justify-self: end;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* Explicitly neutralize legacy metric breaking. */
+html.is-max-tour-production .px-metric b {
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+}
+
+@media (max-width: 380px) {
+  html.is-max-tour-production .px-hero-copy h1 {
+    font-size: clamp(38px, 11.5vw, 44px);
+  }
 }
