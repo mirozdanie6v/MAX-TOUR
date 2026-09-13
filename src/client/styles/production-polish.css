@@ -1,0 +1,39 @@
+/* Production-only typography and control alignment for max-tour.viiversion.com */
+html.is-max-tour-production *,
+html.is-max-tour-production *::before,
+html.is-max-tour-production *::after {
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+  -webkit-hyphens: none !important;
+}
+
+html.is-max-tour-production button,
+html.is-max-tour-production [role='button'],
+html.is-max-tour-production a.px-button {
+  text-align: center;
+}
+
+html.is-max-tour-production .px-button,
+html.is-max-tour-production a.px-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  line-height: 1.2;
+}
+
+html.is-max-tour-production .px-block.px-button {
+  display: flex;
+}
+
+html.is-max-tour-production .px-status,
+html.is-max-tour-production .px-demo-pill,
+html.is-max-tour-production .px-source-badge,
+html.is-max-tour-production .px-count-pill,
+html.is-max-tour-production .px-promo,
+html.is-max-tour-production .px-floating-label {
+  text-align: center;
+  align-items: center;
+  justify-content: center;
+}
