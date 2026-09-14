@@ -1,116 +1,126 @@
 {
   "dalat-premium": {
-    "image": "https://static.tildacdn.one/tild3530-6538-4062-a463-636333316561/15.png",
+    "image": "/tour-media/dalat-premium/01.png",
     "gallery": [
-      "https://static.tildacdn.one/tild3530-6538-4062-a463-636333316561/15.png",
-      "https://static.tildacdn.one/tild3764-3763-4666-b635-666438613564/12.png",
-      "https://static.tildacdn.one/tild6138-6435-4466-a334-616330616533/62BC2C96-31C7-43A0-B.JPG",
-      "https://static.tildacdn.one/tild3461-3534-4565-a430-616164343634/5.png"
+      "/tour-media/dalat-premium/01.png",
+      "/tour-media/dalat-premium/02.png",
+      "/tour-media/dalat-premium/03.jpg",
+      "/tour-media/dalat-premium/04.png"
     ]
   },
   "dalat-vip": {
-    "image": "https://static.tildacdn.one/tild3764-3763-4666-b635-666438613564/12.png",
+    "image": "/tour-media/dalat-vip/01.png",
     "gallery": [
-      "https://thb.tildacdn.one/tild6265-6163-4264-b563-336132613733/-/empty/___1.png",
-      "https://thb.tildacdn.one/tild6161-3164-4332-a135-373232326232/-/empty/___2.png",
-      "https://thb.tildacdn.one/tild6236-3034-4637-b234-386433316139/-/empty/___3.png",
-      "https://static.tildacdn.one/tild3764-3763-4666-b635-666438613564/12.png"
+      "/tour-media/dalat-vip/01.png",
+      "/tour-media/dalat-vip/02.png",
+      "/tour-media/dalat-vip/03.png",
+      "/tour-media/dalat-vip/04.png"
     ]
   },
   "fuyen": {
-    "image": "https://static.tildacdn.one/tild3931-3439-4539-b865-623431343161/Phu-yen_3.png",
+    "image": "/tour-media/fuyen/01.png",
     "gallery": [
-      "https://static.tildacdn.one/tild3931-3439-4539-b865-623431343161/Phu-yen_3.png",
-      "https://static.tildacdn.one/tild3162-3362-4165-b930-376364343064/Phu-yen_8.png",
-      "https://static.tildacdn.one/tild3330-6561-4935-a334-326333323030/Phu-yen_4.png"
+      "/tour-media/fuyen/01.png",
+      "/tour-media/fuyen/02.png",
+      "/tour-media/fuyen/03.png"
     ]
   },
   "nhatrang-day": {
-    "image": "https://thb.tildacdn.one/tild3461-6366-4361-a533-656563313265/-/empty/nha-trang-city-tour-.png",
+    "image": "/tour-media/nhatrang-day/01.png",
     "gallery": [
-      "https://thb.tildacdn.one/tild3461-6366-4361-a533-656563313265/-/empty/nha-trang-city-tour-.png",
-      "https://thb.tildacdn.one/tild3938-6261-4236-b233-303065313135/-/empty/nha-trang-city-tour-.png",
-      "https://thb.tildacdn.one/tild6635-6665-4339-b537-333065303438/-/empty/nha-trang-city-tour-.png"
+      "/tour-media/nhatrang-day/01.png",
+      "/tour-media/nhatrang-day/02.png",
+      "/tour-media/nhatrang-day/03.png"
     ]
   },
   "nhatrang-night": {
-    "image": "https://thb.tildacdn.one/tild3561-3935-4830-b462-323432643731/-/empty/nha-trang-city-tour-.png",
+    "image": "/tour-media/nhatrang-night/01.png",
     "gallery": [
-      "https://thb.tildacdn.one/tild3561-3935-4830-b462-323432643731/-/empty/nha-trang-city-tour-.png",
-      "https://thb.tildacdn.one/tild6638-6230-4633-b838-366163306231/-/empty/nha-trang-city-tour-.png",
-      "https://thb.tildacdn.one/tild3534-3961-4535-b366-636163373139/-/empty/nha-trang-city-tour-.png"
+      "/tour-media/nhatrang-night/01.png",
+      "/tour-media/nhatrang-night/02.png",
+      "/tour-media/nhatrang-night/03.png"
     ]
   },
   "dalat-2days": {
-    "image": "https://thb.tildacdn.net/tild6233-3661-4238-b262-626138326536/-/empty/IMG_4734_Original.JPG",
+    "image": "/tour-media/dalat-2days/01.jpg",
     "gallery": [
-      "https://thb.tildacdn.net/tild6233-3661-4238-b262-626138326536/-/empty/IMG_4734_Original.JPG",
-      "https://thb.tildacdn.net/tild6261-3366-4534-b938-613934343338/-/empty/IMG_0906.JPG",
-      "https://thb.tildacdn.net/tild3134-3539-4433-a539-346436346366/-/empty/IMG_1486.JPG",
-      "https://thb.tildacdn.net/tild3634-3234-4161-b832-313864313865/-/empty/IMG_1504.JPG"
+      "/tour-media/dalat-2days/01.jpg",
+      "/tour-media/dalat-2days/02.jpg",
+      "/tour-media/dalat-2days/03.jpg",
+      "/tour-media/dalat-2days/04.jpg"
     ]
   },
   "fast-track": {
-    "image": "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1200&q=85",
+    "image": "/tour-media/fast-track/01.jpg",
     "gallery": [
-      "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1200&q=85"
+      "/tour-media/fast-track/01.jpg",
+      "/tour-media/fast-track/02.jpg",
+      "/tour-media/fast-track/03.jpg"
     ]
   },
   "danang-ba-na-hoian": {
-    "image": "https://thb.tildacdn.one/tild3163-3961-4362-b065-623331613939/-/empty/danang-.png",
+    "image": "/tour-media/danang-ba-na-hoian/01.png",
     "gallery": [
-      "https://thb.tildacdn.one/tild3163-3961-4362-b065-623331613939/-/empty/danang-.png",
-      "https://thb.tildacdn.one/tild6135-3165-4230-a634-323465343135/-/empty/hoian-tour-.png",
-      "https://thb.tildacdn.one/tild6138-6161-4535-b832-663330323330/-/empty/hoian-tour-2.png",
-      "https://thb.tildacdn.one/tild3238-3038-4438-b731-336162613236/-/empty/hoian-tour-7.png"
+      "/tour-media/danang-ba-na-hoian/01.png",
+      "/tour-media/danang-ba-na-hoian/02.png",
+      "/tour-media/danang-ba-na-hoian/03.png",
+      "/tour-media/danang-ba-na-hoian/04.png"
     ]
   },
   "danang-city-sontra": {
-    "image": "https://thb.tildacdn.one/tild3537-3939-4333-a136-373230316534/-/empty/danang-12.png",
+    "image": "/tour-media/danang-city-sontra/01.png",
     "gallery": [
-      "https://thb.tildacdn.one/tild3537-3939-4333-a136-373230316534/-/empty/danang-12.png",
-      "https://thb.tildacdn.one/tild3163-3961-4362-b065-623331613939/-/empty/danang-.png"
+      "/tour-media/danang-city-sontra/01.png",
+      "/tour-media/danang-city-sontra/02.png",
+      "/tour-media/danang-city-sontra/03.jpg"
     ]
   },
   "phuquoc-4-islands": {
-    "image": "https://q-xx.bstatic.com/xdata/images/xphoto/max1200/233950410.jpg?k=2ebf7ee7fac92ce4c99d642b62e62fc749c15dba0688d65e05ae60ebd03c5ee7&o=",
+    "image": "/tour-media/phuquoc-4-islands/01.jpg",
     "gallery": [
-      "https://q-xx.bstatic.com/xdata/images/xphoto/max1200/233950410.jpg?k=2ebf7ee7fac92ce4c99d642b62e62fc749c15dba0688d65e05ae60ebd03c5ee7&o=",
-      "https://vietwave.com.vn/hoanmytravel/upload/files/cau_ca_lan_ngam_san_ho_phu_quoc_1.jpg"
+      "/tour-media/phuquoc-4-islands/01.jpg",
+      "/tour-media/phuquoc-4-islands/02.jpg",
+      "/tour-media/phuquoc-4-islands/03.jpg"
     ]
   },
   "phuquoc-vinwonders-safari": {
-    "image": "https://statics.vinpearl.com/Vinpearl%20Safari%201_1740814480.jpg",
+    "image": "/tour-media/phuquoc-vinwonders-safari/01.jpg",
     "gallery": [
-      "https://statics.vinpearl.com/Vinpearl%20Safari%201_1740814480.jpg"
+      "/tour-media/phuquoc-vinwonders-safari/01.jpg",
+      "/tour-media/phuquoc-vinwonders-safari/02.jpg",
+      "/tour-media/phuquoc-vinwonders-safari/03.jpg"
     ]
   },
   "hanoi-halong-2d": {
-    "image": "https://static.tildacdn.one/tild6133-6233-4436-b339-353433393564/Diamond_Era_Cruise.png",
+    "image": "/tour-media/hanoi-halong-2d/01.png",
     "gallery": [
-      "https://static.tildacdn.one/tild6133-6233-4436-b339-353433393564/Diamond_Era_Cruise.png",
-      "https://thb.tildacdn.one/tild6234-3331-4939-a466-663562363262/-/empty/diamond-era-cruise-e.jpg",
-      "https://thb.tildacdn.one/tild3734-6639-4230-a162-663266303063/-/empty/diamond-era-cruise-2.jpg"
+      "/tour-media/hanoi-halong-2d/01.png",
+      "/tour-media/hanoi-halong-2d/02.jpg",
+      "/tour-media/hanoi-halong-2d/03.jpg"
     ]
   },
   "hanoi-sapa-3d": {
-    "image": "https://static.tildacdn.one/tild6339-3238-4939-b762-666433376534/hanoi-sapa-3-dnya-2-.png",
+    "image": "/tour-media/hanoi-sapa-3d/01.png",
     "gallery": [
-      "https://static.tildacdn.one/tild6339-3238-4939-b762-666433376534/hanoi-sapa-3-dnya-2-.png",
-      "https://static.tildacdn.one/tild6234-3430-4636-a132-613533633436/hanoi-sapa-3-dnya-2-.JPG",
-      "https://static.tildacdn.one/tild3031-3538-4165-a163-303666323235/hanoi-sapa-3-dnya-2-.JPG"
+      "/tour-media/hanoi-sapa-3d/01.png",
+      "/tour-media/hanoi-sapa-3d/02.jpg",
+      "/tour-media/hanoi-sapa-3d/03.jpg"
     ]
   },
   "hanoi-ninhbinh": {
-    "image": "https://thb.tildacdn.one/tild3337-6538-4035-a135-336439653834/-/empty/Ninh_Binh3.png",
+    "image": "/tour-media/hanoi-ninhbinh/01.png",
     "gallery": [
-      "https://thb.tildacdn.one/tild3337-6538-4035-a135-336439653834/-/empty/Ninh_Binh3.png"
+      "/tour-media/hanoi-ninhbinh/01.png",
+      "/tour-media/hanoi-ninhbinh/02.jpg",
+      "/tour-media/hanoi-ninhbinh/03.png"
     ]
   },
   "muine-dunes-jeep": {
-    "image": "https://www.pelago.com/img/products/VN-Vietnam/mui-ne-sunset-sand-dunes-half-day-tour-depart-from-mui-ne/c8b58ac3-f0b7-4084-95ec-b7c03a45cd2d_mui-ne-sunset-sand-dunes-half-day-tour-depart-from-mui-ne.jpg",
+    "image": "/tour-media/muine-dunes-jeep/01.jpg",
     "gallery": [
-      "https://www.pelago.com/img/products/VN-Vietnam/mui-ne-sunset-sand-dunes-half-day-tour-depart-from-mui-ne/c8b58ac3-f0b7-4084-95ec-b7c03a45cd2d_mui-ne-sunset-sand-dunes-half-day-tour-depart-from-mui-ne.jpg"
+      "/tour-media/muine-dunes-jeep/01.jpg",
+      "/tour-media/muine-dunes-jeep/02.jpg",
+      "/tour-media/muine-dunes-jeep/03.png"
     ]
   }
 }
