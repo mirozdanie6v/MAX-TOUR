@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const TARGET = 'Показать';
+  const TARGETS = new Set(['Показать', 'Сбросить']);
   const MARK = 'catalog-show-press';
   const PRESSED = 'catalog-show-pressed';
   const pressedAt = new WeakMap();
@@ -12,7 +12,7 @@
     .trim();
 
   function isTarget(button) {
-    return button instanceof HTMLButtonElement && normalize(button.textContent) === TARGET;
+    return button instanceof HTMLButtonElement && TARGETS.has(normalize(button.textContent));
   }
 
   function mark(root = document) {
