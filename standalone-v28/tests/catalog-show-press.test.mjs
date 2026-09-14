@@ -10,9 +10,11 @@ const [script, css, build] = await Promise.all([
   readFile(resolve(root, 'build.mjs'), 'utf8'),
 ]);
 
-test('catalog Show press script parses and targets only exact Show label', () => {
+test('catalog filter press script parses and targets exact Show and Reset labels', () => {
   assert.doesNotThrow(() => new Function(script));
-  assert.match(script, /const TARGET = 'Показать'/);
+  assert.match(script, /'Показать'/);
+  assert.match(script, /'Сбросить'/);
+  assert.match(script, /new Set/);
   assert.match(script, /HTMLButtonElement/);
   assert.match(script, /pointerdown/);
   assert.match(script, /pointerup/);
@@ -21,7 +23,7 @@ test('catalog Show press script parses and targets only exact Show label', () =>
   assert.doesNotMatch(script, /stopPropagation\s*\(/);
 });
 
-test('catalog Show press CSS provides visible tactile feedback', () => {
+test('catalog filter press CSS provides visible tactile feedback', () => {
   assert.match(css, /\.catalog-show-press:active/);
   assert.match(css, /translate:\s*0 3px/);
   assert.match(css, /scale:\s*0\.965/);
@@ -29,7 +31,7 @@ test('catalog Show press CSS provides visible tactile feedback', () => {
   assert.match(css, /prefers-reduced-motion/);
 });
 
-test('build publishes catalog Show press assets', () => {
+test('build publishes catalog filter press assets', () => {
   assert.match(build, /catalog-show-press\.css/);
   assert.match(build, /catalog-show-press\.js/);
   assert.match(build, /copyFile\(resolve\(root, 'src\/catalog-show-press\.css'\)/);
