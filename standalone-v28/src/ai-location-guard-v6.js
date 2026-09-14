@@ -2,6 +2,7 @@
   'use strict';
 
   const KEY = 'max-tour-ai-location-v6';
+  const CARD_SELECTOR = '.ai-catalog-card-v7[data-tour-id],.ai-sales-card[data-tour-id]';
   const PLACES = [
     ['Нячанг', /нячанг|на-?чанг|nha\s*trang/i],
     ['Ханой', /ханой|ханое|hanoi/i],
@@ -26,9 +27,11 @@
     'Халонг': new Set(['Халонг','Ханой']),
     'Ниньбинь': new Set(['Ниньбинь','Ханой']),
   };
+
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const lower = value => String(value || '').toLocaleLowerCase('ru-RU').replace(/ё/g,'е');
   const placeFrom = value => PLACES.find(([,pattern]) => pattern.test(String(value || '')))?.[0] || '';
+  const placesFrom = value => PLACES.filter(([,pattern]) => pattern.test(String(value || ''))).map(([name]) => name);
   const allowed = (origin,destination) => !origin || !destination ? true : (ROUTES[origin]?.has(destination) ?? origin === destination);
 
   let state = { origin:'', requestedDestination:'', locationJustSet:false, lastInput:'' };
@@ -36,8 +39,16 @@
   let processing = false;
   let postprocessQueued = false;
 
+  function tours() {
+    try { return Array.isArray(TOURS) ? TOURS : []; }
+    catch (_) { return []; }
+  }
+
   function save() { try { sessionStorage.setItem(KEY, JSON.stringify(state)); } catch (_) {} }
-  function reset() { state = { origin:'', requestedDestination:'', locationJustSet:false, lastInput:'' }; try { sessionStorage.removeItem(KEY); } catch (_) {} }
+  function reset() {
+    state = { origin:'', requestedDestination:'', locationJustSet:false, lastInput:'' };
+    try { sessionStorage.removeItem(KEY); } catch (_) {}
+  }
 
   function isOriginPhrase(text, place) {
     const q = lower(text), token = lower(place).split('/')[0];
@@ -46,7 +57,8 @@
   function isDestinationPhrase(text) { return /хочу|поех|съезд|экскурс|тур\b|покаж|скин|пришл|подбер|вариант/i.test(String(text || '')); }
 
   function inspectInput(text) {
-    const q = String(text || '').trim(); if (!q) return;
+    const q = String(text || '').trim();
+    if (!q) return;
     state.lastInput = q;
     const found = PLACES.filter(([,pattern]) => pattern.test(q)).map(([name]) => name);
     let origin = found.find(place => isOriginPhrase(q,place));
@@ -67,27 +79,35 @@
     save();
   }
 
-  function tourPlace(card) {
+  function tourData(card) {
     const id = card?.dataset?.tourId;
-    try {
-      const tour = Array.isArray(TOURS) ? TOURS.find(item => String(item.id) === String(id)) : null;
-      if (tour) return placeFrom(`${tour.city || ''} ${tour.region || ''} ${tour.title || ''}`);
-    } catch (_) {}
-    return placeFrom(card?.textContent || '');
+    if (!id) return null;
+    return tours().find(item => String(item?.id) === String(id)) || null;
+  }
+
+  function tourPlacesFromTour(tour) {
+    if (!tour) return [];
+    return placesFrom(`${tour.city || ''} ${tour.region || ''} ${tour.title || ''} ${tour.searchText || ''} ${(tour.tags || []).join(' ')} ${(tour.route || []).join(' ')}`);
+  }
+
+  function tourPlaces(card) {
+    const tour = tourData(card);
+    return tour ? tourPlacesFromTour(tour) : placesFrom(card?.textContent || '');
   }
 
   function filterCards(root) {
     if (!state.origin) return 0;
     let visible = 0;
-    root.querySelectorAll('.ai-sales-card[data-tour-id]').forEach(card => {
-      const destination = tourPlace(card);
-      const routeOk = destination && allowed(state.origin,destination);
-      const destinationOk = !state.requestedDestination || destination === state.requestedDestination;
+    root.querySelectorAll(CARD_SELECTOR).forEach(card => {
+      const destinations = tourPlaces(card);
+      const routeOk = destinations.some(destination => allowed(state.origin,destination));
+      const destinationOk = !state.requestedDestination || destinations.includes(state.requestedDestination);
       card.hidden = !(routeOk && destinationOk);
       if (!card.hidden) visible += 1;
     });
+
     root.querySelectorAll('.ai-sales-results').forEach(group => {
-      const cards = [...group.querySelectorAll('.ai-sales-card[data-tour-id]')];
+      const cards = [...group.querySelectorAll(CARD_SELECTOR)];
       if (cards.length) group.hidden = cards.every(card => card.hidden);
       const label = group.querySelector('.ai-chat-results-label');
       const desired = `Подходящие экскурсии из ${state.origin}`;
@@ -96,11 +116,68 @@
     return visible;
   }
 
+  function catalogCandidates() {
+    if (!state.origin || !state.requestedDestination || !allowed(state.origin,state.requestedDestination)) return [];
+    const destination = state.requestedDestination;
+    return tours()
+      .map(tour => {
+        const places = tourPlacesFromTour(tour);
+        if (!places.includes(destination)) return null;
+        let score = 0;
+        if (places.includes(state.origin)) score += 8;
+        if (placeFrom(tour.city || '') === state.origin) score += 6;
+        if (placeFrom(tour.region || '') === destination) score += 5;
+        if (lower(tour.title || '').includes(lower(destination))) score += 5;
+        if (Number(tour.popular)) score += 1;
+        return { tour, score };
+      })
+      .filter(Boolean)
+      .sort((a,b) => b.score - a.score)
+      .slice(0,3)
+      .map(row => row.tour);
+  }
+
+  function ensureRequestedCatalogCards(root, visibleCards) {
+    if (visibleCards > 0 || !state.origin || !state.requestedDestination) return 0;
+    const parity = globalThis.MaxTourCatalogCardV8 || globalThis.MaxTourCatalogCardV7;
+    if (!parity?.createCatalogCard) return 0;
+    const candidates = catalogCandidates();
+    if (!candidates.length) return 0;
+    const below = root.querySelector('.ai-chat-below');
+    if (!below) return 0;
+
+    let group = root.querySelector('.ai-location-catalog-v8');
+    if (!group) {
+      group = document.createElement('div');
+      group.className = 'ai-chat-results ai-sales-results ai-location-catalog-v8';
+      group.innerHTML = '<div class="ai-msg-author">AI-консультант</div><div class="ai-chat-results-label"></div><div class="ai-recommendations"></div>';
+      below.append(group);
+    }
+
+    const ids = candidates.map(tour => String(tour.id));
+    const signature = `${state.origin}>${state.requestedDestination}:${ids.join(',')}`;
+    const recommendations = group.querySelector('.ai-recommendations');
+    if (group.dataset.signature !== signature && recommendations) {
+      const fragment = document.createDocumentFragment();
+      ids.forEach(id => {
+        const card = parity.createCatalogCard(id, root, { injected:true });
+        if (card) fragment.append(card);
+      });
+      recommendations.replaceChildren(fragment);
+      group.dataset.signature = signature;
+    }
+    const label = group.querySelector('.ai-chat-results-label');
+    if (label) label.textContent = `Подходящие экскурсии из ${state.origin}`;
+    const count = recommendations?.querySelectorAll('.tour-card[data-tour-id]').length || 0;
+    group.hidden = count === 0;
+    return count;
+  }
+
   function routeReply() {
     const destination = state.requestedDestination;
     if (!state.origin || !destination) return '';
-    if (!allowed(state.origin,destination)) return `Из ${state.origin} направление ${destination} не относится к доступным маршрутам в этом демо. Укажите другую точку выезда или другое направление.`;
-    return `Да, ${destination} можно подобрать с выездом из ${state.origin}. Если готовой карточки с подтверждённой ценой сейчас нет, я не буду выдумывать цену — уточним дату и состав группы и оформим маршрут по запросу.`;
+    if (!allowed(state.origin,destination)) return `Из ${state.origin} направление ${destination} сейчас не относится к доступным маршрутам. Укажите другую точку выезда или направление.`;
+    return `${destination} с выездом из ${state.origin} можно подобрать. Если в каталоге нет готовой экскурсии, оформим маршрут по запросу: уточним дату и состав группы, после чего подтвердим наличие и цену.`;
   }
 
   function locationReply() {
@@ -116,18 +193,22 @@
   }
 
   function replaceUnsafeReply(root, visibleCards) {
-    const bot = lastBotText(root); if (!bot) return;
+    const bot = lastBotText(root);
+    if (!bot) return;
     const text = String(bot.textContent || '');
     if (/подбираю/i.test(text)) return;
     if (state.locationJustSet) {
-      const next = locationReply(); if (text !== next) bot.textContent = next; return;
+      const next = locationReply();
+      if (text !== next) bot.textContent = next;
+      return;
     }
     if (state.requestedDestination) {
       const mentioned = PLACES.map(([name,pattern]) => pattern.test(text) ? name : '').filter(Boolean);
       const bad = mentioned.find(place => place !== state.origin && place !== state.requestedDestination && !allowed(state.origin,place));
       const refusal = /не могу|невозможно|нет такой|не представлен|не доступ/i.test(text);
       if (bad || refusal || visibleCards === 0) {
-        const next = routeReply(); if (next && text !== next) bot.textContent = next;
+        const next = routeReply();
+        if (next && text !== next) bot.textContent = next;
       }
     } else if (state.origin) {
       const mentioned = PLACES.map(([name,pattern]) => pattern.test(text) ? name : '').filter(Boolean);
@@ -151,8 +232,11 @@
     const options = !state.origin ? locationOptions() : state.locationJustSet ? routeOptions() : [];
     if (!options.length) return;
     if (!box) {
-      const below = root.querySelector('.ai-chat-below'); if (!below) return;
-      box = document.createElement('div'); box.className = 'ai-quick-replies'; below.prepend(box);
+      const below = root.querySelector('.ai-chat-below');
+      if (!below) return;
+      box = document.createElement('div');
+      box.className = 'ai-quick-replies';
+      below.prepend(box);
     }
     const desired = options.map(([label,value]) => `<button type="button" data-location-v6-value="${esc(value)}">${esc(label)}</button>`).join('');
     if (box.dataset.locationV6Html === desired) return;
@@ -160,22 +244,24 @@
     box.innerHTML = desired;
   }
 
-  function renderRequestCard(root, visibleCards) {
-    const existing = root.querySelector('.ai-location-request-v6');
-    const shouldRender = state.origin && state.requestedDestination && visibleCards === 0 && allowed(state.origin,state.requestedDestination);
-    if (!shouldRender) {
-      if (existing) existing.remove();
-      return;
-    }
-    const routeKey = `${state.origin}>${state.requestedDestination}`;
-    if (existing?.dataset.routeKey === routeKey) return;
-    if (existing) existing.remove();
-    const below = root.querySelector('.ai-chat-below'); if (!below) return;
-    const wrap = document.createElement('div');
-    wrap.className = 'ai-chat-results ai-sales-results ai-location-request-v6';
-    wrap.dataset.routeKey = routeKey;
-    wrap.innerHTML = `<div class="ai-msg-author">AI-консультант</div><div class="ai-chat-results-label">Маршрут по запросу</div><div class="ai-recommendations"><article class="ai-recommendation ai-sales-card"><div class="ai-tour-card-copy"><span class="ai-tour-meta">${esc(state.origin)} → ${esc(state.requestedDestination)}</span><h4>${esc(state.requestedDestination)} из ${esc(state.origin)}</h4><p>Маршрут можно подобрать. Дата, наличие и цена подтверждаются после уточнения параметров.</p><span class="ai-price">Цена после подтверждения</span></div></article></div>`;
-    below.append(wrap);
+  function removeLegacyRequestCard(root) {
+    root.querySelectorAll('.ai-location-request-v6').forEach(node => node.remove());
+  }
+
+  function cleanupEmptyResults(root) {
+    root.querySelectorAll('.ai-sales-results').forEach(group => {
+      const cards = [...group.querySelectorAll(CARD_SELECTOR)];
+      if (cards.length) {
+        group.hidden = cards.every(card => card.hidden);
+        return;
+      }
+      if (group.classList.contains('ai-location-catalog-v8')) {
+        group.hidden = true;
+        return;
+      }
+      const hasContent = Boolean(group.querySelector('.ai-msg-text,.ai-chat-results-reason,.ai-save-selection,.ai-contact-form'));
+      if (!hasContent) group.hidden = true;
+    });
   }
 
   function firstQuestion(root) {
@@ -191,11 +277,16 @@
     processing = true;
     try {
       firstQuestion(root);
-      const visible = filterCards(root);
-      replaceUnsafeReply(root,visible);
+      removeLegacyRequestCard(root);
+      let visible = filterCards(root);
+      const injected = ensureRequestedCatalogCards(root, visible);
+      if (injected) visible = filterCards(root);
+      cleanupEmptyResults(root);
+      replaceUnsafeReply(root, visible);
       replaceQuickReplies(root);
-      renderRequestCard(root,visible);
-    } finally { processing = false; }
+    } finally {
+      processing = false;
+    }
   }
 
   function schedulePostprocess(root) {
@@ -235,16 +326,21 @@
         return result;
       };
       root.onclick = event => {
-        const locationButton = event.target.closest?.('[data-location-v6-value]');
+        const locationButton = event.target?.closest?.('[data-location-v6-value]');
         if (locationButton) {
-          event.preventDefault(); event.stopPropagation();
+          event.preventDefault();
+          event.stopPropagation();
           const value = locationButton.dataset.locationV6Value || '';
           const form = root.querySelector('[data-ai-form="chat"]');
           const textarea = form?.querySelector('textarea[name="message"]');
-          if (textarea && form) { textarea.value = value; inspectInput(value); form.requestSubmit(); }
+          if (textarea && form) {
+            textarea.value = value;
+            inspectInput(value);
+            form.requestSubmit();
+          }
           return;
         }
-        const clear = event.target.closest?.('[data-ai-action="clear"]');
+        const clear = event.target?.closest?.('[data-ai-action="clear"]');
         if (clear) reset();
         const result = oldClick?.call(root,event);
         schedulePostprocess(root);
@@ -254,6 +350,6 @@
       observer.observe(root,{childList:true,subtree:true});
       postprocess(root);
     },
-    _locationTest:{ placeFrom,allowed,inspectInput },
+    _locationTest:{ placeFrom,placesFrom,allowed,inspectInput,tourPlacesFromTour,catalogCandidates },
   };
 })();
