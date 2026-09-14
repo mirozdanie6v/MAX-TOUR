@@ -71,6 +71,44 @@ function pastDateReply(today = vietnamTodayIso()) {
   return `Эта дата уже прошла. Сегодня во Вьетнаме ${vietnamDateLabel(today)}. Могу предложить только сегодняшние и будущие даты — напишите удобный день, и я покажу актуальные варианты.`;
 }
 
+function clean(value, max = 1200) {
+  return String(value ?? '').trim().slice(0, max);
+}
+
+function fastDeterministicReply(body = {}) {
+  const message = clean(body?.message, 900);
+  const q = message.toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
+
+  if (/(?:я|мы|сейчас|нахожусь|находимся|выезд|старт).*\bхано(?:й|е)\b/.test(q)) {
+    return 'Хорошо, выезд из Ханоя. Могу подобрать Ниньбинь, Халонг, обзор Ханоя или другой доступный маршрут.';
+  }
+  if (/(?:я|мы|сейчас|нахожусь|находимся|выезд|старт).*\bнячанг\b/.test(q)) {
+    return 'Хорошо, выезд из Нячанга. Могу подобрать острова, Нячанг, Далат, Фуйен и другие доступные маршруты.';
+  }
+  if (/(?:я|мы|сейчас|нахожусь|находимся|выезд|старт).*\bдананг\b/.test(q)) {
+    return 'Хорошо, выезд из Дананга. Могу подобрать Дананг, Хойан и другие доступные варианты.';
+  }
+  if (/(?:я|мы|сейчас|нахожусь|находимся).*фу\s*куок/.test(q)) {
+    return 'Хорошо, вы на Фукуоке. Подберу варианты с выездом с острова — скажите, что интереснее: море, природа или обзорная программа.';
+  }
+  if (/нинь\s*бинь|ниньбинь|ninh\s*binh/.test(q)) {
+    return 'Ниньбинь можно подобрать с выездом из Ханоя. Если готовой карточки с подтверждённой ценой сейчас нет, покажу маршрут по запросу и уточню только дату и состав группы.';
+  }
+  if (/ха\s*лонг|халонг|ha\s*long/.test(q)) {
+    return 'Халонг можно подобрать с выездом из Ханоя. Уточните дату и сколько человек едет — покажу подходящий вариант.';
+  }
+  return '';
+}
+
+function timeoutFallback(body = {}) {
+  const deterministic = fastDeterministicReply(body);
+  if (deterministic) return deterministic;
+  const q = clean(body?.message, 900).toLocaleLowerCase('ru-RU');
+  if (/отмен|перенос|возврат/.test(q)) return 'Подскажу по правилам отмены и переноса. Назовите дату и время выезда — расчёт зависит от того, сколько осталось до экскурсии.';
+  if (/оплат|депозит|предоплат/.test(q)) return 'Можно оплатить депозит или полную стоимость. Точная сумма и доступный способ оплаты показываются при оформлении выбранной экскурсии.';
+  return 'Я всё ещё с вами. Чтобы не заставлять ждать, продолжим без паузы: напишите точку выезда, желаемое направление, дату и сколько человек едет — я сразу сузю варианты.';
+}
+
 async function safeAiChat(request, env) {
   const copy = request.clone();
   const body = await copy.json().catch(() => ({}));
@@ -79,7 +117,23 @@ async function safeAiChat(request, env) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(selectedDate) && selectedDate < today) {
     return json({ ok:true, reply:pastDateReply(today), source:'date-guard', currentDateVietnam:today });
   }
-  const response = await baseWorker.fetch(request, env);
+
+  const instant = fastDeterministicReply(body);
+  if (instant) {
+    return json({ ok:true, reply:instant, source:'fast-path', currentDateVietnam:today });
+  }
+
+  const timeoutMs = Math.max(2500, Math.min(10000, Number(env.AI_CHAT_TIMEOUT_MS) || 6500));
+  let timer;
+  const timeout = new Promise(resolve => {
+    timer = setTimeout(() => resolve(null), timeoutMs);
+  });
+  const response = await Promise.race([baseWorker.fetch(request, env), timeout]);
+  clearTimeout(timer);
+
+  if (!response) {
+    return json({ ok:true, reply:timeoutFallback(body), source:'timeout-fallback', currentDateVietnam:today });
+  }
   if (!response.ok) return response;
   const data = await response.clone().json().catch(() => null);
   if (!data?.reply || !containsPastDate(data.reply, today)) return response;
@@ -93,7 +147,7 @@ async function safeAiChat(request, env) {
 const travelerKey = t => `${String(t.fullName || '').trim().toLowerCase()}|${String(t.birthDate || '').trim()}`;
 
 function normalizeTravelers(travelers) {
-  const clean = [];
+  const cleanTravelers = [];
   const seen = new Set();
   for (const item of Array.isArray(travelers) ? travelers : []) {
     const fullName = String(item?.fullName || '').trim();
@@ -102,7 +156,7 @@ function normalizeTravelers(travelers) {
     const key = `${fullName.toLowerCase()}|${birthDate}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    clean.push({
+    cleanTravelers.push({
       role: String(item?.role || 'adult'),
       label: String(item?.label || 'Попутчик'),
       fullName,
@@ -111,17 +165,17 @@ function normalizeTravelers(travelers) {
     });
   }
 
-  let primaryIndex = clean.findIndex(t => t.primary && t.role === 'adult');
-  if (primaryIndex < 0) primaryIndex = clean.findIndex(t => t.role === 'adult');
-  if (primaryIndex < 0 && clean.length) primaryIndex = 0;
-  clean.forEach((t, index) => {
+  let primaryIndex = cleanTravelers.findIndex(t => t.primary && t.role === 'adult');
+  if (primaryIndex < 0) primaryIndex = cleanTravelers.findIndex(t => t.role === 'adult');
+  if (primaryIndex < 0 && cleanTravelers.length) primaryIndex = 0;
+  cleanTravelers.forEach((t, index) => {
     t.primary = index === primaryIndex;
     if (t.primary) t.label = 'Основной путешественник';
     else if (t.role === 'adult') t.label = 'Попутчик · взрослый';
     else if (t.role === 'child') t.label = 'Попутчик · ребёнок';
     else t.label = 'Попутчик · малыш';
   });
-  return clean;
+  return cleanTravelers;
 }
 
 async function replaceTravelers(env, sid, travelers) {
@@ -135,7 +189,7 @@ async function replaceTravelers(env, sid, travelers) {
   return normalized;
 }
 
-export const _test = { vietnamTodayIso, containsPastDate, pastDateReply };
+export const _test = { vietnamTodayIso, containsPastDate, pastDateReply, fastDeterministicReply, timeoutFallback };
 
 export default {
   async fetch(request, env) {
