@@ -109,7 +109,7 @@ await mkdir(dist, { recursive: true });
 await mkdir(resolve(dist, 'admin'), { recursive: true });
 await mkdir(resolve(dist, 'director'), { recursive: true });
 const marker = '</body>';
-const injection = '<script src="/booking-pricing.js"></script>\n<script src="/traveler-profile.js"></script>\n<link rel="stylesheet" href="/traveler-picker-list.css">\n<script src="/trip-actions.js"></script>\n<link rel="stylesheet" href="/hero-redesign.css">\n<script src="/hero-redesign.js"></script>\n<link rel="stylesheet" href="/role-switch.css">\n<script src="/role-switch.js"></script>\n<link rel="stylesheet" href="/ai-consultant.css">\n<script src="/ai-consultant.js"></script>\n<script src="/runtime-api.js" defer></script>\n';
+const injection = '<script src="/booking-pricing.js"></script>\n<script src="/traveler-profile.js"></script>\n<link rel="stylesheet" href="/traveler-picker-list.css">\n<script src="/trip-actions.js"></script>\n<link rel="stylesheet" href="/hero-redesign.css">\n<script src="/hero-redesign.js"></script>\n<link rel="stylesheet" href="/role-switch.css">\n<script src="/role-switch.js"></script>\n<link rel="stylesheet" href="/ai-consultant.css">\n<link rel="stylesheet" href="/ai-consultant-v5.css">\n<script src="/ai-consultant-v5.js"></script>\n<script src="/runtime-api.js" defer></script>\n';
 if (!prototypeHtml.includes(marker)) throw new Error('Prototype has no </body> marker');
 const builtHtml = withViiversionAnalytics(cleanCustomerCopy(replaceBrandLogos(replaceLegacyAdmin(prototypeHtml)).replace(marker, `${injection}${marker}`)));
 await writeFile(resolve(dist, 'index.html'), builtHtml, 'utf8');
@@ -123,7 +123,8 @@ await copyFile(resolve(root, 'src/hero-redesign.js'), resolve(dist, 'hero-redesi
 await copyFile(resolve(root, 'src/role-switch.css'), resolve(dist, 'role-switch.css'));
 await copyFile(resolve(root, 'src/role-switch.js'), resolve(dist, 'role-switch.js'));
 await copyFile(resolve(root, 'src/ai-consultant.css'), resolve(dist, 'ai-consultant.css'));
-await copyFile(resolve(root, 'src/ai-consultant.js'), resolve(dist, 'ai-consultant.js'));
+await copyFile(resolve(root, 'src/ai-consultant-v5.css'), resolve(dist, 'ai-consultant-v5.css'));
+await copyFile(resolve(root, 'src/ai-consultant-v5.js'), resolve(dist, 'ai-consultant-v5.js'));
 await copyFile(resolve(root, 'src/production-embed-polish.css'), resolve(dist, 'production-embed-polish.css'));
 await copyFile(resolve(root, 'src/production-embed-polish.js'), resolve(dist, 'production-embed-polish.js'));
 await copyFile(resolve(root, 'src/max-tour-logo.svg'), resolve(dist, 'max-tour-logo.svg'));
@@ -135,4 +136,4 @@ await writeFile(resolve(dist, 'director/index.html'), withViiversionAnalytics(di
 await copyFile(resolve(root, 'src/admin-app.css'), resolve(dist, 'admin-app.css'));
 await copyFile(resolve(root, 'src/admin-app.js'), resolve(dist, 'admin-app.js'));
 await copyFile(resolve(root, 'src/runtime-api.js'), resolve(dist, 'runtime-api.js'));
-console.log(`Built standalone v28: ${catalog.length} tours + admin v3 + director v3 + Telegram analytics; exact source checksums verified.`);
+console.log(`Built standalone v28: ${catalog.length} tours + AI consultant v5 sales flow + admin v3 + director v3 + Telegram analytics; exact source checksums verified.`);
