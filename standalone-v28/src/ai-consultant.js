@@ -24,6 +24,7 @@
   });
 
   let state = freshState();
+  let aiPending = false;
   try {
     const stored = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null');
     if (stored?.slots && Array.isArray(stored.messages)) state = {
@@ -377,6 +378,38 @@
     return 'Я подскажу по маршрутам, цене, датам, детям, трансферу, оплате и условиям поездки. Напишите вопрос своими словами.';
   }
 
+  async function requestAiReply(text, history) {
+    const s = state.slots;
+    const response = await fetch('/api/ai/chat', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        message: clean(text, 900),
+        history: (history || []).slice(-10).map(item => ({ role:item.role, text:item.text })),
+        context: {
+          destination: s.destination,
+          format: s.tripType,
+          people: formatPeople(),
+          date: s.date,
+          preferences: s.preferences,
+        },
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok || !result.reply) throw new Error(result.error || `HTTP ${response.status}`);
+    return clean(result.reply, 1800);
+  }
+
+  function defaultAssistantReply(text) {
+    const current = stage();
+    const answer = answerQuestion(text);
+    const next = current === 'contact'
+      ? (state.recommendations.length ? 'Подходящие варианты уже ниже — выберите понравившийся.' : 'Уточните ещё один момент, и я покажу варианты.')
+      : promptFor(current);
+    return answer ? `${answer}${current === 'contact' || current === 'done' ? '' : ` ${next}`}` : next;
+  }
+
   function summaryRows() {
     const s = state.slots;
     const rows = [];
@@ -442,7 +475,7 @@
       const author = role === 'user' ? 'Вы' : 'AI-консультант';
       return `<div class="ai-msg ${role}"><span class="ai-msg-author">${author}</span><span class="ai-msg-text">${esc(message.text)}</span></div>`;
     }).join('');
-    root.innerHTML = `<div class="section-title ai-section-head"><div><h2>AI-консультант</h2><p class="ai-chat-subtitle">Я AI-консультант, задайте мне любые вопросы, я подскажу вам с поездкой и помогу разобраться во всем.</p></div><button class="secondary ai-clear" type="button" data-ai-action="clear">Очистить</button></div><section class="ai-consultant-shell"><div class="ai-consultant-main ai-chat-panel"><div class="ai-messages" role="log" aria-label="Диалог с AI-консультантом" aria-live="polite">${messageMarkup}</div><form class="ai-consultant-input" data-ai-form="chat"><textarea name="message" rows="1" placeholder="Напишите сообщение..." aria-label="Сообщение AI-консультанту"></textarea><button class="primary" type="submit" aria-label="Отправить">→</button></form></div><div class="ai-chat-below">${renderQuickReplies(quick)}${renderRecommendations()}${renderContactForm()}${renderHandoff()}</div></section>`;
+    root.innerHTML = `<div class="section-title ai-section-head"><div><h2>AI-консультант</h2><p class="ai-chat-subtitle">Я AI-консультант, задайте мне любые вопросы, я подскажу вам с поездкой и помогу разобраться во всем.</p></div><button class="secondary ai-clear" type="button" data-ai-action="clear">Очистить</button></div><section class="ai-consultant-shell"><div class="ai-consultant-main ai-chat-panel"><div class="ai-messages" role="log" aria-label="Диалог с AI-консультантом" aria-live="polite">${messageMarkup}</div><form class="ai-consultant-input" data-ai-form="chat" aria-busy="${aiPending ? 'true' : 'false'}"><textarea name="message" rows="1" placeholder="Напишите сообщение..." aria-label="Сообщение AI-консультанту" ${aiPending ? 'disabled' : ''}></textarea><button class="primary" type="submit" aria-label="Отправить" ${aiPending ? 'disabled' : ''}>→</button></form></div><div class="ai-chat-below">${renderQuickReplies(quick)}${renderRecommendations()}${renderContactForm()}${renderHandoff()}</div></section>`;
     const messages = root.querySelector('.ai-messages');
     if (messages) messages.scrollTop = messages.scrollHeight;
     if (content) {
@@ -468,23 +501,34 @@
     persist();
   }
 
-  function handleChat(form, root) {
-    const text = String(new FormData(form).get('message') || '').trim();
-    if (!text) return;
+  async function handleChatText(text, root) {
+    if (!text || aiPending) return;
     state.showContact = false;
     addMessage('user', text);
     parseMessage(text);
     updateRecommendations();
-    const current = stage();
-    const answer = answerQuestion(text);
-    const next = current === 'contact'
-      ? (state.recommendations.length ? 'Подходящие варианты уже ниже — выберите понравившийся.' : 'Уточните ещё один момент, и я покажу варианты.')
-      : promptFor(current);
-    // An informational answer must not be followed by an unrelated question
-    // such as «Куда хотите поехать?». Continue the guided flow only when the
-    // user did not ask a knowledge question.
-    addMessage('bot', answer || next);
-    render(root, { focusComposer:true, scrollToEnd:true });
+    const history = state.messages.slice(-10);
+    const fallback = defaultAssistantReply(text);
+    aiPending = true;
+    addMessage('bot', 'Подбираю подходящий ответ…');
+    render(root, { scrollToEnd:true });
+    try {
+      const reply = await requestAiReply(text, history);
+      if (state.messages[state.messages.length - 1]?.text === 'Подбираю подходящий ответ…') state.messages.pop();
+      addMessage('bot', reply);
+    } catch (_) {
+      if (state.messages[state.messages.length - 1]?.text === 'Подбираю подходящий ответ…') state.messages.pop();
+      addMessage('bot', fallback);
+    } finally {
+      aiPending = false;
+      render(root, { focusComposer:true, scrollToEnd:true });
+    }
+  }
+
+  function handleChat(form, root) {
+    const text = String(new FormData(form).get('message') || '').trim();
+    if (!text) return;
+    void handleChatText(text, root);
   }
 
   async function handleContact(form, root) {
@@ -535,11 +579,7 @@
     if (action === 'quick') {
       const value = event.target.closest('[data-ai-action]').dataset.value || '';
       if (!value) return;
-      addMessage('user', value);
-      parseMessage(value);
-      updateRecommendations();
-      addMessage('bot', stage() === 'contact' ? 'Подходящие варианты уже ниже.' : promptFor(stage()));
-      render(root, { scrollToEnd:true });
+      void handleChatText(value, root);
     }
     if (action === 'open-tour') {
       const id = event.target.closest('[data-ai-action]').dataset.id;

@@ -75,6 +75,8 @@ test('AI consultant is a simple customer-facing chat with optional saved selecti
   assert.match(ai, /answerQuestion/);
   assert.match(aiCss, /\.ai-messages\{[\s\S]*overflow:visible/);
   assert.doesNotMatch(aiCss, /overscroll-behavior-y:contain/);
+  assert.match(ai, /\/api\/ai\/chat/);
+  assert.match(ai, /Подбираю подходящий ответ/);
   assert.match(aiCss, /\.ai-consultant-input\{[\s\S]*position:sticky/);
   assert.match(aiCss, /bottom:calc\(var\(--nav,76px\)/);
   assert.match(aiCss, /overflow:visible/);

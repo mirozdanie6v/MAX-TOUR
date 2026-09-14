@@ -121,3 +121,28 @@ test('AI consultation keeps a bounded conversation transcript for the saved sele
     { role:'bot', text:'служебная строка' },
   ]);
 });
+
+test('AI consultant has a bounded Workers AI route with a safe fallback', () => {
+  assert.match(worker, /url\.pathname === '\/api\/ai\/chat' && request\.method === 'POST'/);
+  assert.match(worker, /env\.AI\.run/);
+  assert.match(worker, /catalog\.v28\.json/);
+  assert.equal(workerTest.aiFallbackReply('Сколько стоит депозит?', []), 'Оплата доступна депозитом 30% или полностью; точная сумма показывается при оформлении.');
+  assert.equal(workerTest.unsafeAiCopy('Я помогу выбрать поездку.'), false);
+  assert.equal(workerTest.unsafeAiCopy('Откройте CRM.'), true);
+  assert.match(wrangler, /"ai"\s*:\s*\{\s*"binding"\s*:\s*"AI"/);
+});
+
+test('Workers AI receives the current catalogue and safe customer context', async () => {
+  let received;
+  const env = {
+    ASSETS: { fetch: async () => new Response(JSON.stringify([{ id:'demo-tour', title:'Демо тур', city:'Нячанг', tags:['море'], group:{ from:'$35' }, childrenOk:true }])) },
+    AI: { run: async (model, input) => { received = { model, input }; return { response:'Напишите желаемую дату — я подберу поездку.' }; } },
+    AI_MODEL: '@cf/test/model',
+  };
+  const result = await workerTest.generateAiReply(new Request('https://demo.test/api/ai/chat'), env, { message:'Хочу море', history:[] });
+  assert.equal(result.source, 'cloudflare-workers-ai');
+  assert.equal(result.reply, 'Напишите желаемую дату — я подберу поездку.');
+  assert.equal(received.model, '@cf/test/model');
+  assert.match(received.input.messages[0].content, /Демо тур/);
+  assert.match(received.input.messages[0].content, /только на русском/);
+});

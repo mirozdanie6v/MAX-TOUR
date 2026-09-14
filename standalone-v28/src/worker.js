@@ -48,6 +48,128 @@ function consultationText(value, max = 500) {
   return String(value ?? '').trim().slice(0, max);
 }
 
+/*
+ * The customer-facing assistant is deliberately a small, bounded AI layer.
+ * Workers AI may phrase the answer, but it is never allowed to invent the
+ * catalogue, availability or booking rules.  Those facts are loaded from the
+ * same catalogue that the Mini App renders and are supplied on every request.
+ */
+const DEFAULT_AI_MODEL = '@cf/google/gemma-4-26b-a4b-it';
+const AI_RULES = [
+  'Отмена более чем за 48 часов — бесплатно; до 17:00 накануне удерживается 30%, позже — 100%.',
+  'Перенос до 17:00 накануне выезда — бесплатно; позже может применяться удержание 30%.',
+  'Оплата доступна депозитом 30% или полностью; точная сумма показывается при оформлении.',
+  'Для ребёнка нужно учитывать возраст, для малыша — возраст до 3 лет; состав группы влияет на расчёт.',
+  'Если точного варианта в каталоге нет, нужно спокойно собрать недостающие пожелания: направление, даты, состав группы, длительность, отель/трансфер и бюджет.',
+];
+
+async function loadAiCatalog(request, env) {
+  try {
+    if (!env.ASSETS) return [];
+    const url = new URL('/catalog.v28.json', request.url);
+    const response = await env.ASSETS.fetch(new Request(url));
+    if (!response.ok) return [];
+    const data = await response.json();
+    if (!Array.isArray(data)) return [];
+    return data.slice(0, 30).map(tour => ({
+      id: consultationText(tour.id, 120),
+      title: consultationText(tour.title, 180),
+      city: consultationText(tour.city || tour.region, 100),
+      duration: consultationText(tour.duration, 80),
+      tags: Array.isArray(tour.tags) ? tour.tags.slice(0, 8).map(tag => consultationText(tag, 40)) : [],
+      childrenOk: Boolean(tour.childrenOk),
+      group: tour.group ? {
+        adult: consultationText(tour.group.adult || tour.group.from, 80),
+        child: consultationText(tour.group.child, 80),
+      } : null,
+      individual: tour.individual ? {
+        from: consultationText(tour.individual.from, 80),
+        tiers: Array.isArray(tour.individual.tiers) ? tour.individual.tiers.slice(0, 8).map(item => consultationText(item, 120)) : [],
+      } : null,
+    }));
+  } catch (error) {
+    console.warn('AI catalogue unavailable', error?.message || error);
+    return [];
+  }
+}
+
+function aiText(value, max = 1800) {
+  return String(value ?? '').replace(/\u0000/g, '').trim().slice(0, max);
+}
+
+function aiHistory(value) {
+  return (Array.isArray(value) ? value : []).slice(-10).map(item => ({
+    role: item?.role === 'user' ? 'user' : 'assistant',
+    content: aiText(item?.text || item?.content, 700),
+  })).filter(item => item.content);
+}
+
+function unsafeAiCopy(value) {
+  return /\b(?:CRM|D1|API|Cloudflare|Workers? AI|база данных|техническ|менеджер|админ|передам|передать|интеграц)/iu.test(String(value || ''));
+}
+
+function aiFallbackReply(message, catalog = []) {
+  const q = String(message || '').toLocaleLowerCase('ru-RU');
+  if (/отмен|перенос|возврат/.test(q)) return AI_RULES[0] + ' Если назовёте дату выезда, подскажу точнее.';
+  if (/оплат|депозит|предоплат|30\s*%|сто процент/.test(q)) return AI_RULES[2];
+  if (/трансфер|аэропорт|встреч/.test(q)) return 'Трансфер можно добавить к поездке — напишите отель или точку встречи, чтобы я учёл это при подборе.';
+  if (/ребён|ребен|дет|малыш|коляск/.test(q)) return 'Напишите возраст каждого ребёнка и малыша — я учту состав группы при подборе.';
+  if (/что входит|включен|программ|маршрут/.test(q)) return 'Программа и включённые услуги указаны в карточке экскурсии. Назовите город или поездку, и я подскажу по ней.';
+  const matches = catalog.filter(item => `${item.title} ${item.city} ${(item.tags || []).join(' ')}`.toLocaleLowerCase('ru-RU')
+    .split(/\s+/).some(token => token.length > 3 && q.includes(token)));
+  if (matches.length) return `Могу подобрать вариант «${matches[0].title}». Напишите желаемую дату и состав группы.`;
+  return 'Конечно. Напишите направление, желаемые даты и сколько взрослых, детей или малышей едет — подберу подходящие варианты.';
+}
+
+function aiResponseText(result) {
+  if (typeof result === 'string') return result;
+  if (typeof result?.response === 'string') return result.response;
+  const choice = result?.choices?.[0];
+  return choice?.message?.content || choice?.text || '';
+}
+
+async function generateAiReply(request, env, body) {
+  const message = aiText(body?.message, 900);
+  const catalog = await loadAiCatalog(request, env);
+  const safeContext = {
+    selected: body?.context && typeof body.context === 'object' ? {
+      destination: consultationText(body.context.destination, 100),
+      format: consultationText(body.context.format, 50),
+      people: consultationText(body.context.people, 160),
+      date: consultationText(body.context.date, 100),
+      preferences: Array.isArray(body.context.preferences) ? body.context.preferences.slice(0, 8).map(item => consultationText(item, 50)) : [],
+    } : {},
+    rules: AI_RULES,
+    catalogue: catalog,
+  };
+  const fallback = aiFallbackReply(message, catalog);
+  if (!message || !env.AI) return { reply: fallback, source: 'catalog-fallback' };
+
+  const system = [
+    'Ты доброжелательный AI-консультант туристического приложения MAX TOUR.',
+    'Отвечай только на русском, коротко и естественно, как в обычном чате: 1–4 коротких предложения.',
+    'Используй только факты из VERIFIED_CONTEXT. Не придумывай цены, даты, места, состав программы или наличие.',
+    'Если не хватает данных, задай один понятный уточняющий вопрос.',
+    'Не упоминай внутренние системы, CRM, базы, API, разработку, модель, технические детали или передачу обращения сотруднику.',
+    'Не обещай оплату или подтверждение, пока пользователь не открыл карточку и не оформил поездку.',
+    `VERIFIED_CONTEXT=${JSON.stringify(safeContext)}`,
+  ].join('\n');
+  const messages = [
+    { role: 'system', content: system },
+    ...aiHistory(body?.history),
+    { role: 'user', content: message },
+  ];
+  try {
+    const result = await env.AI.run(env.AI_MODEL || DEFAULT_AI_MODEL, { messages });
+    const reply = aiText(aiResponseText(result), 1800).replace(/^```[\s\S]*?```$/g, '').trim();
+    if (!reply || unsafeAiCopy(reply)) return { reply: fallback, source: 'catalog-fallback' };
+    return { reply, source: 'cloudflare-workers-ai' };
+  } catch (error) {
+    console.warn('Workers AI reply unavailable', error?.message || error);
+    return { reply: fallback, source: 'catalog-fallback' };
+  }
+}
+
 function normalizeConsultationPayload(body = {}) {
   const source = body.payload && typeof body.payload === 'object'
     ? body.payload
@@ -282,6 +404,9 @@ async function api(request, env, url) {
     response = result.error
       ? json({ ok:false, error:result.error }, { status: result.error === 'consultation_unavailable' ? 503 : 400 })
       : json({ ok:true, ...result }, { status: 201 });
+  } else if (url.pathname === '/api/ai/chat' && request.method === 'POST') {
+    const result = await generateAiReply(request, env, await bodyJson(request) || {});
+    response = json({ ok:true, ...result });
   } else if (url.pathname.startsWith('/api/bookings/') && request.method === 'PATCH') {
     const id = decodeURIComponent(url.pathname.slice('/api/bookings/'.length));
     const payload = await bodyJson(request) || {};
@@ -308,7 +433,14 @@ async function api(request, env, url) {
   return withSession(response, session);
 }
 
-export const _test = { normalizeConsultationPayload, consultationText };
+export const _test = {
+  normalizeConsultationPayload,
+  consultationText,
+  aiFallbackReply,
+  aiResponseText,
+  unsafeAiCopy,
+  generateAiReply,
+};
 
 export default {
   async fetch(request, env) {
