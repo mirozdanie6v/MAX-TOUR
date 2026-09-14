@@ -71,6 +71,8 @@ function replaceBrandLogos(html) {
 
 const telegramSdk = '<script src="https://telegram.org/js/telegram-web-app.js?63"></script>';
 const analyticsTracker = '<script defer src="https://dashboard.viiversion.com/tracker.js" data-project="MAX TOUR Demo"></script>';
+const productionEmbedCss = '<link rel="stylesheet" href="/production-embed-polish.css">';
+const productionEmbedJs = '<script defer src="/production-embed-polish.js"></script>';
 
 function withViiversionAnalytics(html) {
   let result = html;
@@ -78,9 +80,17 @@ function withViiversionAnalytics(html) {
     if (!result.includes('</head>')) throw new Error('HTML has no </head> marker');
     result = result.replace('</head>', `${telegramSdk}\n</head>`);
   }
+  if (!result.includes('production-embed-polish.css')) {
+    if (!result.includes('</head>')) throw new Error('HTML has no </head> marker');
+    result = result.replace('</head>', `${productionEmbedCss}\n</head>`);
+  }
   if (!result.includes('dashboard.viiversion.com/tracker.js')) {
     if (!result.includes('</body>')) throw new Error('HTML has no </body> marker');
     result = result.replace('</body>', `${analyticsTracker}\n</body>`);
+  }
+  if (!result.includes('production-embed-polish.js')) {
+    if (!result.includes('</body>')) throw new Error('HTML has no </body> marker');
+    result = result.replace('</body>', `${productionEmbedJs}\n</body>`);
   }
   return result;
 }
@@ -114,6 +124,8 @@ await copyFile(resolve(root, 'src/role-switch.css'), resolve(dist, 'role-switch.
 await copyFile(resolve(root, 'src/role-switch.js'), resolve(dist, 'role-switch.js'));
 await copyFile(resolve(root, 'src/ai-consultant.css'), resolve(dist, 'ai-consultant.css'));
 await copyFile(resolve(root, 'src/ai-consultant.js'), resolve(dist, 'ai-consultant.js'));
+await copyFile(resolve(root, 'src/production-embed-polish.css'), resolve(dist, 'production-embed-polish.css'));
+await copyFile(resolve(root, 'src/production-embed-polish.js'), resolve(dist, 'production-embed-polish.js'));
 await copyFile(resolve(root, 'src/max-tour-logo.svg'), resolve(dist, 'max-tour-logo.svg'));
 const adminBuilt = withViiversionAnalytics(replaceBrandLogos(adminPrototype)
   .replace('</head>', '<link rel="stylesheet" href="/admin-app.css">\n</head>')
