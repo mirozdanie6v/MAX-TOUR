@@ -2,8 +2,9 @@
   const referrerHost = (() => {
     try { return new URL(document.referrer).hostname; } catch { return ''; }
   })();
+  const isDirectProduction = location.hostname === 'max-tour.viiversion.com';
   const isProductionEmbed = window.parent !== window && referrerHost === 'max-tour.viiversion.com';
-  if (!isProductionEmbed) return;
+  if (!isDirectProduction && !isProductionEmbed) return;
 
   document.documentElement.classList.add('max-tour-production-embed');
 
