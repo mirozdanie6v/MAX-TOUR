@@ -170,31 +170,75 @@
     img.alt = title;
   };
 
-  const markTourImage = (img, title) => {
-    if (!isPlausibleTourImage(img)) return;
-    img.classList.add('production-tour-photo');
-    img.dataset.productionTourTitle = title;
-    img.setAttribute('role', 'button');
-    img.setAttribute('tabindex', '0');
-    img.setAttribute('aria-label', `Открыть фото экскурсии «${title}»`);
-  };
-
+  // Keep the audited/corrected cover photos, but covers/cards must NOT open the lightbox.
   const applyTourImages = () => {
     TOUR_TITLES.forEach((title) => {
       exactLeaves(title).forEach((leaf) => {
         if (!leaf.getBoundingClientRect().width) return;
         const container = findTourContainer(leaf);
         if (!container) return;
-        let images = visibleTourImagesIn(container);
+        const images = visibleTourImagesIn(container);
         if (!images.length) return;
 
         const override = TOUR_IMAGE_OVERRIDES.get(title);
-        if (override) {
-          setTourImage(images[0], title, override);
-          images = visibleTourImagesIn(container);
-        }
-        images.forEach((img) => markTourImage(img, title));
+        if (override) setTourImage(images[0], title, override);
       });
+    });
+  };
+
+  const currentTourTitle = () => {
+    for (const title of TOUR_TITLES) {
+      const visible = exactLeaves(title).find((leaf) => {
+        const rect = leaf.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      });
+      if (visible) return title;
+    }
+    return 'Экскурсия';
+  };
+
+  const clearPhotoInteraction = (img) => {
+    img.classList.remove('production-tour-photo');
+    delete img.dataset.productionTourTitle;
+    delete img.dataset.productionTourGallery;
+    img.removeAttribute('role');
+    img.removeAttribute('tabindex');
+    img.removeAttribute('aria-label');
+  };
+
+  const findPhotoTourGallery = () => {
+    const heading = [...document.querySelectorAll('h1,h2,h3,h4,h5,h6,p,div,span')].find((el) => {
+      if (upper(el.textContent) !== 'ФОТО ТУРА') return false;
+      return ![...el.children].some((child) => normalize(child.textContent));
+    });
+    if (!heading) return null;
+
+    const galleries = [...document.querySelectorAll('.t-gallery')].filter((gallery) => {
+      const rect = gallery.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && gallery.querySelector('img.t-gallery__image');
+    });
+    if (!galleries.length) return null;
+
+    return galleries.find((gallery) => Boolean(heading.compareDocumentPosition(gallery) & Node.DOCUMENT_POSITION_FOLLOWING)) || null;
+  };
+
+  const markPhotoTourGallery = () => {
+    // Remove the old broad behavior from cards, hero images and any non-gallery photos.
+    document.querySelectorAll('img.production-tour-photo').forEach(clearPhotoInteraction);
+
+    const gallery = findPhotoTourGallery();
+    if (!gallery) return;
+
+    const title = currentTourTitle();
+    const images = [...gallery.querySelectorAll('img.t-gallery__image')].filter(isPlausibleTourImage);
+    images.forEach((img, index) => {
+      img.classList.add('production-tour-photo');
+      img.dataset.productionTourTitle = title;
+      img.dataset.productionTourGallery = 'photo-tour';
+      if (!normalize(img.alt)) img.alt = `${title} — фото ${index + 1}`;
+      img.setAttribute('role', 'button');
+      img.setAttribute('tabindex', '0');
+      img.setAttribute('aria-label', `Открыть фото ${index + 1} из раздела «Фото тура»`);
     });
   };
 
@@ -252,7 +296,10 @@
     const active = lightboxGallery[lightboxIndex];
     lightboxImage.src = active.currentSrc || active.src;
     lightboxImage.alt = active.alt || active.dataset.productionTourTitle || 'Фото экскурсии';
-    lightboxCaption.textContent = active.dataset.productionTourTitle || active.alt || '';
+    const title = active.dataset.productionTourTitle || 'Экскурсия';
+    lightboxCaption.textContent = lightboxGallery.length > 1
+      ? `${title} · ${lightboxIndex + 1}/${lightboxGallery.length}`
+      : title;
     const multiple = lightboxGallery.length > 1;
     lightboxPrev.hidden = !multiple;
     lightboxNext.hidden = !multiple;
@@ -260,11 +307,10 @@
 
   const openTourLightbox = (img) => {
     ensureLightbox();
-    const title = img.dataset.productionTourTitle || img.alt || '';
-    lightboxGallery = [...document.querySelectorAll('img.production-tour-photo')].filter((candidate) => {
-      if (!isPlausibleTourImage(candidate)) return false;
-      return (candidate.dataset.productionTourTitle || candidate.alt || '') === title;
-    });
+    const gallery = img.closest('.t-gallery');
+    lightboxGallery = gallery
+      ? [...gallery.querySelectorAll('img.production-tour-photo')].filter(isPlausibleTourImage)
+      : [img];
     if (!lightboxGallery.length) lightboxGallery = [img];
     lightboxIndex = Math.max(0, lightboxGallery.indexOf(img));
     showLightboxAt(lightboxIndex);
@@ -275,7 +321,7 @@
     requestAnimationFrame(() => lightbox.querySelector('.production-tour-lightbox-close')?.focus({ preventScroll: true }));
   };
 
-  const tourPhotoFromEvent = (event) => event.target?.closest?.('img.production-tour-photo') || null;
+  const tourPhotoFromEvent = (event) => event.target?.closest?.('.t-gallery img.production-tour-photo') || null;
 
   document.addEventListener('click', (event) => {
     const img = tourPhotoFromEvent(event);
@@ -324,6 +370,7 @@
     centerCompactRoundedTiles();
     markShowButtons();
     applyTourImages();
+    markPhotoTourGallery();
   };
   const schedule = () => {
     if (scheduled) return;
