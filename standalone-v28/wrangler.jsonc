@@ -7,7 +7,8 @@
     "APP_ENV": "demo-v28",
     "APP_URL": "https://max-tour-demo.viiversion.com",
     "PUBLIC_ADMIN_DEMO": "true",
-    "AI_MODEL": "@cf/google/gemma-4-26b-a4b-it"
+    "AI_MODEL": "@cf/google/gemma-4-26b-a4b-it",
+    "USD_RUB_RATE": "84.2569"
   },
   "ai": {
     "binding": "AI"

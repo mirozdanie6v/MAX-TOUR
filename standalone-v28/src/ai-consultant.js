@@ -25,6 +25,7 @@
 
   let state = freshState();
   let aiPending = false;
+  let usdRubRate = 84.2569;
   try {
     const stored = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null');
     if (stored?.slots && Array.isArray(stored.messages)) state = {
@@ -48,6 +49,11 @@
   function firstMoney(value) {
     const match = String(value || '').match(/\$\s*([\d,.]+)/);
     return match ? Number(match[1].replace(/,/g, '')) || 0 : 0;
+  }
+
+  function rubleLabel(value) {
+    const amount = Math.max(0, Math.round((Number(value) || 0) * usdRubRate / 10) * 10);
+    return amount ? `${amount.toLocaleString('ru-RU')} ₽` : 'уточняется';
   }
 
   function formatPeople() {
@@ -398,7 +404,8 @@
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok || !result.ok || !result.reply) throw new Error(result.error || `HTTP ${response.status}`);
-    return clean(result.reply, 1800);
+    const rate = Number(result.usdRubRate);
+    return { reply:clean(result.reply, 1800), rate:Number.isFinite(rate) && rate > 0 ? rate : usdRubRate };
   }
 
   function defaultAssistantReply(text) {
@@ -429,9 +436,9 @@
     if (!state.recommendations.length) return '';
     return `<div class="ai-chat-results"><div class="ai-msg-author">AI-консультант</div><div class="ai-chat-results-label">Советую эти поездки</div><p class="ai-chat-results-reason">Почему: ${esc(recommendationReason(state.recommendations[0]))}</p><div class="ai-recommendations">${state.recommendations.map(item => {
       const price = item.format === 'compare'
-        ? `Индивидуально: ${item.individual.estimateUsd ? `$${item.individual.estimateUsd.toLocaleString('ru-RU')}` : 'уточняется'} · групповой выезд: ${item.group.estimateUsd ? `$${item.group.estimateUsd.toLocaleString('ru-RU')}` : 'уточняется'}`
+          ? `Индивидуально: ${rubleLabel(item.individual.estimateUsd)} · групповой выезд: ${rubleLabel(item.group.estimateUsd)}`
         : item.estimateUsd
-          ? `ориентировочно $${item.estimateUsd.toLocaleString('ru-RU')} · ${item.format === 'group' ? 'за состав поездки' : 'за поездку'}`
+          ? `ориентировочно ${rubleLabel(item.estimateUsd)} · ${item.format === 'group' ? 'за состав поездки' : 'за поездку'}`
           : 'стоимость уточняется после выбора даты';
       const note = item.format === 'compare'
         ? 'два формата для сравнения'
@@ -444,7 +451,7 @@
     const s = state.slots;
     if (!['contact','done'].includes(stage()) || state.handoff) return '';
     if (!state.showContact) return '<div class="ai-save-selection"><button type="button" class="secondary" data-ai-action="show-contact">Сохранить подбор</button></div>';
-    return `<form class="ai-contact-form" data-ai-form="contact"><div class="ai-contact-heading"><h4>Сохранить подбор</h4><button class="ai-contact-close" type="button" data-ai-action="hide-contact" aria-label="Свернуть форму">Свернуть</button></div><p>Укажите один контакт, чтобы сохранить параметры поездки и вернуться к бронированию.</p><div class="ai-contact-grid"><label>Имя<input name="name" value="${esc(s.contact.name)}" placeholder="Как к вам обращаться"></label><label>Телефон<input name="phone" value="${esc(s.contact.phone)}" placeholder="+7 ..."></label><label>Telegram<input name="telegram" value="${esc(s.contact.telegram)}" placeholder="@username"></label><label>Бюджет / комментарий<input name="budget" value="${esc(s.budget)}" placeholder="Например, до $600"></label><label class="wide">Отель и трансфер<input name="hotelTransfer" value="${esc([s.hotel && `отель: ${s.hotel}`, s.transfer && `трансфер: ${s.transfer}`].filter(Boolean).join('; '))}" placeholder="Отель, нужен ли трансфер"></label></div><div class="ai-contact-actions"><button class="primary" type="submit">Сохранить подбор</button><button class="secondary" type="button" data-ai-action="skip-contact">Только открыть варианты</button></div><div class="form-error" role="alert"></div></form>`;
+    return `<form class="ai-contact-form" data-ai-form="contact"><div class="ai-contact-heading"><h4>Сохранить подбор</h4><button class="ai-contact-close" type="button" data-ai-action="hide-contact" aria-label="Свернуть форму">Свернуть</button></div><p>Укажите один контакт, чтобы сохранить параметры поездки и вернуться к бронированию.</p><div class="ai-contact-grid"><label>Имя<input name="name" value="${esc(s.contact.name)}" placeholder="Как к вам обращаться"></label><label>Телефон<input name="phone" value="${esc(s.contact.phone)}" placeholder="+7 ..."></label><label>Telegram<input name="telegram" value="${esc(s.contact.telegram)}" placeholder="@username"></label><label>Бюджет / комментарий<input name="budget" value="${esc(s.budget)}" placeholder="Например, до 50 000 ₽"></label><label class="wide">Отель и трансфер<input name="hotelTransfer" value="${esc([s.hotel && `отель: ${s.hotel}`, s.transfer && `трансфер: ${s.transfer}`].filter(Boolean).join('; '))}" placeholder="Отель, нужен ли трансфер"></label></div><div class="ai-contact-actions"><button class="primary" type="submit">Сохранить подбор</button><button class="secondary" type="button" data-ai-action="skip-contact">Только открыть варианты</button></div><div class="form-error" role="alert"></div></form>`;
   }
 
   function renderHandoff() {
@@ -513,9 +520,10 @@
     addMessage('bot', 'Подбираю подходящий ответ…');
     render(root, { scrollToEnd:true });
     try {
-      const reply = await requestAiReply(text, history);
+      const aiResult = await requestAiReply(text, history);
+      usdRubRate = aiResult.rate || usdRubRate;
       if (state.messages[state.messages.length - 1]?.text === 'Подбираю подходящий ответ…') state.messages.pop();
-      addMessage('bot', reply);
+      addMessage('bot', aiResult.reply);
     } catch (_) {
       if (state.messages[state.messages.length - 1]?.text === 'Подбираю подходящий ответ…') state.messages.pop();
       addMessage('bot', fallback);

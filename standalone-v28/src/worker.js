@@ -55,6 +55,8 @@ function consultationText(value, max = 500) {
  * same catalogue that the Mini App renders and are supplied on every request.
  */
 const DEFAULT_AI_MODEL = '@cf/google/gemma-4-26b-a4b-it';
+const DEFAULT_USD_RUB_RATE = 84.2569;
+let aiRateCache = { value: DEFAULT_USD_RUB_RATE, at: 0 };
 const AI_RULES = [
   'Отмена более чем за 48 часов — бесплатно; до 17:00 накануне удерживается 30%, позже — 100%.',
   'Перенос до 17:00 накануне выезда — бесплатно; позже может применяться удержание 30%.',
@@ -63,7 +65,38 @@ const AI_RULES = [
   'Если точного варианта в каталоге нет, нужно спокойно собрать недостающие пожелания: направление, даты, состав группы, длительность, отель/трансфер и бюджет.',
 ];
 
-async function loadAiCatalog(request, env) {
+function rublesFromUsd(value, rate) {
+  const usd = Number(value) || 0;
+  return Math.max(0, Math.round(usd * rate / 10) * 10);
+}
+
+function rubleLabel(value, rate) {
+  return `${rublesFromUsd(value, rate).toLocaleString('ru-RU')} ₽`;
+}
+
+function replaceDollarAmounts(value, rate) {
+  return String(value || '').replace(/\$\s*([\d\s,.]+)/g, (_, raw) => rubleLabel(String(raw).replace(/\s/g, '').replace(',', '.'), rate));
+}
+
+async function currentUsdRubRate(env) {
+  const configured = Number(env.USD_RUB_RATE);
+  const fallback = Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_USD_RUB_RATE;
+  if (env.DISABLE_CBR_RATE) return fallback;
+  if (Date.now() - aiRateCache.at < 15 * 60 * 1000) return aiRateCache.value;
+  try {
+    const response = await fetch('https://www.cbr.ru/scripts/XML_daily.asp', { cf: { cacheTtl: 900, cacheEverything: true } });
+    const xml = await response.text();
+    const usd = xml.match(/<Valute[\s\S]*?<CharCode>USD<\/CharCode>[\s\S]*?<Value>([\d,]+)<\/Value>[\s\S]*?<\/Valute>/i);
+    const rate = usd ? Number(usd[1].replace(',', '.')) : 0;
+    if (Number.isFinite(rate) && rate > 0) aiRateCache = { value: rate, at: Date.now() };
+  } catch (error) {
+    console.warn('CBR USD/RUB rate unavailable', error?.message || error);
+  }
+  if (!aiRateCache.at) aiRateCache = { value: fallback, at: Date.now() };
+  return aiRateCache.value || fallback;
+}
+
+async function loadAiCatalog(request, env, rate = DEFAULT_USD_RUB_RATE) {
   try {
     if (!env.ASSETS) return [];
     const url = new URL('/catalog.v28.json', request.url);
@@ -79,12 +112,12 @@ async function loadAiCatalog(request, env) {
       tags: Array.isArray(tour.tags) ? tour.tags.slice(0, 8).map(tag => consultationText(tag, 40)) : [],
       childrenOk: Boolean(tour.childrenOk),
       group: tour.group ? {
-        adult: consultationText(tour.group.adult || tour.group.from, 80),
-        child: consultationText(tour.group.child, 80),
+        adult: replaceDollarAmounts(consultationText(tour.group.adult || tour.group.from, 80), rate),
+        child: replaceDollarAmounts(consultationText(tour.group.child, 80), rate),
       } : null,
       individual: tour.individual ? {
-        from: consultationText(tour.individual.from, 80),
-        tiers: Array.isArray(tour.individual.tiers) ? tour.individual.tiers.slice(0, 8).map(item => consultationText(item, 120)) : [],
+        from: replaceDollarAmounts(consultationText(tour.individual.from, 80), rate),
+        tiers: Array.isArray(tour.individual.tiers) ? tour.individual.tiers.slice(0, 8).map(item => replaceDollarAmounts(consultationText(item, 120), rate)) : [],
       } : null,
     }));
   } catch (error) {
@@ -130,7 +163,8 @@ function aiResponseText(result) {
 
 async function generateAiReply(request, env, body) {
   const message = aiText(body?.message, 900);
-  const catalog = await loadAiCatalog(request, env);
+  const usdRubRate = await currentUsdRubRate(env);
+  const catalog = await loadAiCatalog(request, env, usdRubRate);
   const safeContext = {
     selected: body?.context && typeof body.context === 'object' ? {
       destination: consultationText(body.context.destination, 100),
@@ -143,7 +177,7 @@ async function generateAiReply(request, env, body) {
     catalogue: catalog,
   };
   const fallback = aiFallbackReply(message, catalog);
-  if (!message || !env.AI) return { reply: fallback, source: 'catalog-fallback' };
+  if (!message || !env.AI) return { reply: fallback, source: 'catalog-fallback', usdRubRate };
 
   const system = [
     'Ты доброжелательный AI-консультант туристического приложения MAX TOUR.',
@@ -151,6 +185,7 @@ async function generateAiReply(request, env, body) {
     'Используй только факты из VERIFIED_CONTEXT. Не придумывай цены, даты, места, состав программы или наличие.',
     'Если не хватает данных, задай один понятный уточняющий вопрос.',
     'Не упоминай внутренние системы, CRM, базы, API, разработку, модель, технические детали или передачу обращения сотруднику.',
+    'Называй суммы только в рублях (₽), округляя до десятков. Не используй знак доллара.',
     'Не обещай оплату или подтверждение, пока пользователь не открыл карточку и не оформил поездку.',
     `VERIFIED_CONTEXT=${JSON.stringify(safeContext)}`,
   ].join('\n');
@@ -161,12 +196,12 @@ async function generateAiReply(request, env, body) {
   ];
   try {
     const result = await env.AI.run(env.AI_MODEL || DEFAULT_AI_MODEL, { messages });
-    const reply = aiText(aiResponseText(result), 1800).replace(/^```[\s\S]*?```$/g, '').trim();
-    if (!reply || unsafeAiCopy(reply)) return { reply: fallback, source: 'catalog-fallback' };
-    return { reply, source: 'cloudflare-workers-ai' };
+    const reply = replaceDollarAmounts(aiText(aiResponseText(result), 1800).replace(/^```[\s\S]*?```$/g, '').trim(), usdRubRate);
+    if (!reply || unsafeAiCopy(reply)) return { reply: fallback, source: 'catalog-fallback', usdRubRate };
+    return { reply, source: 'cloudflare-workers-ai', usdRubRate };
   } catch (error) {
     console.warn('Workers AI reply unavailable', error?.message || error);
-    return { reply: fallback, source: 'catalog-fallback' };
+    return { reply: fallback, source: 'catalog-fallback', usdRubRate };
   }
 }
 

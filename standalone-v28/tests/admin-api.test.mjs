@@ -138,6 +138,8 @@ test('Workers AI receives the current catalogue and safe customer context', asyn
     ASSETS: { fetch: async () => new Response(JSON.stringify([{ id:'demo-tour', title:'Демо тур', city:'Нячанг', tags:['море'], group:{ from:'$35' }, childrenOk:true }])) },
     AI: { run: async (model, input) => { received = { model, input }; return { response:'Напишите желаемую дату — я подберу поездку.' }; } },
     AI_MODEL: '@cf/test/model',
+    USD_RUB_RATE: '84.2569',
+    DISABLE_CBR_RATE: 'true',
   };
   const result = await workerTest.generateAiReply(new Request('https://demo.test/api/ai/chat'), env, { message:'Хочу море', history:[] });
   assert.equal(result.source, 'cloudflare-workers-ai');
@@ -145,4 +147,5 @@ test('Workers AI receives the current catalogue and safe customer context', asyn
   assert.equal(received.model, '@cf/test/model');
   assert.match(received.input.messages[0].content, /Демо тур/);
   assert.match(received.input.messages[0].content, /только на русском/);
+  assert.match(received.input.messages[0].content, /только в рублях/);
 });
