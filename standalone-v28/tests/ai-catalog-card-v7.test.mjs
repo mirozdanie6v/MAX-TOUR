@@ -27,12 +27,14 @@ test('catalog card parity layer is syntactically valid and loaded after geo rout
   assert.match(build, /copyFile\(resolve\(root, 'src\/ai-catalog-card-v7\.js'/);
 });
 
-test('v7 reuses native tour-card instead of defining another excursion card UI', () => {
+test('AI reuses native tour-card and strips AI-specific card layout classes', () => {
   assert.match(v7, /document\.querySelectorAll\('\.tour-card'\)/);
-  assert.match(v7, /globalThis\.renderCatalog/);
+  assert.match(v7, /renderCatalog/);
   assert.match(v7, /cloneNode\(true\)/);
   assert.match(v7, /dataset\.aiCatalogSource = 'catalog'/);
-  assert.match(v7, /classList\.remove\('ai-recommendation'\)/);
+  assert.match(v7, /classList\.remove\('ai-recommendation', 'ai-sales-card'\)/);
+  assert.match(v7, /createCatalogCard/);
+  assert.doesNotMatch(v7, /classList\.add\('ai-sales-card'/);
   assert.doesNotMatch(v7, /<article class="ai-recommendation ai-sales-card"/);
 });
 
@@ -53,7 +55,14 @@ test('legacy AI card CSS cannot override cloned native catalog cards', () => {
   assert.match(css, />\.tour-card\.ai-catalog-card-v7/);
 });
 
-test('v7 observer is idempotent and avoids character-data render loops', () => {
+test('parity API can inject a real catalog card for route-policy recovery', () => {
+  assert.match(v7, /function createCatalogCard\(/);
+  assert.match(v7, /globalThis\.MaxTourCatalogCardV7 = api/);
+  assert.match(v7, /globalThis\.MaxTourCatalogCardV8 = api/);
+  assert.match(v7, /dataset\.aiCatalogInjected/);
+});
+
+test('observer is idempotent and avoids character-data render loops', () => {
   assert.match(v7, /aiCatalogV7Observed/);
   assert.match(v7, /requestAnimationFrame\(run\)/);
   assert.match(v7, /observer\.observe\(aiRoot, \{ childList:true, subtree:true \}\)/);
