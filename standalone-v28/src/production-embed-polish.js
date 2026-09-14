@@ -11,13 +11,44 @@
   const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
   const upper = (value) => normalize(value).toLocaleUpperCase('ru-RU');
 
-  const exactLeaf = (label) => {
+  const TOUR_TITLES = [
+    'Далат «Премиум»',
+    'Далат «ВИП»',
+    'Провинция Фуйен',
+    'Дневная обзорная по Нячангу',
+    'Вечерняя обзорная по Нячангу',
+    'Далат на 2 дня',
+    'Fast Track + трансфер',
+    'Ба На Хилл, Золотой мост и Хойан',
+    'Дананг: Сон Тра, Мраморные горы и мосты',
+    'Фукуок: 4 острова и канатная дорога',
+    'VinWonders и Safari Фукуок',
+    'Ханой и бухта Халонг',
+    'Ханой и Сапа',
+    'Ниньбинь: Чанган и пещера Муа',
+    'Муйне: дюны, Рыбацкая деревня и ручей Фей',
+  ];
+
+  // Curated against MAX TOUR's official site / verified location photography.
+  // These overrides intentionally target only the production host/embed.
+  const TOUR_IMAGE_OVERRIDES = new Map([
+    ['Дневная обзорная по Нячангу', 'https://static.tildacdn.one/tild6434-3137-4937-a636-666233396436/nha-trang-city-tour-.png'],
+    ['Вечерняя обзорная по Нячангу', 'https://static.tildacdn.one/tild6263-3330-4138-a533-383463316634/nha-trang-city-tour-.png'],
+    ['Ба На Хилл, Золотой мост и Хойан', 'https://static.tildacdn.one/tild3163-3961-4362-b065-623331613939/danang-.png'],
+    ['Ханой и Сапа', 'https://static.tildacdn.one/tild6339-3238-4939-b762-666433376534/hanoi-sapa-3-dnya-2-.png'],
+    ['Ниньбинь: Чанган и пещера Муа', 'https://static.tildacdn.one/tild3337-6538-4035-a135-336439653834/Ninh_Binh3.png'],
+    ['Муйне: дюны, Рыбацкая деревня и ручей Фей', 'https://images.unsplash.com/photo-1591252215923-9fa0072a556d?auto=format&fit=crop&w=1600&q=85'],
+  ]);
+
+  const exactLeaves = (label) => {
     const wanted = upper(label);
-    return [...document.querySelectorAll('body *')].find((el) => {
+    return [...document.querySelectorAll('body *')].filter((el) => {
       if (upper(el.textContent) !== wanted) return false;
       return ![...el.children].some((child) => normalize(child.textContent));
-    }) || null;
+    });
   };
+
+  const exactLeaf = (label) => exactLeaves(label)[0] || null;
 
   const radius = (el) => {
     const cs = getComputedStyle(el);
@@ -97,6 +128,172 @@
     });
   };
 
+  const isPlausibleTourImage = (img) => {
+    if (!(img instanceof HTMLImageElement)) return false;
+    const src = img.currentSrc || img.src || '';
+    if (!src || src.includes('max-tour-logo') || src.endsWith('.svg')) return false;
+    const alt = normalize(img.alt).toLowerCase();
+    if (alt.includes('logo') || alt.includes('логотип')) return false;
+    const rect = img.getBoundingClientRect();
+    return rect.width >= 120 && rect.height >= 70;
+  };
+
+  const visibleTourImagesIn = (container) => [...container.querySelectorAll('img')].filter(isPlausibleTourImage);
+
+  const findTourContainer = (leaf) => {
+    let node = leaf?.parentElement || null;
+    let fallback = null;
+    for (let depth = 0; node && node !== document.body && depth < 9; depth += 1, node = node.parentElement) {
+      const rect = node.getBoundingClientRect();
+      if (!rect.width || !rect.height) continue;
+      const images = visibleTourImagesIn(node);
+      if (!images.length) continue;
+      if (!fallback) fallback = node;
+      const cls = String(node.className || '').toLowerCase();
+      if (node.matches('article,a,button,li') || /tour|card|item|detail|screen/.test(cls)) return node;
+    }
+    return fallback;
+  };
+
+  const setTourImage = (img, title, url) => {
+    if (!img || !url) return;
+    if (img.dataset.productionTourOverride !== url) {
+      img.removeAttribute('srcset');
+      img.removeAttribute('data-srcset');
+      img.removeAttribute('data-original');
+      img.removeAttribute('data-lazy-src');
+      const picture = img.closest('picture');
+      picture?.querySelectorAll('source').forEach((source) => source.removeAttribute('srcset'));
+      img.src = url;
+      img.dataset.productionTourOverride = url;
+    }
+    img.alt = title;
+  };
+
+  const markTourImage = (img, title) => {
+    if (!isPlausibleTourImage(img)) return;
+    img.classList.add('production-tour-photo');
+    img.dataset.productionTourTitle = title;
+    img.setAttribute('role', 'button');
+    img.setAttribute('tabindex', '0');
+    img.setAttribute('aria-label', `Открыть фото экскурсии «${title}»`);
+  };
+
+  const applyTourImages = () => {
+    TOUR_TITLES.forEach((title) => {
+      exactLeaves(title).forEach((leaf) => {
+        if (!leaf.getBoundingClientRect().width) return;
+        const container = findTourContainer(leaf);
+        if (!container) return;
+        let images = visibleTourImagesIn(container);
+        if (!images.length) return;
+
+        const override = TOUR_IMAGE_OVERRIDES.get(title);
+        if (override) {
+          setTourImage(images[0], title, override);
+          images = visibleTourImagesIn(container);
+        }
+        images.forEach((img) => markTourImage(img, title));
+      });
+    });
+  };
+
+  let lightbox = null;
+  let lightboxImage = null;
+  let lightboxCaption = null;
+  let lightboxPrev = null;
+  let lightboxNext = null;
+  let lightboxGallery = [];
+  let lightboxIndex = 0;
+
+  const ensureLightbox = () => {
+    if (lightbox) return;
+    lightbox = document.createElement('div');
+    lightbox.className = 'production-tour-lightbox';
+    lightbox.setAttribute('aria-hidden', 'true');
+    lightbox.innerHTML = `
+      <button type="button" class="production-tour-lightbox-close" aria-label="Закрыть фото">×</button>
+      <button type="button" class="production-tour-lightbox-nav production-tour-lightbox-prev" aria-label="Предыдущее фото">‹</button>
+      <figure class="production-tour-lightbox-figure">
+        <img class="production-tour-lightbox-image" alt="">
+        <figcaption class="production-tour-lightbox-caption"></figcaption>
+      </figure>
+      <button type="button" class="production-tour-lightbox-nav production-tour-lightbox-next" aria-label="Следующее фото">›</button>
+    `;
+    document.body.appendChild(lightbox);
+    lightboxImage = lightbox.querySelector('.production-tour-lightbox-image');
+    lightboxCaption = lightbox.querySelector('.production-tour-lightbox-caption');
+    lightboxPrev = lightbox.querySelector('.production-tour-lightbox-prev');
+    lightboxNext = lightbox.querySelector('.production-tour-lightbox-next');
+
+    const close = () => {
+      lightbox.classList.remove('is-open');
+      lightbox.setAttribute('aria-hidden', 'true');
+      document.documentElement.classList.remove('production-lightbox-open');
+      document.body.classList.remove('production-lightbox-open');
+    };
+    lightbox.querySelector('.production-tour-lightbox-close').addEventListener('click', close);
+    lightbox.addEventListener('click', (event) => {
+      if (event.target === lightbox) close();
+    });
+    lightboxPrev.addEventListener('click', () => showLightboxAt(lightboxIndex - 1));
+    lightboxNext.addEventListener('click', () => showLightboxAt(lightboxIndex + 1));
+    document.addEventListener('keydown', (event) => {
+      if (!lightbox?.classList.contains('is-open')) return;
+      if (event.key === 'Escape') close();
+      if (event.key === 'ArrowLeft') showLightboxAt(lightboxIndex - 1);
+      if (event.key === 'ArrowRight') showLightboxAt(lightboxIndex + 1);
+    });
+  };
+
+  const showLightboxAt = (nextIndex) => {
+    if (!lightboxGallery.length) return;
+    lightboxIndex = (nextIndex + lightboxGallery.length) % lightboxGallery.length;
+    const active = lightboxGallery[lightboxIndex];
+    lightboxImage.src = active.currentSrc || active.src;
+    lightboxImage.alt = active.alt || active.dataset.productionTourTitle || 'Фото экскурсии';
+    lightboxCaption.textContent = active.dataset.productionTourTitle || active.alt || '';
+    const multiple = lightboxGallery.length > 1;
+    lightboxPrev.hidden = !multiple;
+    lightboxNext.hidden = !multiple;
+  };
+
+  const openTourLightbox = (img) => {
+    ensureLightbox();
+    const title = img.dataset.productionTourTitle || img.alt || '';
+    lightboxGallery = [...document.querySelectorAll('img.production-tour-photo')].filter((candidate) => {
+      if (!isPlausibleTourImage(candidate)) return false;
+      return (candidate.dataset.productionTourTitle || candidate.alt || '') === title;
+    });
+    if (!lightboxGallery.length) lightboxGallery = [img];
+    lightboxIndex = Math.max(0, lightboxGallery.indexOf(img));
+    showLightboxAt(lightboxIndex);
+    lightbox.classList.add('is-open');
+    lightbox.setAttribute('aria-hidden', 'false');
+    document.documentElement.classList.add('production-lightbox-open');
+    document.body.classList.add('production-lightbox-open');
+    requestAnimationFrame(() => lightbox.querySelector('.production-tour-lightbox-close')?.focus({ preventScroll: true }));
+  };
+
+  const tourPhotoFromEvent = (event) => event.target?.closest?.('img.production-tour-photo') || null;
+
+  document.addEventListener('click', (event) => {
+    const img = tourPhotoFromEvent(event);
+    if (!img) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    openTourLightbox(img);
+  }, true);
+
+  document.addEventListener('keydown', (event) => {
+    const img = tourPhotoFromEvent(event);
+    if (!img || (event.key !== 'Enter' && event.key !== ' ')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openTourLightbox(img);
+  }, true);
+
   const pressedButtonFromEvent = (event) => event.target?.closest?.('.production-show-button') || null;
   const releasePressed = (button) => {
     if (!button) return;
@@ -126,6 +323,7 @@
     centerKnownDetailTiles();
     centerCompactRoundedTiles();
     markShowButtons();
+    applyTourImages();
   };
   const schedule = () => {
     if (scheduled) return;
