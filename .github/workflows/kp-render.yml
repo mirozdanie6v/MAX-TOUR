@@ -1,0 +1,54 @@
+name: Render MAX TOUR KP pages
+
+on:
+  push:
+    branches: [kp-render-v1]
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: kp-render-v1
+
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Serve proposal
+        run: |
+          python3 -m http.server 8000 --directory proposal >/tmp/kp-http.log 2>&1 &
+          sleep 2
+
+      - name: Render pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p rendered
+          CHROME="$(which chrome || which google-chrome || which chromium || which chromium-browser)"
+          echo "Chrome: $CHROME"
+          for p in 1 2 3 4 5 6 7 8; do
+            printf -v n "%02d" "$p"
+            "$CHROME" \
+              --headless=new \
+              --no-sandbox \
+              --disable-gpu \
+              --hide-scrollbars \
+              --disable-dev-shm-usage \
+              --window-size=1080,1920 \
+              --force-device-scale-factor=1 \
+              --virtual-time-budget=25000 \
+              --screenshot="rendered/MAX_TOUR_KP_${n}.png" \
+              "http://127.0.0.1:8000/book.html?p=$p"
+          done
+          ls -lh rendered
+
+      - name: Upload rendered pages
+        uses: actions/upload-artifact@v4
+        with:
+          name: max-tour-kp-real-pages
+          path: rendered/*.png
+          if-no-files-found: error
+          retention-days: 3
