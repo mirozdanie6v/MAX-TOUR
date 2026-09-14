@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "max-tour-demo-v28",
-  "main": "./src/worker-profile.js",
+  "main": "./src/worker-r2.js",
   "compatibility_date": "2026-09-09",
   "vars": {
     "APP_ENV": "demo-v28",
@@ -17,13 +17,20 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": ["/api/*", "/tour-media/*"]
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "max-tour-standalone-v28-db",
       "database_id": "REPLACED_BY_SHARED_DEPLOY"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "TOUR_MEDIA",
+      "bucket_name": "max-tour-demo-v28-media",
+      "preview_bucket_name": "max-tour-demo-v28-media"
     }
   ]
 }
