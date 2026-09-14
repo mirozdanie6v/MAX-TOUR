@@ -1,4 +1,5 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
@@ -21,34 +22,54 @@ function detectedType(buffer) {
   return '';
 }
 
+function sourceVariants(source) {
+  const variants = [];
+  const raw = String(source || '');
+
+  // Tilda thumbnail hosts may return a tiny generated PNG regardless of the
+  // original file extension. Prefer the immutable original asset instead.
+  if (/^https:\/\/thb\.tildacdn\.(?:one|net)\//i.test(raw)) {
+    const original = raw
+      .replace(/^https:\/\/thb\.tildacdn\.one\//i, 'https://static.tildacdn.one/')
+      .replace(/^https:\/\/thb\.tildacdn\.net\//i, 'https://static.tildacdn.net/')
+      .replace('/-/empty/', '/');
+    variants.push(original);
+  }
+
+  variants.push(raw);
+  return [...new Set(variants.filter(Boolean))];
+}
+
 async function fetchImage(item) {
   let lastError;
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-    try {
-      const response = await fetch(item.source, {
-        redirect: 'follow',
-        signal: controller.signal,
-        headers: {
-          'user-agent': 'Mozilla/5.0 (compatible; VIIVERSION-MAX-TOUR-MediaSeeder/1.0)',
-          accept: 'image/jpeg,image/png,image/webp,image/avif,*/*;q=0.8',
-          'accept-language': 'en-US,en;q=0.8',
-        },
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const buffer = Buffer.from(await response.arrayBuffer());
-      if (buffer.length < 1024) throw new Error(`too small: ${buffer.length} bytes`);
-      const expected = expectedType(item.key);
-      const actual = detectedType(buffer);
-      if (!actual) throw new Error('not a supported image payload');
-      if (actual !== expected) throw new Error(`payload type ${actual} does not match .${expected}`);
-      return buffer;
-    } catch (error) {
-      lastError = error;
-      if (attempt < 3) await new Promise(resolveDelay => setTimeout(resolveDelay, attempt * 1200));
-    } finally {
-      clearTimeout(timeout);
+  for (const source of sourceVariants(item.source)) {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+      try {
+        const response = await fetch(source, {
+          redirect: 'follow',
+          signal: controller.signal,
+          headers: {
+            'user-agent': 'Mozilla/5.0 (compatible; VIIVERSION-MAX-TOUR-MediaSeeder/1.1)',
+            accept: 'image/jpeg,image/png,image/webp,image/avif,*/*;q=0.8',
+            'accept-language': 'en-US,en;q=0.8',
+          },
+        });
+        if (!response.ok) throw new Error(`${source} -> HTTP ${response.status}`);
+        const buffer = Buffer.from(await response.arrayBuffer());
+        if (buffer.length < 8192) throw new Error(`${source} -> suspiciously small image: ${buffer.length} bytes`);
+        const expected = expectedType(item.key);
+        const actual = detectedType(buffer);
+        if (!actual) throw new Error(`${source} -> not a supported image payload`);
+        if (actual !== expected) throw new Error(`${source} -> payload type ${actual} does not match .${expected}`);
+        return { buffer, source };
+      } catch (error) {
+        lastError = error;
+        if (attempt < 3) await new Promise(resolveDelay => setTimeout(resolveDelay, attempt * 1200));
+      } finally {
+        clearTimeout(timeout);
+      }
     }
   }
   throw new Error(`${item.key}: ${lastError?.message || lastError}`);
@@ -58,16 +79,23 @@ await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
 
 const items = manifest.items || [];
+const hashesByTour = new Map();
 let completed = 0;
 for (let index = 0; index < items.length; index += 4) {
   const chunk = items.slice(index, index + 4);
   await Promise.all(chunk.map(async item => {
-    const buffer = await fetchImage(item);
+    const { buffer, source } = await fetchImage(item);
+    const hash = createHash('sha256').update(buffer).digest('hex');
+    const tourHashes = hashesByTour.get(item.tourId) || new Set();
+    if (tourHashes.has(hash)) throw new Error(`${item.key}: duplicate image payload within ${item.tourId}`);
+    tourHashes.add(hash);
+    hashesByTour.set(item.tourId, tourHashes);
+
     const target = resolve(out, item.key);
     await mkdir(dirname(target), { recursive: true });
     await writeFile(target, buffer);
     completed += 1;
-    console.log(`[tour-media] ${completed}/${items.length} ${item.key} ${buffer.length} bytes`);
+    console.log(`[tour-media] ${completed}/${items.length} ${item.key} ${buffer.length} bytes <- ${source}`);
   }));
 }
-console.log(`[tour-media] prepared ${completed} verified image files for R2 upload`);
+console.log(`[tour-media] prepared ${completed} verified original image files for R2 upload`);
