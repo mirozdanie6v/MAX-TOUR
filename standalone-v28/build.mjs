@@ -134,7 +134,7 @@ await mkdir(dist, { recursive: true });
 await mkdir(resolve(dist, 'admin'), { recursive: true });
 await mkdir(resolve(dist, 'director'), { recursive: true });
 const marker = '</body>';
-const injection = '<script src="/booking-pricing.js"></script>\n<script src="/traveler-profile.js"></script>\n<link rel="stylesheet" href="/traveler-picker-list.css">\n<script src="/trip-actions.js"></script>\n<script src="/trip-policy-live-v2.js"></script>\n<link rel="stylesheet" href="/hero-redesign.css">\n<script src="/hero-redesign.js"></script>\n<link rel="stylesheet" href="/role-switch.css">\n<script src="/role-switch.js"></script>\n<link rel="stylesheet" href="/ai-consultant.css">\n<link rel="stylesheet" href="/ai-consultant-v5.css">\n<script src="/ai-consultant.js"></script>\n<script src="/ai-consultant-v5.js"></script>\n<script src="/ai-location-guard-v6.js"></script>\n<script src="/ai-catalog-card-v7.js"></script>\n<link rel="stylesheet" href="/tour-lightbox.css">\n<script src="/tour-lightbox.js" defer></script>\n<script src="/runtime-api.js" defer></script>\n';
+const injection = '<script src="/booking-pricing.js"></script>\n<script src="/traveler-profile.js"></script>\n<link rel="stylesheet" href="/traveler-picker-list.css">\n<script src="/trip-actions.js"></script>\n<script src="/trip-policy-live-v2.js"></script>\n<link rel="stylesheet" href="/hero-redesign.css">\n<script src="/hero-redesign.js"></script>\n<link rel="stylesheet" href="/role-switch.css">\n<script src="/role-switch.js"></script>\n<link rel="stylesheet" href="/ai-consultant.css">\n<link rel="stylesheet" href="/ai-consultant-v5.css">\n<script src="/ai-consultant.js"></script>\n<script src="/ai-consultant-v5.js"></script>\n<script src="/ai-location-guard-v6.js"></script>\n<script src="/ai-catalog-card-v7.js"></script>\n<link rel="stylesheet" href="/catalog-show-press.css">\n<script src="/catalog-show-press.js" defer></script>\n<link rel="stylesheet" href="/tour-lightbox.css">\n<script src="/tour-lightbox.js" defer></script>\n<script src="/runtime-api.js" defer></script>\n';
 if (!prototypeHtml.includes(marker)) throw new Error('Prototype has no </body> marker');
 const builtHtml = withViiversionAnalytics(cleanCustomerCopy(replaceBrandLogos(replaceLegacyAdmin(prototypeHtml)).replace(marker, `${injection}${marker}`)));
 await writeFile(resolve(dist, 'index.html'), builtHtml, 'utf8');
@@ -154,6 +154,8 @@ await copyFile(resolve(root, 'src/ai-consultant-v5.css'), resolve(dist, 'ai-cons
 await copyFile(resolve(root, 'src/ai-consultant-v5.js'), resolve(dist, 'ai-consultant-v5.js'));
 await copyFile(resolve(root, 'src/ai-location-guard-v6.js'), resolve(dist, 'ai-location-guard-v6.js'));
 await copyFile(resolve(root, 'src/ai-catalog-card-v7.js'), resolve(dist, 'ai-catalog-card-v7.js'));
+await copyFile(resolve(root, 'src/catalog-show-press.css'), resolve(dist, 'catalog-show-press.css'));
+await copyFile(resolve(root, 'src/catalog-show-press.js'), resolve(dist, 'catalog-show-press.js'));
 await copyFile(resolve(root, 'src/tour-lightbox.css'), resolve(dist, 'tour-lightbox.css'));
 await copyFile(resolve(root, 'src/tour-lightbox.js'), resolve(dist, 'tour-lightbox.js'));
 await copyFile(resolve(root, 'src/production-embed-polish.css'), resolve(dist, 'production-embed-polish.css'));
