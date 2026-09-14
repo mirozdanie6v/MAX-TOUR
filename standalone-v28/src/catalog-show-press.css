@@ -1,0 +1,29 @@
+.catalog-show-press {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transform-origin: center;
+  translate: 0 0;
+  scale: 1;
+  transition:
+    translate 90ms ease,
+    scale 90ms ease,
+    filter 90ms ease,
+    box-shadow 90ms ease !important;
+  will-change: translate, scale, filter, box-shadow;
+}
+
+.catalog-show-press:active,
+.catalog-show-press.catalog-show-pressed {
+  translate: 0 3px !important;
+  scale: 0.965 !important;
+  filter: brightness(0.82) saturate(1.06) !important;
+  box-shadow:
+    inset 0 4px 10px rgba(70, 0, 0, 0.28),
+    0 1px 2px rgba(60, 15, 0, 0.16) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .catalog-show-press {
+    transition: none !important;
+  }
+}
