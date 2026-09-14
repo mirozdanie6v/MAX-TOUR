@@ -27,6 +27,69 @@ function withSession(response, session) {
   return new Response(response.body, { status:response.status, statusText:response.statusText, headers });
 }
 
+function vietnamTodayIso() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone:'Asia/Ho_Chi_Minh', year:'numeric', month:'2-digit', day:'2-digit',
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
+function vietnamDateLabel(iso) {
+  return new Intl.DateTimeFormat('ru-RU', { day:'numeric', month:'long', year:'numeric', timeZone:'UTC' }).format(new Date(`${iso}T00:00:00Z`));
+}
+
+const MONTHS = [
+  ['январ',1],['феврал',2],['март',3],['апрел',4],['май',5],['мая',5],['июн',6],['июл',7],['август',8],['сентябр',9],['октябр',10],['ноябр',11],['декабр',12],
+];
+
+function isoFromParts(day, month, year) {
+  const y = Number(year);
+  const d = new Date(Date.UTC(y, Number(month) - 1, Number(day)));
+  if (Number.isNaN(d.valueOf()) || d.getUTCDate() !== Number(day) || d.getUTCMonth() !== Number(month) - 1) return '';
+  return d.toISOString().slice(0,10);
+}
+
+function containsPastDate(text, today = vietnamTodayIso()) {
+  const source = String(text || '');
+  for (const match of source.matchAll(/\b(20\d{2}-\d{2}-\d{2})\b/g)) if (match[1] < today) return true;
+  for (const match of source.matchAll(/(?:^|[^\d])(\d{1,2})[./-](\d{1,2})[./-](20\d{2})(?:[^\d]|$)/g)) {
+    const iso = isoFromParts(match[1], match[2], match[3]); if (iso && iso < today) return true;
+  }
+  const currentYear = Number(today.slice(0,4));
+  const q = source.toLocaleLowerCase('ru-RU');
+  const named = /(?:^|[^а-яё])(\d{1,2})\s+(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)[а-яё]*(?:\s+(20\d{2}))?/g;
+  for (const match of q.matchAll(named)) {
+    const month = MONTHS.find(([stem]) => match[2].startsWith(stem))?.[1];
+    const iso = month ? isoFromParts(match[1], month, match[3] || currentYear) : '';
+    if (iso && iso < today) return true;
+  }
+  return false;
+}
+
+function pastDateReply(today = vietnamTodayIso()) {
+  return `Эта дата уже прошла. Сегодня во Вьетнаме ${vietnamDateLabel(today)}. Могу предложить только сегодняшние и будущие даты — напишите удобный день, и я покажу актуальные варианты.`;
+}
+
+async function safeAiChat(request, env) {
+  const copy = request.clone();
+  const body = await copy.json().catch(() => ({}));
+  const today = vietnamTodayIso();
+  const selectedDate = String(body?.context?.date || '');
+  if (/^\d{4}-\d{2}-\d{2}$/.test(selectedDate) && selectedDate < today) {
+    return json({ ok:true, reply:pastDateReply(today), source:'date-guard', currentDateVietnam:today });
+  }
+  const response = await baseWorker.fetch(request, env);
+  if (!response.ok) return response;
+  const data = await response.clone().json().catch(() => null);
+  if (!data?.reply || !containsPastDate(data.reply, today)) return response;
+  const headers = new Headers(response.headers);
+  headers.delete('content-length');
+  return new Response(JSON.stringify({ ...data, reply:pastDateReply(today), source:'date-guard', currentDateVietnam:today }), {
+    status:response.status, statusText:response.statusText, headers,
+  });
+}
+
 const travelerKey = t => `${String(t.fullName || '').trim().toLowerCase()}|${String(t.birthDate || '').trim()}`;
 
 function normalizeTravelers(travelers) {
@@ -72,9 +135,15 @@ async function replaceTravelers(env, sid, travelers) {
   return normalized;
 }
 
+export const _test = { vietnamTodayIso, containsPastDate, pastDateReply };
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === '/api/ai/chat' && request.method === 'POST') {
+      try { return await safeAiChat(request, env); }
+      catch (error) { console.error(error); return json({ ok:false, error:'internal_error' }, { status:500 }); }
+    }
     if (url.pathname === '/api/travelers' && request.method === 'PUT') {
       try {
         const session = await ensureSession(request, env);
