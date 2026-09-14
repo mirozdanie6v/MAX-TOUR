@@ -11,6 +11,11 @@
 
   const text = value => String(value ?? '').trim();
 
+  function tours() {
+    try { return Array.isArray(TOURS) ? TOURS : []; }
+    catch (_) { return []; }
+  }
+
   function tourIdFromCard(card) {
     if (!card) return '';
     const direct = text(card.dataset?.tourId);
@@ -21,13 +26,7 @@
   }
 
   function tourById(tourId) {
-    try {
-      return Array.isArray(TOURS)
-        ? TOURS.find(item => String(item?.id) === String(tourId)) || null
-        : null;
-    } catch (_) {
-      return null;
-    }
+    return tours().find(item => String(item?.id) === String(tourId)) || null;
   }
 
   function existingCatalogCard(tourId, aiRoot) {
@@ -83,7 +82,6 @@
     preferred.forEach(name => {
       try { consider(name, globalThis[name]); } catch (_) {}
     });
-
     for (const name of Object.getOwnPropertyNames(globalThis)) {
       if (found.length >= 10) break;
       try { consider(name, globalThis[name]); } catch (_) {}
@@ -109,8 +107,8 @@
   function cloneAsAiCatalogCard(source, tourId, wasHidden = false) {
     if (!source) return null;
     const clone = source.cloneNode(true);
-    clone.classList.add('ai-sales-card', UPGRADED_CLASS);
-    clone.classList.remove('ai-recommendation');
+    clone.classList.add(UPGRADED_CLASS);
+    clone.classList.remove('ai-recommendation', 'ai-sales-card');
     clone.dataset.tourId = String(tourId);
     clone.dataset.aiCatalogSource = 'catalog';
     clone.removeAttribute(PENDING_ATTR);
@@ -122,27 +120,30 @@
   function catalogSourceFor(tourId, aiRoot) {
     let source = existingCatalogCard(tourId, aiRoot);
     if (source) return source;
-
     ensureCatalogDom();
     source = existingCatalogCard(tourId, aiRoot);
     if (source) return source;
-
     return renderWithOriginalCatalogRenderer(tourId);
+  }
+
+  function createCatalogCard(tourId, aiRoot, options = {}) {
+    const source = catalogSourceFor(tourId, aiRoot);
+    if (!source) return null;
+    const card = cloneAsAiCatalogCard(source, tourId, Boolean(options.hidden));
+    if (!card) return null;
+    card.dataset.aiCatalogInjected = options.injected ? '1' : '0';
+    return card;
   }
 
   function upgradeOne(oldCard, aiRoot) {
     if (!oldCard || oldCard.classList.contains(UPGRADED_CLASS)) return false;
     const tourId = tourIdFromCard(oldCard);
     if (!tourId) return false;
-
-    const source = catalogSourceFor(tourId, aiRoot);
-    if (!source) {
+    const replacement = createCatalogCard(tourId, aiRoot, { hidden:oldCard.hidden });
+    if (!replacement) {
       oldCard.setAttribute(PENDING_ATTR, 'pending');
       return false;
     }
-
-    const replacement = cloneAsAiCatalogCard(source, tourId, oldCard.hidden);
-    if (!replacement) return false;
     oldCard.replaceWith(replacement);
     return true;
   }
@@ -202,8 +203,7 @@
     aiRoot.dataset.aiCatalogV7Bound = '1';
     aiRoot.addEventListener('click', event => {
       const card = event.target?.closest?.(`.${UPGRADED_CLASS}[data-tour-id]`);
-      if (!card) return;
-      if (event.target?.closest?.('.like')) return;
+      if (!card || event.target?.closest?.('.like')) return;
       rememberBookingIntent(card.dataset.tourId || tourIdFromCard(card));
     }, true);
   }
@@ -250,13 +250,17 @@
         observe(root);
         upgradeRecommendations(root);
       },
-      _catalogCardV7Test:{ tourIdFromCard, rememberBookingIntent, upgradeRecommendations },
+      _catalogCardV7Test:{ tourIdFromCard, rememberBookingIntent, upgradeRecommendations, createCatalogCard },
     };
   }
 
-  globalThis.MaxTourCatalogCardV7 = {
+  const api = {
     upgradeRecommendations,
+    createCatalogCard,
     rememberBookingIntent,
-    _test:{ tourIdFromCard, discoverPureCatalogRenderers, catalogSourceFor },
+    tourById,
+    _test:{ tourIdFromCard, discoverPureCatalogRenderers, catalogSourceFor, cloneAsAiCatalogCard },
   };
+  globalThis.MaxTourCatalogCardV7 = api;
+  globalThis.MaxTourCatalogCardV8 = api;
 })();
