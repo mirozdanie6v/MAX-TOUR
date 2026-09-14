@@ -34,6 +34,7 @@
   let state = { origin:'', requestedDestination:'', locationJustSet:false, lastInput:'' };
   try { state = { ...state, ...(JSON.parse(sessionStorage.getItem(KEY) || '{}') || {}) }; } catch (_) {}
   let processing = false;
+  let postprocessQueued = false;
 
   function save() { try { sessionStorage.setItem(KEY, JSON.stringify(state)); } catch (_) {} }
   function reset() { state = { origin:'', requestedDestination:'', locationJustSet:false, lastInput:'' }; try { sessionStorage.removeItem(KEY); } catch (_) {} }
@@ -89,7 +90,8 @@
       const cards = [...group.querySelectorAll('.ai-sales-card[data-tour-id]')];
       if (cards.length) group.hidden = cards.every(card => card.hidden);
       const label = group.querySelector('.ai-chat-results-label');
-      if (label && !group.hidden) label.textContent = `Подходящие экскурсии из ${state.origin}`;
+      const desired = `Подходящие экскурсии из ${state.origin}`;
+      if (label && !group.hidden && label.textContent !== desired) label.textContent = desired;
     });
     return visible;
   }
@@ -152,15 +154,26 @@
       const below = root.querySelector('.ai-chat-below'); if (!below) return;
       box = document.createElement('div'); box.className = 'ai-quick-replies'; below.prepend(box);
     }
-    box.innerHTML = options.map(([label,value]) => `<button type="button" data-location-v6-value="${esc(value)}">${esc(label)}</button>`).join('');
+    const desired = options.map(([label,value]) => `<button type="button" data-location-v6-value="${esc(value)}">${esc(label)}</button>`).join('');
+    if (box.dataset.locationV6Html === desired) return;
+    box.dataset.locationV6Html = desired;
+    box.innerHTML = desired;
   }
 
   function renderRequestCard(root, visibleCards) {
-    root.querySelector('.ai-location-request-v6')?.remove();
-    if (!state.origin || !state.requestedDestination || visibleCards > 0 || !allowed(state.origin,state.requestedDestination)) return;
+    const existing = root.querySelector('.ai-location-request-v6');
+    const shouldRender = state.origin && state.requestedDestination && visibleCards === 0 && allowed(state.origin,state.requestedDestination);
+    if (!shouldRender) {
+      if (existing) existing.remove();
+      return;
+    }
+    const routeKey = `${state.origin}>${state.requestedDestination}`;
+    if (existing?.dataset.routeKey === routeKey) return;
+    if (existing) existing.remove();
     const below = root.querySelector('.ai-chat-below'); if (!below) return;
     const wrap = document.createElement('div');
     wrap.className = 'ai-chat-results ai-sales-results ai-location-request-v6';
+    wrap.dataset.routeKey = routeKey;
     wrap.innerHTML = `<div class="ai-msg-author">AI-консультант</div><div class="ai-chat-results-label">Маршрут по запросу</div><div class="ai-recommendations"><article class="ai-recommendation ai-sales-card"><div class="ai-tour-card-copy"><span class="ai-tour-meta">${esc(state.origin)} → ${esc(state.requestedDestination)}</span><h4>${esc(state.requestedDestination)} из ${esc(state.origin)}</h4><p>Маршрут можно подобрать. Дата, наличие и цена подтверждаются после уточнения параметров.</p><span class="ai-price">Цена после подтверждения</span></div></article></div>`;
     below.append(wrap);
   }
@@ -169,7 +182,8 @@
     if (state.origin) return;
     const userMessages = root.querySelectorAll('.ai-msg.user').length;
     const bot = lastBotText(root);
-    if (!userMessages && bot) bot.textContent = 'Где вы сейчас или откуда планируете выезд?';
+    const desired = 'Где вы сейчас или откуда планируете выезд?';
+    if (!userMessages && bot && bot.textContent !== desired) bot.textContent = desired;
   }
 
   function postprocess(root) {
@@ -182,6 +196,17 @@
       replaceQuickReplies(root);
       renderRequestCard(root,visible);
     } finally { processing = false; }
+  }
+
+  function schedulePostprocess(root) {
+    if (postprocessQueued) return;
+    postprocessQueued = true;
+    const run = () => {
+      postprocessQueued = false;
+      postprocess(root);
+    };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(run);
+    else setTimeout(run, 0);
   }
 
   const previous = globalThis.MaxTourAI;
@@ -197,7 +222,7 @@
         const value = event.target?.querySelector?.('textarea[name="message"]')?.value?.trim();
         if (value) inspectInput(value);
         const result = oldSubmit?.call(root,event);
-        setTimeout(() => postprocess(root),0);
+        schedulePostprocess(root);
         return result;
       };
       root.onkeydown = event => {
@@ -206,7 +231,7 @@
           if (value) inspectInput(value);
         }
         const result = oldKeydown?.call(root,event);
-        setTimeout(() => postprocess(root),0);
+        schedulePostprocess(root);
         return result;
       };
       root.onclick = event => {
@@ -222,11 +247,11 @@
         const clear = event.target.closest?.('[data-ai-action="clear"]');
         if (clear) reset();
         const result = oldClick?.call(root,event);
-        setTimeout(() => postprocess(root),0);
+        schedulePostprocess(root);
         return result;
       };
-      const observer = new MutationObserver(() => postprocess(root));
-      observer.observe(root,{childList:true,subtree:true,characterData:true});
+      const observer = new MutationObserver(() => schedulePostprocess(root));
+      observer.observe(root,{childList:true,subtree:true});
       postprocess(root);
     },
     _locationTest:{ placeFrom,allowed,inspectInput },
