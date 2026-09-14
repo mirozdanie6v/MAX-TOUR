@@ -258,3 +258,162 @@ img[src^="/tour-media/"], img[src*="max-tour-demo.viiversion.com/tour-media/"] {
     transition: none;
   }
 }
+
+/*
+ * Global UI typography/alignment guard.
+ * This stylesheet is loaded after the prototype/component CSS, so these rules
+ * correct unsafe word splitting and off-center action labels without changing
+ * component dimensions or forcing a new layout model.
+ */
+
+/* Never hyphenate or split ordinary words in the customer interface. */
+html,
+body,
+body * {
+  -webkit-hyphens: none !important;
+  hyphens: none !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+}
+
+/* Long machine/user data may still break to protect narrow mobile layouts. */
+body :where(
+  pre,
+  code,
+  textarea,
+  [contenteditable='true'],
+  [data-wrap-anywhere],
+  .ai-message,
+  .ai-message__text,
+  .chat-message,
+  .message-text
+) {
+  overflow-wrap: anywhere !important;
+}
+
+/* Center native and semantic action labels without changing their box model. */
+body :where(
+  button,
+  [role='button'],
+  input[type='button'],
+  input[type='submit'],
+  input[type='reset']
+) {
+  text-align: center !important;
+  align-items: center !important;
+  justify-content: center !important;
+  vertical-align: middle !important;
+}
+
+body :where(button, [role='button']) > :where(span, strong, b, small, em) {
+  text-align: center !important;
+}
+
+/* Custom controls used by the prototype and runtime widgets. */
+body :where(
+  .btn,
+  [class*='btn-'],
+  [class*='-btn'],
+  [class*='button'],
+  [class*='Button'],
+  [role='tab'],
+  [role='option'],
+  [role='menuitem'],
+  nav a,
+  .chip,
+  .pill,
+  .badge,
+  .tag,
+  [class*='chip'],
+  [class*='pill'],
+  [class*='badge'],
+  [class*='tag']
+) {
+  text-align: center !important;
+  -webkit-hyphens: none !important;
+  hyphens: none !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+}
+
+/* Compact labels are safe to keep as one visual unit. */
+body :where(
+  .chip,
+  .pill,
+  .badge,
+  .tag,
+  [class*='chip'],
+  [class*='pill'],
+  [class*='badge'],
+  [class*='tag'],
+  [role='tab']
+) {
+  white-space: nowrap !important;
+}
+
+/* Labels/metadata can wrap between words, never inside a word. */
+body :where(
+  label,
+  legend,
+  th,
+  dt,
+  [class*='label'],
+  [class*='Label'],
+  [class*='status'],
+  [class*='Status'],
+  [class*='price'],
+  [class*='Price']
+) {
+  -webkit-hyphens: none !important;
+  hyphens: none !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+}
+
+body :where(h1, h2, h3, h4, h5, h6) {
+  text-wrap: balance;
+  -webkit-hyphens: none !important;
+  hyphens: none !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+}
+
+/* Keep segmented navigation/action text visually centered. */
+body :where(
+  [role='tablist'],
+  [class*='segmented'],
+  [class*='Segmented'],
+  [class*='tabs'],
+  [class*='Tabs']
+) :where(button, [role='tab'], a) {
+  text-align: center !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+body :where(button, [role='button']) :where(.label, [class*='label'], [class*='Label']) {
+  text-align: center !important;
+}
+
+/* Existing hero controls are grid-based; center the actual text cell explicitly. */
+.hero-lux__destination,
+.hero-lux__cta,
+.hero-lux__cta > span:nth-child(2),
+.hero-lux__destination-label {
+  text-align: center !important;
+  -webkit-hyphens: none !important;
+  hyphens: none !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+}
+
+/* Very narrow screens may wrap long actions between words, but never split words. */
+@media (max-width: 420px) {
+  body :where(button, [role='button'], .btn, [class*='button']) {
+    white-space: normal;
+  }
+
+  body :where(.chip, .pill, .badge, .tag, [role='tab']) {
+    max-width: 100%;
+  }
+}
