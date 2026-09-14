@@ -41,6 +41,19 @@ test('tour lightbox has full-screen mobile UI and close controls', () => {
   assert.match(script, /aria-modal/);
 });
 
+test('customer UI prevents unsafe word splitting and centers action labels without forcing layouts', () => {
+  assert.match(css, /body \*/);
+  assert.match(css, /hyphens:\s*none\s*!important/);
+  assert.match(css, /word-break:\s*normal\s*!important/);
+  assert.match(css, /overflow-wrap:\s*normal\s*!important/);
+  assert.match(css, /overflow-wrap:\s*anywhere\s*!important/);
+  assert.match(css, /\[role='button'\]/);
+  assert.match(css, /text-align:\s*center\s*!important/);
+  assert.match(css, /justify-content:\s*center\s*!important/);
+  assert.match(css, /\.hero-lux__cta > span:nth-child\(2\)/);
+  assert.doesNotMatch(css, /body\s+button[^\{]*\{[^\}]*display:\s*(?:flex|grid)\s*!important/s);
+});
+
 test('standalone build publishes lightbox assets', () => {
   assert.match(build, /tour-lightbox\.css/);
   assert.match(build, /tour-lightbox\.js/);
