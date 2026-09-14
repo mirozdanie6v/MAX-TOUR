@@ -119,9 +119,43 @@ async function loadAiCatalog(request, env, rate = DEFAULT_USD_RUB_RATE) {
         from: replaceDollarAmounts(consultationText(tour.individual.from, 80), rate),
         tiers: Array.isArray(tour.individual.tiers) ? tour.individual.tiers.slice(0, 8).map(item => replaceDollarAmounts(consultationText(item, 120), rate)) : [],
       } : null,
+      departures: tour.group && Array.isArray(tour.group.departures) ? tour.group.departures.slice(0, 8).map(item => ({
+        date: consultationText(item.date, 50),
+        time: consultationText(item.time, 20),
+        taken: Number(item.taken) || 0,
+        capacity: Number(item.capacity) || 0,
+        status: consultationText(item.status, 50),
+      })) : [],
     }));
   } catch (error) {
     console.warn('AI catalogue unavailable', error?.message || error);
+    return [];
+  }
+}
+
+async function loadAiDepartures(env) {
+  try {
+    const [departures, bookings] = await Promise.all([
+      safeAll(env.DB.prepare("SELECT tour_id,title,city,trip_date,trip_time,capacity,min_people,status,notes FROM admin_departures WHERE status IN ('open','almost_full','full') ORDER BY trip_date,trip_time")),
+      safeAll(env.DB.prepare('SELECT tour_id,trip_date,trip_time,people,status FROM bookings')),
+    ]);
+    const countPeople = value => (String(value || '').match(/\d+/g) || []).map(Number).reduce((sum, number) => sum + number, 0);
+    return (departures.results || []).map(row => ({
+      tourId: consultationText(row.tour_id, 120),
+      title: consultationText(row.title, 180),
+      city: consultationText(row.city, 80),
+      date: consultationText(row.trip_date, 40),
+      time: consultationText(row.trip_time, 20),
+      capacity: Number(row.capacity) || 0,
+      minPeople: Number(row.min_people) || 0,
+      taken: (bookings.results || [])
+        .filter(item => item.tour_id === row.tour_id && item.trip_date === row.trip_date && item.trip_time === row.trip_time && !/отмен|возврат/i.test(String(item.status || '')))
+        .reduce((sum, item) => sum + countPeople(item.people), 0),
+      status: consultationText(row.status, 40),
+      notes: consultationText(row.notes, 160),
+    })).slice(0, 30);
+  } catch (error) {
+    console.warn('AI departure availability unavailable', error?.message || error);
     return [];
   }
 }
@@ -165,6 +199,7 @@ async function generateAiReply(request, env, body) {
   const message = aiText(body?.message, 900);
   const usdRubRate = await currentUsdRubRate(env);
   const catalog = await loadAiCatalog(request, env, usdRubRate);
+  const liveDepartures = env.DB ? await loadAiDepartures(env) : [];
   const safeContext = {
     selected: body?.context && typeof body.context === 'object' ? {
       destination: consultationText(body.context.destination, 100),
@@ -175,6 +210,7 @@ async function generateAiReply(request, env, body) {
     } : {},
     rules: AI_RULES,
     catalogue: catalog,
+    liveDepartures,
   };
   const fallback = aiFallbackReply(message, catalog);
   if (!message || !env.AI) return { reply: fallback, source: 'catalog-fallback', usdRubRate };
