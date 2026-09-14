@@ -77,7 +77,8 @@ test('AI consultant is a simple customer-facing chat with optional saved selecti
   assert.doesNotMatch(aiCss, /overscroll-behavior-y:contain/);
   assert.match(ai, /\/api\/ai\/chat/);
   assert.match(ai, /Подбираю подходящий ответ/);
-  assert.match(ai, /rubleLabel/);
+  assert.match(ai, /dollarLabel/);
+  assert.match(ai, /ai-party/);
   assert.match(aiCss, /\.ai-consultant-input\{[\s\S]*position:sticky/);
   assert.match(aiCss, /bottom:calc\(var\(--nav,76px\)/);
   assert.match(aiCss, /overflow:visible/);
@@ -93,6 +94,13 @@ test('AI consultant parser does not turn child age into a budget', () => {
   assert.equal(globalThis.MaxTourAI._test.parseBudget('ребёнок до 3 лет'), '');
   assert.equal(globalThis.MaxTourAI._test.parseBudget('бюджет до $600'), '600');
   assert.equal(globalThis.MaxTourAI._test.parseBudget('примерно 600 долларов'), '600');
+});
+
+test('AI consultant keeps the entered party composition for recommendations', () => {
+  const parseParty = globalThis.MaxTourAI._test.parseParty;
+  assert.deepEqual(parseParty('3 человека'), { adults:3, children:[], infants:0 });
+  assert.deepEqual(parseParty('2 взрослых и ребёнок 7 лет'), { adults:2, children:[7], infants:0 });
+  assert.deepEqual(parseParty('семья из 4 человек: 2 взрослых, дети 7 и 10 лет'), { adults:2, children:[7,10], infants:0 });
 });
 
 test('customer interactions preserve mobile input and allow removing a companion', async () => {

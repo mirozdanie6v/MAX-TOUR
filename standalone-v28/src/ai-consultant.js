@@ -25,7 +25,6 @@
 
   let state = freshState();
   let aiPending = false;
-  let usdRubRate = 84.2569;
   try {
     const stored = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null');
     if (stored?.slots && Array.isArray(stored.messages)) state = {
@@ -51,9 +50,9 @@
     return match ? Number(match[1].replace(/,/g, '')) || 0 : 0;
   }
 
-  function rubleLabel(value) {
-    const amount = Math.max(0, Math.round((Number(value) || 0) * usdRubRate / 10) * 10);
-    return amount ? `${amount.toLocaleString('ru-RU')} ₽` : 'уточняется';
+  function dollarLabel(value) {
+    const amount = Math.max(0, Math.round(Number(value) || 0));
+    return amount ? `$${amount.toLocaleString('en-US')}` : 'уточняется';
   }
 
   function formatPeople() {
@@ -142,6 +141,86 @@
     return `${number}${suffix ? ` ${suffix === 'к' ? 'тыс.' : suffix}` : ''}${hasRubles ? ' ₽' : ''}`.trim();
   }
 
+  const PARTY_COUNTS = Object.freeze({
+    один:1, одна:1, одно:1, одиного:1,
+    два:2, две:2, двое:2,
+    три:3, трое:3,
+    четыре:4, четверо:4,
+    пять:5, пятеро:5,
+    шесть:6, шестеро:6,
+    семь:7, семеро:7,
+    восемь:8, восьмеро:8,
+    девять:9, девятеро:9,
+    десять:10, десятеро:10,
+  });
+  const partyCountPattern = `(?:\\d+|${Object.keys(PARTY_COUNTS).join('|')})`;
+
+  function partyCount(value) {
+    const token = lower(value).trim().replace(/ё/g, 'е');
+    if (/^\d+$/.test(token)) return Math.max(0, Number(token));
+    return PARTY_COUNTS[token] || 0;
+  }
+
+  function firstPartyCount(text, expression) {
+    const match = lower(text).replace(/ё/g, 'е').match(expression);
+    return match ? partyCount(match[1]) : 0;
+  }
+
+  function parseParty(text, current = {}) {
+    const q = lower(text).replace(/ё/g, 'е');
+    const previousChildren = Array.isArray(current.children) ? current.children.slice(0, 12) : [];
+    const previousInfants = Math.max(0, Number(current.infants) || 0);
+    const previousAdults = Math.max(0, Number(current.adults) || 0);
+
+    const adultCount = firstPartyCount(q, new RegExp(`(?:^|[^а-яё\\d])(${partyCountPattern})\\s*(?:взросл|совершеннолет|родител)`, 'i'));
+    const infantCount = firstPartyCount(q, new RegExp(`(?:^|[^а-яё\\d])(${partyCountPattern})\\s*(?:малыш|младен|груднич|ребенок?\\s+до\\s*3)`, 'i'));
+    const hasInfantWord = /малыш|младен|груднич|ребенок?\s+до\s*3|до\s*3\s*лет/.test(q);
+    const hasNoChildren = /без\s+дет|дет(?:ей|и)?\s+нет|никого\s+из\s+дет/.test(q);
+    const hasChildWord = /дет|ребен/.test(q) && !hasNoChildren;
+    const explicitParty = Boolean(adultCount || infantCount || hasInfantWord || hasChildWord);
+
+    const childCount = firstPartyCount(q, new RegExp(`(?:^|[^а-яё\\d])(${partyCountPattern})\\s*(?:дет(?:ей|и)?|ребен(?:ок|ка|ка)?|ребят)`, 'i'));
+    const ageMatches = [...q.matchAll(/(\d{1,2})\s*(?:лет|года|год|[-\u2011\u2013]?летн(?:ий|яя|ие|их))/g)]
+      .map(match => Number(match[1])).filter(age => age >= 3 && age <= 17);
+    const childAgeBlock = q.match(/(?:дет(?:и|ей)?|ребен(?:ок|ка)?)[^.!?\n]{0,40}/);
+    const listedChildAges = childAgeBlock
+      ? (childAgeBlock[0].match(/\d{1,2}/g) || []).map(Number).filter(age => age >= 3 && age <= 17)
+      : ageMatches;
+    const childAges = listedChildAges.slice(0, 12);
+    let children = previousChildren;
+    if (hasChildWord) {
+      if (childAges.length) {
+        children = childAges.slice();
+        const expected = Math.min(12, childCount || children.length);
+        while (children.length < expected) children.push(children[children.length - 1] || 8);
+      } else if (childCount) {
+        children = Array.from({ length:Math.min(12, childCount) }, () => 8);
+      } else if (!children.length) {
+        children = [8];
+      }
+    } else if (adultCount || infantCount || /(?:^|[^а-яё\d])(?:нас|семья|групп|едем|поедем|будет|всего)\b/.test(q)) {
+      // A new explicit adult/total answer replaces an earlier guided guess.
+      children = [];
+    }
+
+    const totalPatterns = [
+      new RegExp(`(?:^|[^а-яё])(?:нас|семь(?:я|и)|групп(?:а|ой|у)?|едем|поедем|будет|всего|состав(?:ом)?)(?:\\s+из)?\\s*(${partyCountPattern})\\s*(?:чел(?:овек)?|турист(?:ов|а)?|гост(?:ей|я)?)?`, 'i'),
+      new RegExp(`(?:^|[^а-яё\\d])(${partyCountPattern})\\s*(?:чел(?:овек)?|турист(?:ов|а)?|гост(?:ей|я)?)`, 'i'),
+    ];
+    const total = totalPatterns.map(expression => firstPartyCount(q, expression)).find(value => value > 0) || 0;
+    let adults = adultCount || previousAdults;
+    const infants = infantCount || (hasInfantWord ? Math.max(1, previousInfants) : (total && !hasChildWord ? 0 : previousInfants));
+    if (total) adults = adultCount ? adultCount : Math.max(0, total - children.length - infants);
+    if (total && !adultCount && !children.length && !infants) adults = total;
+    if (!adults && (hasChildWord || hasInfantWord) && !total) adults = 1;
+    if (explicitParty && !adults && !children.length && !infants) adults = 1;
+    return {
+      adults:Math.min(30, Math.max(0, adults)),
+      children:children.slice(0, 12),
+      infants:Math.min(12, Math.max(0, infants)),
+    };
+  }
+
   function parseMessage(text) {
     const q = lower(text);
     const s = state.slots;
@@ -152,30 +231,10 @@
     if (/групп|готовый выезд|сборн|тургрупп/.test(q)) s.tripType = 'group';
     if (/сравн.*оба|оба формат|пока не решил формат/.test(q)) s.tripType = 'compare';
 
-    const adults = q.match(/(\d+)\s*(?:взросл|совершеннолет|родител)/);
-    if (adults) s.adults = Math.min(30, Number(adults[1]));
-    const infantMatch = q.match(/(\d+)\s*(?:малыш|младен|груднич|ребёнок до 3|ребенок до 3)/);
-    if (infantMatch) s.infants = Math.min(12, Number(infantMatch[1]));
-    else if (/малыш|младен|груднич|до\s*3\s*лет/.test(q)) s.infants = Math.max(1, s.infants || 0);
-    if (/дет|ребён|ребен/.test(q)) {
-      // Accept «дети 7 и 10 лет», «7-летний ребёнок» and repeated ages.
-      const childCount = q.match(/(\d+)\s*(?:дет|ребён|ребен)/);
-      const ageMatches = [...q.matchAll(/(\d{1,2})\s*(?:лет|года|год|[-\u2011\u2013]?летн(?:ий|яя|ие|их))/g)];
-      const childList = q.match(/(?:дет(?:и|ей)?|реб(?:ён|ен)ок(?:а|и)?)[^.!?\n]{0,32}?\d{1,2}(?:\s*(?:и|,|\+|&)\s*\d{1,2})*\s*лет?/);
-      const ages = (childList ? (childList[0].match(/\d{1,2}/g) || []) : ageMatches.map(match => match[1]))
-        .map(Number).filter(age => age >= 3 && age <= 17);
-      if (childCount && ages.length === 1 && Number(childCount[1]) > 1) {
-        while (ages.length < Math.min(12, Number(childCount[1]))) ages.push(ages[0]);
-      }
-      if (ages.length) s.children = ages.slice(0, 12);
-      else if (childCount) s.children = Array.from({ length:Math.min(12, Number(childCount[1])) }, () => 8);
-      else if (!s.children.length) s.children = [8];
-    }
-    if (!s.adults) {
-      const total = q.match(/(?:нас|едем|поедем|будет)\s*(\d+)\s*(?:чел|человек|турист|гост)/);
-      if (total) s.adults = Math.max(1, Number(total[1]) - s.children.length - s.infants);
-    }
-    if (s.adults > 30) s.adults = 30;
+    const party = parseParty(text, s);
+    s.adults = party.adults;
+    s.children = party.children;
+    s.infants = party.infants;
 
     const parsedDate = parseDate(q);
     if (parsedDate) { s.date = parsedDate.value; s.dateFlexible = parsedDate.flexible; }
@@ -256,7 +315,7 @@
 
   function evaluateTour(tour, format) {
     const s = state.slots;
-    const people = { adults:Math.max(1, s.adults || 1), children:s.children.length, infants:s.infants };
+    const people = { adults:Math.max(1, Number(s.adults) || 0), children:s.children.length, infants:Math.max(0, Number(s.infants) || 0) };
     const formatData = format === 'group' ? tour.group : tour.individual;
     const hay = lower(`${tour.title} ${tour.city} ${tour.region} ${tour.category} ${(tour.tags || []).join(' ')} ${tour.searchText || ''} ${(Array.isArray(formatData?.notes) ? formatData.notes : []).join(' ')}`);
     let score = Number(tour.popular) ? 1 : 0;
@@ -306,7 +365,7 @@
     const note = s.children.length && tour.childrenOk !== false
       ? 'подходит для семьи'
       : availability;
-    return { tour, format, score, estimateUsd, availability, available, note };
+    return { tour, format, score, estimateUsd, availability, available, note, people, partyLabel:formatPeople() };
   }
 
   function matchTours() {
@@ -323,6 +382,8 @@
           individual,
           group,
           note: 'сравнение двух форматов',
+          people: individual.people,
+          partyLabel: individual.partyLabel,
         };
       }).filter(item => item.individual.estimateUsd || item.group.estimateUsd)
         .sort((a,b) => b.score - a.score || Number(b.tour.popular) - Number(a.tour.popular)).slice(0, 3);
@@ -404,8 +465,7 @@
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok || !result.ok || !result.reply) throw new Error(result.error || `HTTP ${response.status}`);
-    const rate = Number(result.usdRubRate);
-    return { reply:clean(result.reply, 1800), rate:Number.isFinite(rate) && rate > 0 ? rate : usdRubRate };
+    return { reply:clean(result.reply, 1800) };
   }
 
   function defaultAssistantReply(text) {
@@ -436,14 +496,14 @@
     if (!state.recommendations.length) return '';
     return `<div class="ai-chat-results"><div class="ai-msg-author">AI-консультант</div><div class="ai-chat-results-label">Советую эти поездки</div><p class="ai-chat-results-reason">Почему: ${esc(recommendationReason(state.recommendations[0]))}</p><div class="ai-recommendations">${state.recommendations.map(item => {
       const price = item.format === 'compare'
-          ? `Индивидуально: ${rubleLabel(item.individual.estimateUsd)} · групповой выезд: ${rubleLabel(item.group.estimateUsd)}`
+          ? `Индивидуально: ${dollarLabel(item.individual.estimateUsd)} · групповой выезд: ${dollarLabel(item.group.estimateUsd)}`
         : item.estimateUsd
-          ? `ориентировочно ${rubleLabel(item.estimateUsd)} · ${item.format === 'group' ? 'за состав поездки' : 'за поездку'}`
+          ? `ориентировочно ${dollarLabel(item.estimateUsd)} · ${item.format === 'group' ? 'за состав поездки' : 'за поездку'}`
           : 'стоимость уточняется после выбора даты';
       const note = item.format === 'compare'
         ? 'два формата для сравнения'
         : [item.note, item.availability && item.note !== item.availability ? item.availability : ''].filter(Boolean).join(' · ');
-      return `<article class="ai-recommendation"><div><h4>${esc(item.tour.title)}</h4><p>${esc(item.tour.city || '')} · ${esc(note)}</p><span class="ai-price">${esc(price)}</span></div><button type="button" class="secondary" data-ai-action="open-tour" data-id="${esc(item.tour.id)}" aria-label="Открыть ${esc(item.tour.title)}">Открыть</button></article>`;
+      return `<article class="ai-recommendation"><div><h4>${esc(item.tour.title)}</h4><p>${esc(item.tour.city || '')} · ${esc(note)}</p><span class="ai-price">${esc(price)}</span><span class="ai-party">Расчёт для группы: ${esc(item.partyLabel || formatPeople())}</span></div><button type="button" class="secondary" data-ai-action="open-tour" data-id="${esc(item.tour.id)}" aria-label="Открыть ${esc(item.tour.title)}">Открыть</button></article>`;
     }).join('')}</div></div>`;
   }
 
@@ -451,7 +511,7 @@
     const s = state.slots;
     if (!['contact','done'].includes(stage()) || state.handoff) return '';
     if (!state.showContact) return '<div class="ai-save-selection"><button type="button" class="secondary" data-ai-action="show-contact">Сохранить подбор</button></div>';
-    return `<form class="ai-contact-form" data-ai-form="contact"><div class="ai-contact-heading"><h4>Сохранить подбор</h4><button class="ai-contact-close" type="button" data-ai-action="hide-contact" aria-label="Свернуть форму">Свернуть</button></div><p>Укажите один контакт, чтобы сохранить параметры поездки и вернуться к бронированию.</p><div class="ai-contact-grid"><label>Имя<input name="name" value="${esc(s.contact.name)}" placeholder="Как к вам обращаться"></label><label>Телефон<input name="phone" value="${esc(s.contact.phone)}" placeholder="+7 ..."></label><label>Telegram<input name="telegram" value="${esc(s.contact.telegram)}" placeholder="@username"></label><label>Бюджет / комментарий<input name="budget" value="${esc(s.budget)}" placeholder="Например, до 50 000 ₽"></label><label class="wide">Отель и трансфер<input name="hotelTransfer" value="${esc([s.hotel && `отель: ${s.hotel}`, s.transfer && `трансфер: ${s.transfer}`].filter(Boolean).join('; '))}" placeholder="Отель, нужен ли трансфер"></label></div><div class="ai-contact-actions"><button class="primary" type="submit">Сохранить подбор</button><button class="secondary" type="button" data-ai-action="skip-contact">Только открыть варианты</button></div><div class="form-error" role="alert"></div></form>`;
+    return `<form class="ai-contact-form" data-ai-form="contact"><div class="ai-contact-heading"><h4>Сохранить подбор</h4><button class="ai-contact-close" type="button" data-ai-action="hide-contact" aria-label="Свернуть форму">Свернуть</button></div><p>Укажите один контакт, чтобы сохранить параметры поездки и вернуться к бронированию.</p><div class="ai-contact-grid"><label>Имя<input name="name" value="${esc(s.contact.name)}" placeholder="Как к вам обращаться"></label><label>Телефон<input name="phone" value="${esc(s.contact.phone)}" placeholder="+7 ..."></label><label>Telegram<input name="telegram" value="${esc(s.contact.telegram)}" placeholder="@username"></label><label>Бюджет / комментарий<input name="budget" value="${esc(s.budget)}" placeholder="Например, до $600"></label><label class="wide">Отель и трансфер<input name="hotelTransfer" value="${esc([s.hotel && `отель: ${s.hotel}`, s.transfer && `трансфер: ${s.transfer}`].filter(Boolean).join('; '))}" placeholder="Отель, нужен ли трансфер"></label></div><div class="ai-contact-actions"><button class="primary" type="submit">Сохранить подбор</button><button class="secondary" type="button" data-ai-action="skip-contact">Только открыть варианты</button></div><div class="form-error" role="alert"></div></form>`;
   }
 
   function renderHandoff() {
@@ -521,7 +581,6 @@
     render(root, { scrollToEnd:true });
     try {
       const aiResult = await requestAiReply(text, history);
-      usdRubRate = aiResult.rate || usdRubRate;
       if (state.messages[state.messages.length - 1]?.text === 'Подбираю подходящий ответ…') state.messages.pop();
       addMessage('bot', aiResult.reply);
     } catch (_) {
@@ -648,5 +707,5 @@
     };
   }
 
-  globalThis.MaxTourAI = { mount, _test: { parseBudget, departureMatchesDate } };
+  globalThis.MaxTourAI = { mount, _test: { parseBudget, parseParty, departureMatchesDate } };
 })();

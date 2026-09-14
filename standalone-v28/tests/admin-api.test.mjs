@@ -147,5 +147,5 @@ test('Workers AI receives the current catalogue and safe customer context', asyn
   assert.equal(received.model, '@cf/test/model');
   assert.match(received.input.messages[0].content, /Демо тур/);
   assert.match(received.input.messages[0].content, /только на русском/);
-  assert.match(received.input.messages[0].content, /только в рублях/);
+  assert.match(received.input.messages[0].content, /только в долларах/);
 });

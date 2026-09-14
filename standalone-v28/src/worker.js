@@ -78,6 +78,13 @@ function replaceDollarAmounts(value, rate) {
   return String(value || '').replace(/\$\s*([\d\s,.]+)/g, (_, raw) => rubleLabel(String(raw).replace(/\s/g, '').replace(',', '.'), rate));
 }
 
+function replaceRubleAmounts(value, rate) {
+  return String(value || '').replace(/([\d\s,.]+)\s*₽/g, (_, raw) => {
+    const rubles = Number(String(raw).replace(/\s/g, '').replace(',', '.')) || 0;
+    return `$${Math.max(0, Math.round(rubles / rate))}`;
+  });
+}
+
 async function currentUsdRubRate(env) {
   const configured = Number(env.USD_RUB_RATE);
   const fallback = Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_USD_RUB_RATE;
@@ -112,12 +119,12 @@ async function loadAiCatalog(request, env, rate = DEFAULT_USD_RUB_RATE) {
       tags: Array.isArray(tour.tags) ? tour.tags.slice(0, 8).map(tag => consultationText(tag, 40)) : [],
       childrenOk: Boolean(tour.childrenOk),
       group: tour.group ? {
-        adult: replaceDollarAmounts(consultationText(tour.group.adult || tour.group.from, 80), rate),
-        child: replaceDollarAmounts(consultationText(tour.group.child, 80), rate),
+        adult: consultationText(tour.group.adult || tour.group.from, 80),
+        child: consultationText(tour.group.child, 80),
       } : null,
       individual: tour.individual ? {
-        from: replaceDollarAmounts(consultationText(tour.individual.from, 80), rate),
-        tiers: Array.isArray(tour.individual.tiers) ? tour.individual.tiers.slice(0, 8).map(item => replaceDollarAmounts(consultationText(item, 120), rate)) : [],
+        from: consultationText(tour.individual.from, 80),
+        tiers: Array.isArray(tour.individual.tiers) ? tour.individual.tiers.slice(0, 8).map(item => consultationText(item, 120)) : [],
       } : null,
       departures: tour.group && Array.isArray(tour.group.departures) ? tour.group.departures.slice(0, 8).map(item => ({
         date: consultationText(item.date, 50),
@@ -221,7 +228,7 @@ async function generateAiReply(request, env, body) {
     'Используй только факты из VERIFIED_CONTEXT. Не придумывай цены, даты, места, состав программы или наличие.',
     'Если не хватает данных, задай один понятный уточняющий вопрос.',
     'Не упоминай внутренние системы, CRM, базы, API, разработку, модель, технические детали или передачу обращения сотруднику.',
-    'Называй суммы только в рублях (₽), округляя до десятков. Не используй знак доллара.',
+    'Называй суммы только в долларах ($), как указано в каталоге. Не используй знак рубля (₽).',
     'Не обещай оплату или подтверждение, пока пользователь не открыл карточку и не оформил поездку.',
     `VERIFIED_CONTEXT=${JSON.stringify(safeContext)}`,
   ].join('\n');
@@ -232,7 +239,7 @@ async function generateAiReply(request, env, body) {
   ];
   try {
     const result = await env.AI.run(env.AI_MODEL || DEFAULT_AI_MODEL, { messages });
-    const reply = replaceDollarAmounts(aiText(aiResponseText(result), 1800).replace(/^```[\s\S]*?```$/g, '').trim(), usdRubRate);
+    const reply = replaceRubleAmounts(aiText(aiResponseText(result), 1800).replace(/^```[\s\S]*?```$/g, '').trim(), usdRubRate);
     if (!reply || unsafeAiCopy(reply)) return { reply: fallback, source: 'catalog-fallback', usdRubRate };
     return { reply, source: 'cloudflare-workers-ai', usdRubRate };
   } catch (error) {
