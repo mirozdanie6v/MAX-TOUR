@@ -1,0 +1,68 @@
+html.max-tour-production-embed *,
+html.max-tour-production-embed *::before,
+html.max-tour-production-embed *::after {
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+  -webkit-hyphens: none !important;
+}
+
+html.max-tour-production-embed button,
+html.max-tour-production-embed [role='button'],
+html.max-tour-production-embed .chip,
+html.max-tour-production-embed .pill,
+html.max-tour-production-embed .badge,
+html.max-tour-production-embed .tag,
+html.max-tour-production-embed [class*='chip'],
+html.max-tour-production-embed [class*='pill'],
+html.max-tour-production-embed [class*='badge'],
+html.max-tour-production-embed [class*='tag'] {
+  text-align: center !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+  -webkit-hyphens: none !important;
+}
+
+html.max-tour-production-embed .chip,
+html.max-tour-production-embed .pill,
+html.max-tour-production-embed .badge,
+html.max-tour-production-embed .tag,
+html.max-tour-production-embed [class*='chip'],
+html.max-tour-production-embed [class*='pill'],
+html.max-tour-production-embed [class*='badge'],
+html.max-tour-production-embed [class*='tag'] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+html.max-tour-production-embed .production-center-tile {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+html.max-tour-production-embed .production-center-tile > * {
+  align-self: center !important;
+  text-align: center !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+html.max-tour-production-embed .production-center-wide {
+  position: relative !important;
+}
+
+html.max-tour-production-embed .production-center-wide > .production-center-label {
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: min(62%, 320px) !important;
+  margin: 0 !important;
+  text-align: center !important;
+  z-index: 2 !important;
+}
