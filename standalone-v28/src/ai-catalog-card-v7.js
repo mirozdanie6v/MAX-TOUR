@@ -7,6 +7,7 @@
   const PENDING_ATTR = 'data-ai-catalog-upgrade';
   const MAX_RENDERER_SOURCE = 18000;
   let rendererCache = null;
+  let catalogRenderAttempted = false;
 
   const text = value => String(value ?? '').trim();
 
@@ -36,6 +37,14 @@
       if (card.classList.contains(UPGRADED_CLASS)) return false;
       return tourIdFromCard(card) === String(tourId);
     }) || null;
+  }
+
+  function ensureCatalogDom() {
+    if (catalogRenderAttempted) return;
+    catalogRenderAttempted = true;
+    try {
+      if (typeof globalThis.renderCatalog === 'function') globalThis.renderCatalog();
+    } catch (_) {}
   }
 
   function nodeFromRendererResult(result, tourId) {
@@ -109,12 +118,23 @@
     return clone;
   }
 
+  function catalogSourceFor(tourId, aiRoot) {
+    let source = existingCatalogCard(tourId, aiRoot);
+    if (source) return source;
+
+    ensureCatalogDom();
+    source = existingCatalogCard(tourId, aiRoot);
+    if (source) return source;
+
+    return renderWithOriginalCatalogRenderer(tourId);
+  }
+
   function upgradeOne(oldCard, aiRoot) {
     if (!oldCard || oldCard.classList.contains(UPGRADED_CLASS)) return false;
     const tourId = tourIdFromCard(oldCard);
     if (!tourId) return false;
 
-    const source = existingCatalogCard(tourId, aiRoot) || renderWithOriginalCatalogRenderer(tourId);
+    const source = catalogSourceFor(tourId, aiRoot);
     if (!source) {
       oldCard.setAttribute(PENDING_ATTR, 'pending');
       return false;
@@ -236,6 +256,6 @@
   globalThis.MaxTourCatalogCardV7 = {
     upgradeRecommendations,
     rememberBookingIntent,
-    _test:{ tourIdFromCard, discoverPureCatalogRenderers },
+    _test:{ tourIdFromCard, discoverPureCatalogRenderers, catalogSourceFor },
   };
 })();
