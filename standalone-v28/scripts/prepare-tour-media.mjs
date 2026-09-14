@@ -14,6 +14,15 @@ function expectedType(key) {
   return '';
 }
 
+function expectedMime(key) {
+  const type = expectedType(key);
+  if (type === 'png') return 'image/png';
+  if (type === 'jpg') return 'image/jpeg';
+  if (type === 'webp') return 'image/webp';
+  if (type === 'avif') return 'image/avif';
+  return 'image/*';
+}
+
 function detectedType(buffer) {
   if (buffer.length >= 8 && buffer.subarray(0, 8).equals(Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]))) return 'png';
   if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'jpg';
@@ -42,6 +51,8 @@ function sourceVariants(source) {
 
 async function fetchImage(item) {
   let lastError;
+  const expected = expectedType(item.key);
+  const accept = expectedMime(item.key);
   for (const source of sourceVariants(item.source)) {
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       const controller = new AbortController();
@@ -51,15 +62,14 @@ async function fetchImage(item) {
           redirect: 'follow',
           signal: controller.signal,
           headers: {
-            'user-agent': 'Mozilla/5.0 (compatible; VIIVERSION-MAX-TOUR-MediaSeeder/1.1)',
-            accept: 'image/jpeg,image/png,image/webp,image/avif,*/*;q=0.8',
+            'user-agent': 'Mozilla/5.0 (compatible; VIIVERSION-MAX-TOUR-MediaSeeder/1.2)',
+            accept,
             'accept-language': 'en-US,en;q=0.8',
           },
         });
         if (!response.ok) throw new Error(`${source} -> HTTP ${response.status}`);
         const buffer = Buffer.from(await response.arrayBuffer());
         if (buffer.length < 8192) throw new Error(`${source} -> suspiciously small image: ${buffer.length} bytes`);
-        const expected = expectedType(item.key);
         const actual = detectedType(buffer);
         if (!actual) throw new Error(`${source} -> not a supported image payload`);
         if (actual !== expected) throw new Error(`${source} -> payload type ${actual} does not match .${expected}`);
