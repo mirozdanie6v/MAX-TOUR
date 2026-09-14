@@ -19,9 +19,10 @@ test('live trip policy is syntactically valid and uses current Vietnam time', ()
   assert.match(policy, /setInterval\(\(\) => refreshLivePolicies\(new Date\(\)\), 60 \* 1000\)/);
 });
 
-test('location guard blocks impossible cross-region cards and allows real demo routes', () => {
+test('location guard blocks impossible cross-region cards and allows real routes', () => {
   const context = {
     MaxTourAI:{ mount(){} },
+    TOURS:[],
     sessionStorage:{ getItem(){ return null; }, setItem(){}, removeItem(){} },
     console,
   };
@@ -35,13 +36,49 @@ test('location guard blocks impossible cross-region cards and allows real demo r
   assert.equal(placeFrom('Экскурсия в Ниньбинь / Ninh Binh'), 'Ниньбинь');
 });
 
-test('AI starts with location and renders request-only route instead of refusing Ninh Binh', () => {
+test('combined Danang + Hoi An tour is matched to Hoi An request instead of fallback card', () => {
+  const context = {
+    MaxTourAI:{ mount(){} },
+    TOURS:[{
+      id:'danang-ba-na-hoian',
+      title:'Дананг — Ба На Хиллс — Хойан',
+      city:'Дананг',
+      region:'Центральный Вьетнам',
+      searchText:'дананг bana hills хойан hoi an',
+      tags:['Дананг','Хойан'],
+      route:['Дананг','Хойан'],
+      popular:true,
+    }],
+    sessionStorage:{ getItem(){ return null; }, setItem(){}, removeItem(){} },
+    console,
+  };
+  vm.createContext(context);
+  vm.runInContext(ai, context);
+  const api = context.MaxTourAI._locationTest;
+  assert.deepEqual(Array.from(api.tourPlacesFromTour(context.TOURS[0])), ['Дананг','Хойан']);
+  api.inspectInput('Я в Дананге');
+  api.inspectInput('Хочу экскурсию в Хойан');
+  const candidates = api.catalogCandidates();
+  assert.equal(candidates.length, 1);
+  assert.equal(candidates[0].id, 'danang-ba-na-hoian');
+});
+
+test('AI starts with location, can recover real catalog cards, and never renders the old request pseudo-card', () => {
   assert.match(ai, /Где вы сейчас или откуда планируете выезд/);
   assert.match(ai, /Я в Ханое/);
   assert.match(ai, /Ниньбинь/);
-  assert.match(ai, /Маршрут по запросу/);
-  assert.match(ai, /я не буду выдумывать цену/);
-  assert.match(ai, /card\.hidden = !\(routeOk && destinationOk\)/);
+  assert.match(ai, /ensureRequestedCatalogCards/);
+  assert.match(ai, /MaxTourCatalogCardV8 \|\| globalThis\.MaxTourCatalogCardV7/);
+  assert.match(ai, /routeOk = destinations\.some/);
+  assert.match(ai, /removeLegacyRequestCard/);
+  assert.doesNotMatch(ai, /<article class="ai-recommendation ai-sales-card"/);
+  assert.doesNotMatch(ai, /function renderRequestCard/);
+});
+
+test('empty/hidden recommendation groups are cleaned after geo filtering', () => {
+  assert.match(ai, /cleanupEmptyResults/);
+  assert.match(ai, /group\.hidden = cards\.every\(card => card\.hidden\)/);
+  assert.match(ai, /CARD_SELECTOR/);
 });
 
 test('build ships live policy after trip actions and location guard after AI v5', () => {
