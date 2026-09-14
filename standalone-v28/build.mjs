@@ -7,6 +7,7 @@ const root = resolve(import.meta.dirname);
 const dist = resolve(root, 'dist');
 const sourceDir = resolve(root, 'source');
 const manifest = JSON.parse(await readFile(resolve(sourceDir, 'manifest.json'), 'utf8'));
+const imageOverrides = JSON.parse(await readFile(resolve(root, 'src/catalog-image-overrides.json'), 'utf8'));
 
 async function restore(entry) {
   const encoded = (await Promise.all(entry.parts.map(p => readFile(resolve(sourceDir, p), 'ascii')))).join('');
@@ -24,10 +25,37 @@ const [prototypeRaw, catalogRaw, adminPrototype, directorPrototype] = await Prom
   readFile(resolve(root, 'src/director-v3.html'), 'utf8'),
 ]);
 const prototypeHtml = prototypeRaw.toString('utf8');
-const catalog = JSON.parse(catalogRaw.toString('utf8'));
-if (!Array.isArray(catalog) || catalog.length < 1) throw new Error('v28 catalog must be a non-empty array');
+const sourceCatalog = JSON.parse(catalogRaw.toString('utf8'));
+if (!Array.isArray(sourceCatalog) || sourceCatalog.length < 1) throw new Error('v28 catalog must be a non-empty array');
 if (!prototypeHtml.includes('MaxTour Mini App Prototype v28')) throw new Error('Unexpected prototype source');
 if (!prototypeHtml.includes('const TOURS =')) throw new Error('Prototype does not contain expected catalog binding');
+
+function applyCatalogImageOverrides(catalog, overrides) {
+  const catalogIds = new Set(catalog.map(tour => String(tour.id)));
+  const overrideIds = Object.keys(overrides);
+  const missing = catalog.filter(tour => !overrides[tour.id]).map(tour => `${tour.id}: ${tour.title}`);
+  const unknown = overrideIds.filter(id => !catalogIds.has(id));
+  if (missing.length || unknown.length) {
+    throw new Error(`Catalog image policy mismatch. Missing overrides: [${missing.join(' | ')}]. Unknown override ids: [${unknown.join(' | ')}]. Catalog ids: [${[...catalogIds].join(', ')}]`);
+  }
+
+  return catalog.map(tour => {
+    const override = overrides[tour.id];
+    if (!override?.image || !Array.isArray(override.gallery) || override.gallery.length < 1) {
+      throw new Error(`Invalid image override for ${tour.id}`);
+    }
+    const gallery = [...new Set([override.image, ...override.gallery].filter(Boolean))];
+    return {
+      ...tour,
+      image: override.image,
+      fallbackImage: override.image,
+      gallery,
+    };
+  });
+}
+
+const catalog = applyCatalogImageOverrides(sourceCatalog, imageOverrides);
+const curatedCatalogRaw = Buffer.from(`${JSON.stringify(catalog, null, 2)}\n`, 'utf8');
 
 function replaceLegacyAdmin(html) {
   const oldEntry = "function showAdmin() { showScreen('admin'); }";
@@ -110,7 +138,7 @@ const injection = '<script src="/booking-pricing.js"></script>\n<script src="/tr
 if (!prototypeHtml.includes(marker)) throw new Error('Prototype has no </body> marker');
 const builtHtml = withViiversionAnalytics(cleanCustomerCopy(replaceBrandLogos(replaceLegacyAdmin(prototypeHtml)).replace(marker, `${injection}${marker}`)));
 await writeFile(resolve(dist, 'index.html'), builtHtml, 'utf8');
-await writeFile(resolve(dist, 'catalog.v28.json'), catalogRaw);
+await writeFile(resolve(dist, 'catalog.v28.json'), curatedCatalogRaw);
 await copyFile(resolve(root, 'src/booking-pricing.js'), resolve(dist, 'booking-pricing.js'));
 await copyFile(resolve(root, 'src/traveler-profile.js'), resolve(dist, 'traveler-profile.js'));
 await copyFile(resolve(root, 'src/traveler-picker-list.css'), resolve(dist, 'traveler-picker-list.css'));
@@ -136,4 +164,4 @@ await writeFile(resolve(dist, 'director/index.html'), withViiversionAnalytics(di
 await copyFile(resolve(root, 'src/admin-app.css'), resolve(dist, 'admin-app.css'));
 await copyFile(resolve(root, 'src/admin-app.js'), resolve(dist, 'admin-app.js'));
 await copyFile(resolve(root, 'src/runtime-api.js'), resolve(dist, 'runtime-api.js'));
-console.log(`Built standalone v28: ${catalog.length} tours + live trip policy + AI consultant v6 location routing + admin v3 + director v3 + Telegram analytics; exact source checksums verified.`);
+console.log(`Built standalone v28: ${catalog.length} tours with curated location-correct imagery + live trip policy + AI consultant v6 location routing + admin v3 + director v3 + Telegram analytics; exact source checksums verified.`);
