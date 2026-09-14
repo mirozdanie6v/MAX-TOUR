@@ -87,11 +87,44 @@
     });
   };
 
+  const markShowButtons = () => {
+    document.querySelectorAll('button,[role="button"]').forEach((button) => {
+      const label = normalize(button.textContent).replace(/→/g, '').trim();
+      if (button.classList.contains('cf-show-v26') || label === 'Показать') {
+        button.classList.add('production-show-button');
+      }
+    });
+  };
+
+  const pressedButtonFromEvent = (event) => event.target?.closest?.('.production-show-button') || null;
+  const releasePressed = (button) => {
+    if (!button) return;
+    setTimeout(() => button.classList.remove('production-show-pressed'), 140);
+  };
+
+  document.addEventListener('pointerdown', (event) => {
+    const button = pressedButtonFromEvent(event);
+    if (button) button.classList.add('production-show-pressed');
+  }, true);
+
+  document.addEventListener('pointerup', (event) => releasePressed(pressedButtonFromEvent(event)), true);
+  document.addEventListener('pointercancel', (event) => releasePressed(pressedButtonFromEvent(event)), true);
+
+  document.addEventListener('click', (event) => {
+    const button = pressedButtonFromEvent(event);
+    if (!button) return;
+    button.classList.remove('production-show-applied');
+    void button.offsetWidth;
+    button.classList.add('production-show-applied');
+    setTimeout(() => button.classList.remove('production-show-applied'), 650);
+  }, true);
+
   let scheduled = false;
   const apply = () => {
     scheduled = false;
     centerKnownDetailTiles();
     centerCompactRoundedTiles();
+    markShowButtons();
   };
   const schedule = () => {
     if (scheduled) return;
