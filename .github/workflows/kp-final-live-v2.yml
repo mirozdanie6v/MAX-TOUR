@@ -1,0 +1,81 @@
+name: Render final KP with real live screens
+
+on:
+  push:
+    branches: [kp-render-v1]
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout proposal branch
+        uses: actions/checkout@v4
+        with:
+          ref: kp-render-v1
+
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Capture real live MAX TOUR interfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p proposal/assets final/screens final/pages
+          CHROME="$(which chrome || which google-chrome || which chromium || which chromium-browser)"
+          cap() {
+            local url="$1" out="$2" size="$3"
+            timeout 45s "$CHROME" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --disable-dev-shm-usage \
+              --window-size="$size" --force-device-scale-factor=1 --virtual-time-budget=15000 \
+              --screenshot="$out" "$url"
+          }
+          cap 'https://maxtourvietnam.com/' 'final/screens/site.png' '1440,1000'
+          cap 'https://max-tour-demo.viiversion.com/' 'final/screens/miniapp.png' '430,932'
+          cap 'https://max-tour-demo.viiversion.com/admin/' 'final/screens/admin.png' '1440,1000'
+          cap 'https://max-tour-demo.viiversion.com/director/' 'final/screens/director.png' '1440,1000'
+          cp final/screens/*.png proposal/assets/
+          file final/screens/*
+
+      - name: Switch proposal to captured real images
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('proposal/book.html')
+          s=p.read_text(encoding='utf-8')
+          for a,b in {
+            'https://image.thum.io/get/width/900/crop/900/noanimate/https://max-tour.viiversion.com/':'assets/site.png',
+            'https://image.thum.io/get/width/520/crop/1500/noanimate/https://max-tour-demo.viiversion.com/':'assets/miniapp.png',
+            'https://image.thum.io/get/width/960/crop/1100/noanimate/https://max-tour-demo.viiversion.com/admin/':'assets/admin.png',
+            'https://image.thum.io/get/width/960/crop/1100/noanimate/https://max-tour-demo.viiversion.com/director/':'assets/director.png',
+          }.items(): s=s.replace(a,b)
+          p.write_text(s,encoding='utf-8')
+          PY
+
+      - name: Render 8 final pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8000 --directory proposal >/tmp/kp.log 2>&1 &
+          sleep 2
+          CHROME="$(which chrome || which google-chrome || which chromium || which chromium-browser)"
+          for p in 1 2 3 4 5 6 7 8; do
+            printf -v n "%02d" "$p"
+            timeout 45s "$CHROME" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --disable-dev-shm-usage \
+              --window-size=1080,1920 --force-device-scale-factor=1 --virtual-time-budget=3000 \
+              --screenshot="final/pages/MAX_TOUR_KP_${n}.png" "http://127.0.0.1:8000/book.html?p=$p"
+          done
+          ls -lh final/pages
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: max-tour-kp-final-live-v2
+          path: final/pages/*.png
+          retention-days: 3
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: max-tour-real-live-source-screens-v2
+          path: final/screens/*.png
+          retention-days: 3
