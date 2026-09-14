@@ -22,8 +22,8 @@
 
   function tourById(tourId) {
     try {
-      return Array.isArray(globalThis.TOURS)
-        ? globalThis.TOURS.find(item => String(item?.id) === String(tourId)) || null
+      return Array.isArray(TOURS)
+        ? TOURS.find(item => String(item?.id) === String(tourId)) || null
         : null;
     } catch (_) {
       return null;
@@ -43,7 +43,8 @@
     if (catalogRenderAttempted) return;
     catalogRenderAttempted = true;
     try {
-      if (typeof globalThis.renderCatalog === 'function') globalThis.renderCatalog();
+      if (typeof renderCatalog === 'function') renderCatalog();
+      else if (typeof globalThis.renderCatalog === 'function') globalThis.renderCatalog();
     } catch (_) {}
   }
 
