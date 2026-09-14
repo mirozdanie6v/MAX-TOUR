@@ -1,0 +1,123 @@
+name: Render final KP from exact MAX TOUR source
+
+on:
+  push:
+    branches: [kp-render-v1]
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout proposal branch
+        uses: actions/checkout@v4
+        with:
+          ref: kp-render-v1
+          path: kp
+
+      - name: Checkout production source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: root
+
+      - name: Checkout exact v28 demo source
+        uses: actions/checkout@v4
+        with:
+          ref: demo/max-tour-demo
+          path: demo
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Build production source
+        working-directory: root
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build exact standalone v28 demo
+        working-directory: demo/standalone-v28
+        run: |
+          npm ci
+          npm run build
+
+      - name: Serve exact builds
+        shell: bash
+        run: |
+          python3 -m http.server 8001 --directory root/dist >/tmp/root.log 2>&1 &
+          python3 -m http.server 8002 --directory demo/standalone-v28/dist >/tmp/demo.log 2>&1 &
+          sleep 3
+
+      - name: Capture exact project screens
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p kp/proposal/assets final/screens final/pages
+          CHROME="$(which chrome || which google-chrome || which chromium || which chromium-browser)"
+          cap() {
+            local url="$1" out="$2" size="$3"
+            timeout 45s "$CHROME" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --disable-dev-shm-usage \
+              --window-size="$size" --force-device-scale-factor=1 --virtual-time-budget=12000 \
+              --screenshot="$out" "$url"
+          }
+          cap 'http://127.0.0.1:8001/' 'final/screens/site.png' '1440,1000'
+          cap 'http://127.0.0.1:8002/' 'final/screens/miniapp.png' '430,932'
+          cap 'http://127.0.0.1:8002/admin/' 'final/screens/admin.png' '1440,1000'
+          cap 'http://127.0.0.1:8002/director/' 'final/screens/director.png' '1440,1000'
+          cp final/screens/*.png kp/proposal/assets/
+          file final/screens/*
+
+      - name: Switch proposal to exact local screenshots
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('kp/proposal/book.html')
+          s = p.read_text(encoding='utf-8')
+          replacements = {
+            'https://image.thum.io/get/width/900/crop/900/noanimate/https://max-tour.viiversion.com/': 'assets/site.png',
+            'https://image.thum.io/get/width/520/crop/1500/noanimate/https://max-tour-demo.viiversion.com/': 'assets/miniapp.png',
+            'https://image.thum.io/get/width/960/crop/1100/noanimate/https://max-tour-demo.viiversion.com/admin/': 'assets/admin.png',
+            'https://image.thum.io/get/width/960/crop/1100/noanimate/https://max-tour-demo.viiversion.com/director/': 'assets/director.png',
+          }
+          for a,b in replacements.items():
+              s=s.replace(a,b)
+          p.write_text(s,encoding='utf-8')
+          PY
+
+      - name: Render final 8 proposal pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8000 --directory kp/proposal >/tmp/kp.log 2>&1 &
+          sleep 2
+          CHROME="$(which chrome || which google-chrome || which chromium || which chromium-browser)"
+          for p in 1 2 3 4 5 6 7 8; do
+            printf -v n "%02d" "$p"
+            timeout 45s "$CHROME" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --disable-dev-shm-usage \
+              --window-size=1080,1920 --force-device-scale-factor=1 --virtual-time-budget=3000 \
+              --screenshot="final/pages/MAX_TOUR_KP_${n}.png" "http://127.0.0.1:8000/book.html?p=$p"
+          done
+          file final/pages/*
+          ls -lh final/pages
+
+      - name: Upload final pages
+        uses: actions/upload-artifact@v4
+        with:
+          name: max-tour-kp-final-exact
+          path: final/pages/*.png
+          retention-days: 3
+
+      - name: Upload exact source screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: max-tour-exact-source-screens
+          path: final/screens/*.png
+          retention-days: 3
