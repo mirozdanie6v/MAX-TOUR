@@ -114,13 +114,107 @@ function fastDeterministicReply(body = {}) {
   return '';
 }
 
+function conversationUserText(body = {}) {
+  const history = Array.isArray(body?.history) ? body.history : [];
+  return [...history.filter(item => item?.role === 'user').map(item => clean(item?.text, 700)), clean(body?.message, 900)]
+    .filter(Boolean)
+    .join(' ')
+    .toLocaleLowerCase('ru-RU')
+    .replace(/ё/g, 'е');
+}
+
+function inferredOrigin(body = {}) {
+  const q = conversationUserText(body);
+  const patterns = [
+    ['Нячанг', /(?:я|мы|сейчас|нахожусь|находимся|живу|живем|выезд|старт|отправляемся|едем из)[^.!?]{0,50}\bнячанг\b/],
+    ['Дананг', /(?:я|мы|сейчас|нахожусь|находимся|живу|живем|выезд|старт|отправляемся|едем из)[^.!?]{0,50}\bдананг\b/],
+    ['Ханой', /(?:я|мы|сейчас|нахожусь|находимся|живу|живем|выезд|старт|отправляемся|едем из)[^.!?]{0,50}\bхано(?:й|е)\b/],
+    ['Фукуок', /(?:я|мы|сейчас|нахожусь|находимся|живу|живем|выезд|старт|отправляемся|едем из)[^.!?]{0,50}\bфу\s*куок\b/],
+    ['Муйне', /(?:я|мы|сейчас|нахожусь|находимся|живу|живем|выезд|старт|отправляемся|едем из)[^.!?]{0,50}\b(?:муйне|фантьет)\b/],
+  ];
+  return patterns.find(([, pattern]) => pattern.test(q))?.[0] || '';
+}
+
+function hasKnownPeople(context = {}) {
+  const value = clean(context?.people, 120).toLocaleLowerCase('ru-RU');
+  return Boolean(value && !/не указан|неизвест|состав/.test(value));
+}
+
+function lastAssistantText(body = {}) {
+  const history = Array.isArray(body?.history) ? body.history : [];
+  const replies = history.filter(item => item?.role === 'assistant' || item?.role === 'bot').map(item => clean(item?.text, 900)).filter(Boolean);
+  return replies.at(-1) || '';
+}
+
+function chooseHumanQuestion(body, variants) {
+  const list = (Array.isArray(variants) ? variants : []).filter(Boolean);
+  if (!list.length) return 'Что вам сейчас важнее уточнить?';
+  const previous = lastAssistantText(body).toLocaleLowerCase('ru-RU').replace(/\s+/g, ' ').trim();
+  const historySize = Array.isArray(body?.history) ? body.history.length : 0;
+  const seed = historySize + clean(body?.message, 900).length;
+  for (let offset = 0; offset < list.length; offset += 1) {
+    const candidate = list[(seed + offset) % list.length];
+    const normalized = candidate.toLocaleLowerCase('ru-RU').replace(/\s+/g, ' ').trim();
+    if (!previous || normalized !== previous) return candidate;
+  }
+  return list[0];
+}
+
 function timeoutFallback(body = {}) {
   const deterministic = fastDeterministicReply(body);
   if (deterministic) return deterministic;
   const q = clean(body?.message, 900).toLocaleLowerCase('ru-RU');
   if (/отмен|перенос|возврат/.test(q)) return 'Подскажу по правилам отмены и переноса. Назовите дату и время выезда — расчёт зависит от того, сколько осталось до экскурсии.';
   if (/оплат|депозит|предоплат/.test(q)) return 'Можно оплатить депозит или полную стоимость. Точная сумма и доступный способ оплаты показываются при оформлении выбранной экскурсии.';
-  return 'Я всё ещё с вами. Чтобы не заставлять ждать, продолжим без паузы: напишите точку выезда, желаемое направление, дату и сколько человек едет — я сразу сузю варианты.';
+
+  const context = body?.context || {};
+  const origin = inferredOrigin(body);
+  const destination = clean(context?.destination, 100);
+  const date = clean(context?.date, 100);
+  const peopleKnown = hasKnownPeople(context);
+
+  if (!origin) {
+    return chooseHumanQuestion(body, [
+      'Откуда планируете ехать?',
+      'А вы сейчас где — в Нячанге, Дананге, Ханое или в другом городе?',
+      'С какого города начинаем поездку?',
+      'Где вы сейчас находитесь? От этого сразу пойму, какие экскурсии реально подходят.',
+    ]);
+  }
+
+  if (!destination) {
+    return chooseHumanQuestion(body, [
+      `Выезжаем из ${origin}. Куда хочется больше — к морю, в горы или посмотреть город?`,
+      `Поняла, стартуем из ${origin}. Что вам сейчас больше интересно: природа, море или что-то историческое?`,
+      `Из ${origin} вариантов много. Какой отдых хочется — спокойный, насыщенный или с красивыми видами?`,
+      `Хорошо, ${origin}. Есть направление, которое уже присмотрели, или подобрать по настроению?`,
+    ]);
+  }
+
+  if (!date) {
+    return chooseHumanQuestion(body, [
+      `Когда хотите поехать в ${destination}?`,
+      `На какой день смотрим ${destination}?`,
+      `По ${destination} поняла. Дата уже есть или пока выбираете?`,
+      `Хорошо, ${destination}. Когда вам удобно ехать?`,
+    ]);
+  }
+
+  if (!peopleKnown) {
+    return chooseHumanQuestion(body, [
+      'Сколько вас будет?',
+      'Вы вдвоём или компанией?',
+      'А сколько человек едет? Если есть дети, тоже скажите — это влияет на цену.',
+      'Кто едет с вами — только взрослые или будут дети?',
+    ]);
+  }
+
+  return chooseHumanQuestion(body, [
+    'Что для вас важнее при выборе — цена, комфорт или чтобы программа была максимально насыщенной?',
+    'По основным данным всё понятно. Хотите спокойный вариант или чтобы за день посмотреть максимум?',
+    'Тогда ещё один момент: больше цените комфорт или яркую насыщенную программу?',
+    'Поняла. Вы бы выбрали вариант подешевле или тот, где программа интереснее, даже если чуть дороже?',
+  ]);
 }
 
 async function safeAiChat(request, env) {
