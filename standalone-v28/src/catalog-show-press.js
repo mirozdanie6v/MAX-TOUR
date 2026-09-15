@@ -5,6 +5,7 @@
   const MARK = 'catalog-show-press';
   const PRESSED = 'catalog-show-pressed';
   const INDIVIDUAL_WITH_FROM = /^индивидуальный\s+от$/i;
+  const PRICE_BOX_SELECTOR = '.tour-card .price-row > div, .wide-card .price-row > div';
   const pressedAt = new WeakMap();
 
   const normalize = value => String(value || '')
@@ -24,8 +25,8 @@
 
   function patchIndividualPrices(root = document) {
     const boxes = [];
-    if (root instanceof Element && root.matches?.('.tour-card .price-row > div')) boxes.push(root);
-    root.querySelectorAll?.('.tour-card .price-row > div').forEach(box => boxes.push(box));
+    if (root instanceof Element && root.matches?.(PRICE_BOX_SELECTOR)) boxes.push(root);
+    root.querySelectorAll?.(PRICE_BOX_SELECTOR).forEach(box => boxes.push(box));
 
     let changed = 0;
     boxes.forEach(box => {
