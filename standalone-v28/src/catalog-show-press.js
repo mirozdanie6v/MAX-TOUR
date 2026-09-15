@@ -1,6 +1,92 @@
 (() => {
   'use strict';
 
+  // Verified from the current MAX TOUR product pages on 2026-09-15.
+  // These two products are missing from the legacy v28 source catalogue, so
+  // inject them into the shared TOURS array before the catalogue/AI is used.
+  const VERIFIED_NHATRANG_ISLAND_TOURS = [
+    {
+      id:'orchid-monkey-islands',
+      popular:true,
+      title:'Остров Орхидей и Остров Обезьян',
+      city:'Нячанг',
+      region:'Острова Нячанга',
+      duration:'1 день',
+      time:'07:00 → около 16:00',
+      image:'https://thb.tildacdn.one/tild3434-6534-4637-a137-383063623031/-/empty/ostrov-orhidey-i-obe.png',
+      fallbackImage:'https://static.tildacdn.one/tild6533-6439-4463-b665-373033396364/_-4.jpg',
+      gallery:[
+        'https://thb.tildacdn.one/tild3434-6534-4637-a137-383063623031/-/empty/ostrov-orhidey-i-obe.png',
+        'https://static.tildacdn.one/tild6533-6439-4463-b665-373033396364/_-4.jpg',
+      ],
+      tags:['море','острова','лодка','животные','семья'],
+      category:'Морские',
+      childrenOk:true,
+      group:{
+        from:'$36', adult:'$36', child:'$28', infant:'до 2 лет бесплатно', deposit:'30% или 100%',
+        notes:['Русскоязычный гид','Микроавтобус и лодка','Обед, входные билеты и вода включены'],
+        departures:[],
+      },
+      individual:{
+        from:'$350',
+        tiers:['1–2 человека — $350','3 человека — $390','4 человека — $430','5 человек — $450','6 человек — $480'],
+        deposit:'30% или 100%',
+      },
+      included:['Бутылка воды','Русскоязычный гид','Трансфер — микроавтобус и лодка','Обед','Все входные билеты'],
+      searchText:'остров орхидей остров обезьян нячанг море острова лодка животные семья морская экскурсия',
+      formatsLabel:'индивидуальный / групповой',
+      priceFromUsd:36,
+    },
+    {
+      id:'hon-tam-island',
+      popular:true,
+      title:'Остров Хон Там',
+      city:'Нячанг',
+      region:'Остров Хон Там',
+      duration:'1 день',
+      time:'07:00 → около 16:00',
+      image:'https://thb.tildacdn.one/tild3830-6434-4064-b661-623730373237/-/empty/ostrov-hon-tam-1.png',
+      fallbackImage:'https://static.tildacdn.one/tild3330-3430-4530-b438-353765663862/_-4.jpg',
+      gallery:[
+        'https://thb.tildacdn.one/tild3830-6434-4064-b661-623730373237/-/empty/ostrov-hon-tam-1.png',
+        'https://static.tildacdn.one/tild3330-3430-4530-b438-353765663862/_-4.jpg',
+      ],
+      tags:['море','острова','снорклинг','пляж','лодка','семья'],
+      category:'Морские',
+      childrenOk:true,
+      group:{
+        from:'$45', adult:'$45', child:'$35', infant:'до 2 лет бесплатно', deposit:'30% или 100%',
+        notes:['Вариант с буфетом — $55','Буфет + грязевые ванны — $60','Русскоязычный гид','Микроавтобус и лодка','Обед, лежаки, маски и трубки включены'],
+        departures:[],
+      },
+      included:['Бутылка воды','Русскоязычный гид','Трансфер — микроавтобус и лодка','Обед','Лежаки','Маски и трубки для снорклинга'],
+      searchText:'остров хон там нячанг море острова пляж снорклинг лодка семья морская экскурсия',
+      formatsLabel:'групповой',
+      priceFromUsd:45,
+    },
+  ];
+
+  function injectVerifiedIslandTours() {
+    try {
+      if (!Array.isArray(TOURS)) return 0;
+      const existing = new Set(TOURS.map(tour => String(tour?.id || '')));
+      let added = 0;
+      // Unshift in reverse so the exact island matches outrank generic coastal tours
+      // when the existing score is otherwise tied.
+      [...VERIFIED_NHATRANG_ISLAND_TOURS].reverse().forEach(tour => {
+        if (existing.has(tour.id)) return;
+        TOURS.unshift(tour);
+        existing.add(tour.id);
+        added += 1;
+      });
+      return added;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  injectVerifiedIslandTours();
+
   const TARGETS = new Set(['Показать', 'Сбросить']);
   const MARK = 'catalog-show-press';
   const PRESSED = 'catalog-show-pressed';
@@ -126,6 +212,7 @@
   });
 
   const initialize = () => {
+    injectVerifiedIslandTours();
     mark();
     patchIndividualPrices(document);
   };
@@ -139,5 +226,6 @@
 
   globalThis.MaxTourCatalogUi = {
     patchIndividualPrices,
+    injectVerifiedIslandTours,
   };
 })();
