@@ -3,7 +3,7 @@ import { compactTourForAi, deterministicFaqReply } from './ai-faq-knowledge.js';
 
 const json = (data, init = {}) => new Response(JSON.stringify(data), {
   ...init,
-  headers: { 'content-type': 'application/json; charset=utf-8', ...(init.headers || {}) },
+  headers: { 'content-type':'application/json; charset=utf-8', ...(init.headers || {}) },
 });
 
 function parseCookie(header = '') {
@@ -140,6 +140,11 @@ function hasKnownPeople(context = {}) {
   return Boolean(value && !/не указан|неизвест|состав/.test(value));
 }
 
+function hasKnownInterest(context = {}) {
+  const values = Array.isArray(context?.preferences) ? context.preferences : [];
+  return values.some(value => /море|остров|природ|вид|город|обзор|истор|культур|пляж|горы/i.test(clean(value, 120)));
+}
+
 function lastAssistantText(body = {}) {
   const history = Array.isArray(body?.history) ? body.history : [];
   const replies = history.filter(item => item?.role === 'assistant' || item?.role === 'bot').map(item => clean(item?.text, 900)).filter(Boolean);
@@ -189,6 +194,23 @@ function preferenceReply(body, preference, nextField = '') {
   return '';
 }
 
+function interestAwareNextQuestion(body, origin, date, peopleKnown) {
+  if (!peopleKnown) return chooseHumanQuestion(body, [
+    'Сколько человек едет?',
+    'Вы вдвоём или компанией?',
+    'Сколько вас будет? Если едут дети, тоже скажите — это влияет на цену.',
+  ]);
+  if (!date) return chooseHumanQuestion(body, [
+    'На какой день планируете поездку?',
+    `Когда хотите поехать? Подберу актуальные варианты с выездом из ${origin}.`,
+    'Дата уже есть или пока можно смотреть ближайшие дни?',
+  ]);
+  return chooseHumanQuestion(body, [
+    'Подходящие варианты уже показываю ниже. Хотите групповой формат или индивидуальный?',
+    'По интересам и составу всё понятно. Рассматривать группу или отдельную машину только для вас?',
+  ]);
+}
+
 function timeoutFallback(body = {}) {
   const deterministic = fastDeterministicReply(body);
   if (deterministic) return deterministic;
@@ -201,6 +223,7 @@ function timeoutFallback(body = {}) {
   const destination = clean(context?.destination, 100);
   const date = clean(context?.date, 100);
   const peopleKnown = hasKnownPeople(context);
+  const interestKnown = hasKnownInterest(context);
   const preference = explicitPreference(body);
 
   if (preference && !origin) return preferenceReply(body, preference, 'Откуда планируете ехать?');
@@ -216,6 +239,10 @@ function timeoutFallback(body = {}) {
       'С какого города начинаем поездку?',
       'Где вы сейчас находитесь? От этого сразу пойму, какие экскурсии реально подходят.',
     ]);
+  }
+
+  if (!destination && interestKnown) {
+    return interestAwareNextQuestion(body, origin, date, peopleKnown);
   }
 
   if (!destination) {
