@@ -28,7 +28,7 @@ test('short FAQ follow-up keeps tour from recent conversation history', () => {
   assert.match(r.reply, /Далат «Премиум»/);
   assert.match(r.reply, /русскоязыч/i);
   assert.doesNotMatch(r.reply, /зависит от экскурсии/i);
-  assert.equal(r.styleVersion, 'faq-style-v11.1');
+  assert.equal(r.styleVersion, 'faq-style-v11.2');
 });
 
 test('senior answer is grammatical, grounded and does not make a medical guarantee', () => {
