@@ -160,6 +160,35 @@ function chooseHumanQuestion(body, variants) {
   return list[0];
 }
 
+function explicitPreference(body = {}) {
+  const q = clean(body?.message, 900).toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
+  if (/подешев|дешев|бюджет|эконом|не\s+переплач|минимальн[^.!?]{0,16}цен|цен[ау][^.!?]{0,16}важн/.test(q)) return 'budget';
+  if (/интересн[^.!?]{0,16}программ|насыщенн|максимум[^.!?]{0,20}(?:посмотр|увид)|ярк[^.!?]{0,16}программ/.test(q)) return 'program';
+  if (/комфорт|премиум|vip|вип/.test(q)) return 'comfort';
+  return '';
+}
+
+function preferenceReply(body, preference, nextField = '') {
+  const suffix = nextField ? ` ${nextField}` : '';
+  if (preference === 'budget') return chooseHumanQuestion(body, [
+    `Поняла, тогда ориентируемся на цену.${suffix}`,
+    `Хорошо, ищем без переплаты.${suffix}`,
+    `Тогда в приоритете самые доступные варианты.${suffix}`,
+    `Принято — сначала смотрим, где выгоднее.${suffix}`,
+  ]);
+  if (preference === 'program') return chooseHumanQuestion(body, [
+    `Поняла, тогда важнее сама программа.${suffix}`,
+    `Хорошо, смотрим самые интересные и насыщенные варианты.${suffix}`,
+    `Тогда экономить на впечатлениях не будем — выбираем по программе.${suffix}`,
+  ]);
+  if (preference === 'comfort') return chooseHumanQuestion(body, [
+    `Поняла, ставим комфорт выше минимальной цены.${suffix}`,
+    `Хорошо, тогда смотрим более комфортные варианты.${suffix}`,
+    `Принято — приоритет комфорту.${suffix}`,
+  ]);
+  return '';
+}
+
 function timeoutFallback(body = {}) {
   const deterministic = fastDeterministicReply(body);
   if (deterministic) return deterministic;
@@ -172,6 +201,13 @@ function timeoutFallback(body = {}) {
   const destination = clean(context?.destination, 100);
   const date = clean(context?.date, 100);
   const peopleKnown = hasKnownPeople(context);
+  const preference = explicitPreference(body);
+
+  if (preference && !origin) return preferenceReply(body, preference, 'Откуда планируете ехать?');
+  if (preference && !destination) return preferenceReply(body, preference, `Из ${origin} куда хочется поехать?`);
+  if (preference && !date) return preferenceReply(body, preference, 'На какой день планируете поездку?');
+  if (preference && !peopleKnown) return preferenceReply(body, preference, 'Сколько вас будет?');
+  if (preference) return preferenceReply(body, preference, 'Подходящие варианты уже показываю ниже.');
 
   if (!origin) {
     return chooseHumanQuestion(body, [
