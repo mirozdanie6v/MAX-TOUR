@@ -23,15 +23,15 @@
   }
 
   function patchIndividualPrices(root = document) {
-    const labels = [];
-    if (root instanceof Element && root.matches?.('.tour-card .price-label')) labels.push(root);
-    root.querySelectorAll?.('.tour-card .price-label').forEach(label => labels.push(label));
+    const boxes = [];
+    if (root instanceof Element && root.matches?.('.tour-card .price-row > div')) boxes.push(root);
+    root.querySelectorAll?.('.tour-card .price-row > div').forEach(box => boxes.push(box));
 
     let changed = 0;
-    labels.forEach(label => {
-      if (!INDIVIDUAL_WITH_FROM.test(normalize(label.textContent))) return;
-      const value = label.parentElement?.querySelector('.price-value');
-      if (!value) return;
+    boxes.forEach(box => {
+      const label = box.querySelector('.mini, .price-label');
+      const value = box.querySelector('.price, .price-value');
+      if (!label || !value || !INDIVIDUAL_WITH_FROM.test(normalize(label.textContent))) return;
 
       const price = normalize(value.textContent).replace(/^от\s+/i, '');
       if (!price) return;
@@ -43,6 +43,8 @@
       row.style.setProperty('flex-wrap', 'nowrap', 'important');
       row.style.setProperty('align-items', 'baseline', 'important');
       row.style.setProperty('white-space', 'nowrap', 'important');
+      row.style.setProperty('width', 'max-content', 'important');
+      row.style.setProperty('max-width', 'none', 'important');
       row.style.setProperty('gap', '4px', 'important');
 
       const from = document.createElement('span');
@@ -60,11 +62,12 @@
       amount.style.setProperty('flex', '0 0 auto', 'important');
 
       row.append(from, amount);
-      label.textContent = normalize(label.textContent).replace(/\s+от$/i, '');
+      label.textContent = 'индивидуальный';
       value.replaceChildren(row);
       value.classList.add('catalog-individual-price-inline');
       value.dataset.individualFromInline = 'true';
       value.style.setProperty('white-space', 'nowrap', 'important');
+      value.style.setProperty('overflow', 'visible', 'important');
       changed += 1;
     });
 
