@@ -39,6 +39,8 @@ function repeat(question, assistantRole = 'assistant') {
   return { first, second };
 }
 
+const awkwardContinuation = /(?:—|:)\s+(?:При|Если|Для|На|В|У|С|Завтра)(?=\s|[,:;.!?—-]|$)/u;
+
 test('repeated FAQ wording changes while verified facts stay fixed', () => {
   const { first, second } = repeat('Можно оплатить депозит? И картой можно?');
   assert.equal(first.intent, 'payment');
@@ -51,14 +53,14 @@ test('repeated FAQ wording changes while verified facts stay fixed', () => {
     assert.match(answer, /карт/i);
     assert.match(answer, /перевод/i);
     assert.doesNotMatch(answer, /если хотите|могу также/i);
-    assert.doesNotMatch(answer, /(?:—|:)\s+(?:При|Если|Для|На|В|У|С|Завтра)\b/u);
+    assert.doesNotMatch(answer, awkwardContinuation);
   }
 });
 
 test('legacy bot role is treated as assistant for repetition control', () => {
   const { first, second } = repeat('Можно оплатить депозит? И картой можно?', 'bot');
   assert.notEqual(first.reply, second.reply);
-  assert.equal(second.styleVersion, 'faq-style-v11.1');
+  assert.equal(second.styleVersion, 'faq-style-v11.2');
 });
 
 test('schedule can vary its speech form without changing time facts', () => {
@@ -79,8 +81,8 @@ test('follow-up context and tour id survive style variation', () => {
   assert.equal(answer.intent, 'guide');
   assert.equal(answer.tourId, 'dalat-premium');
   assert.match(answer.reply, /русскоязыч/i);
-  assert.equal(answer.styleVersion, 'faq-style-v11.1');
-  assert.doesNotMatch(answer.reply, /(?:—|:)\s+На\b/u);
+  assert.equal(answer.styleVersion, 'faq-style-v11.2');
+  assert.doesNotMatch(answer.reply, awkwardContinuation);
 });
 
 test('high-risk FAQ facts are unchanged across conversation turns', () => {
