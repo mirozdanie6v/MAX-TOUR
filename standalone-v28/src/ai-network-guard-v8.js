@@ -62,8 +62,6 @@
     if (!button) return;
     if (!submitQuickLocation(button)) return;
 
-    // Capture-phase handling keeps the first-screen location buttons working even
-    // if later AI layers replace root.onclick during a mobile rerender.
     event.preventDefault();
     event.stopImmediatePropagation();
   }, true);
@@ -123,7 +121,7 @@
     const city = cityFrom(value);
     if (!city) return '';
 
-    const originSignals = /(?:^|[\s,;:.!?])(?:я|мы)\s+(?:сейчас\s+)?(?:в|на)\b|(?:выезд|старт|отправлен|отправляемся|едем)\s+(?:будет\s+)?из\b|(?:^|[\s,;:.!?])из\s+(?:города\s+)?|(?:нет|точнее|поправка|вс[её]-?таки)[^.!?]{0,30}(?:выезд|старт)?\s*из\b/iu;
+    const originSignals = /(?:^|[\s,;:.!?])(?:я|мы)\s+(?:сейчас\s+)?(?:в|на)(?:\s+|$)|(?:выезд|старт|отправлен|отправляемся|едем)\s+(?:будет\s+)?из(?:\s+|$)|(?:^|[\s,;:.!?])из(?:\s+|$)(?:города\s+)?|(?:нет|точнее|поправка|вс[её]-?таки)[^.!?]{0,30}(?:выезд|старт)?\s*из(?:\s+|$)/iu;
     return originSignals.test(value) ? city : '';
   }
 
@@ -159,6 +157,11 @@
     }
   }
 
+  function syncLiveLocationGuard(origin) {
+    try { globalThis.MaxTourAI?._locationTest?.inspectInput?.(`выезд из ${origin}`); }
+    catch (_) {}
+  }
+
   function rememberOrigin(origin, source = 'message') {
     const value = clean(origin);
     if (!value) return '';
@@ -166,6 +169,7 @@
     const changed = Boolean(previous && previous !== value);
     writeJson(ORIGIN_KEY, { origin:value, source, updatedAt:Date.now() });
     syncSharedState(value, { changed });
+    syncLiveLocationGuard(value);
     return value;
   }
 
@@ -176,7 +180,10 @@
     if (explicit) return rememberOrigin(explicit, hotelOriginFrom(value) ? 'hotel' : 'message');
 
     const known = currentOrigin();
-    if (known) syncSharedState(known, { changed:false });
+    if (known) {
+      syncSharedState(known, { changed:false });
+      syncLiveLocationGuard(known);
+    }
     return known;
   }
 
