@@ -13,7 +13,7 @@ export const MAX_TOUR_GLOBAL_FACTS = {
 };
 
 const MONTHS = [
-  ['январ',1],['феврал',2],['март',3],['апрел',4],['ма[йя]',5],['июн',6],['июл',7],['август',8],['сентябр',9],['октябр',10],['ноябр',11],['декабр',12],
+  ['янв',1],['фев',2],['мар',3],['апр',4],['ма[йя]',5],['июн',6],['июл',7],['авг',8],['сен',9],['окт',10],['ноя',11],['дек',12],
 ];
 
 function vietnamNow(now = new Date()) {
@@ -162,7 +162,7 @@ export function deterministicFaqReply(message, catalog = [], options = {}) {
   const q = norm(message);
   if (!q) return null;
   const tour = findTourForQuestion(message, catalog, options);
-  const tourName = tour?.title ? `«${tour.title}»` : 'этой экскурсии';
+  const tourName = tour?.title || 'эта экскурсия';
 
   if (/amiana|амиан/.test(q) && /(трансфер|забер|отел|доплат|встреч)/.test(q)) {
     return { intent:'transfer_hotel', tourId:tour?.id || '', reply:`Да, из Amiana забираем с доплатой. ${MAX_TOUR_GLOBAL_FACTS.amianaTransfer} Если напишете состав группы, сразу скажу точную доплату.` };
@@ -182,9 +182,13 @@ export function deterministicFaqReply(message, catalog = [], options = {}) {
     if (included) return { intent:'included', tourId:tour.id, reply:`В стоимость ${tourName} входят: ${included}. Могу также подсказать, что взять с собой и какие есть доплаты.` };
   }
 
+  if (tour && /коляск/.test(q)) {
+    return { intent:'stroller', tourId:tour.id, reply:`Для ${tourName} в карточке нет подтверждения полной доступности с коляской, поэтому обещать её нельзя. Укажите коляску при оформлении; если отсутствие ступеней принципиально, это нужно подтвердить до оплаты.` };
+  }
+
   if (tour && /(ребен|ребён|детск|малыш|до\s*100\s*см|110\s*см|120\s*см|рост)/.test(q)) {
     if (tour.id === 'dalat-premium') {
-      return { intent:'child_price', tourId:tour.id, reply:'Для «Далат Премиум»: ребёнок ростом 110 см — $38; дети до 100 см — бесплатно. Если детей несколько, напишите рост каждого — сразу посчитаю состав.' };
+      return { intent:'child_price', tourId:tour.id, reply:'Для Далат Премиум: ребёнок ростом 110 см — $38; дети до 100 см — бесплатно. Если детей несколько, напишите рост каждого — сразу посчитаю состав.' };
     }
     const parts = [];
     if (tour.group?.child) parts.push(`детский тариф — ${tour.group.child}`);
@@ -233,10 +237,6 @@ export function deterministicFaqReply(message, catalog = [], options = {}) {
     const activity = tour.activity ? `Уровень активности — ${tour.activity}. ` : '';
     const individual = tour.individual ? 'Если важен более спокойный темп, индивидуальный формат позволяет сделать маршрут комфортнее.' : 'Если есть ограничения по ходьбе, лучше заранее уточнить конкретные точки маршрута.';
     return { intent:'senior_load', tourId:tour.id, reply:`${time}${activity}${individual}`.trim() };
-  }
-
-  if (tour && /коляск/.test(q)) {
-    return { intent:'stroller', tourId:tour.id, reply:`Для ${tourName} в карточке нет подтверждения полной доступности с коляской, поэтому обещать её нельзя. Укажите коляску при оформлении; если отсутствие ступеней принципиально, это нужно подтвердить до оплаты.` };
   }
 
   if (tour && /(заброни|есть места|свободн|наличие)/.test(q) && /завтра/.test(q)) {
