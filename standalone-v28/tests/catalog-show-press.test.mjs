@@ -23,10 +23,12 @@ test('catalog filter press script parses and targets exact Show and Reset labels
   assert.doesNotMatch(script, /stopPropagation\s*\(/);
 });
 
-test('catalog individual price puts from and amount inside one non-wrapping row', () => {
-  assert.match(script, /\.tour-card \.price-label/);
-  assert.match(script, /\.price-value/);
+test('catalog individual price targets the actual mini and price DOM', () => {
+  assert.match(script, /\.tour-card \.price-row > div/);
+  assert.match(script, /\.mini, \.price-label/);
+  assert.match(script, /\.price, \.price-value/);
   assert.match(script, /\^индивидуальный\\s\+от\$/i);
+  assert.match(script, /label\.textContent = 'индивидуальный'/);
   assert.match(script, /catalog-price-row/);
   assert.match(script, /catalog-price-from/);
   assert.match(script, /catalog-price-amount/);
@@ -35,15 +37,18 @@ test('catalog individual price puts from and amount inside one non-wrapping row'
   assert.match(script, /setProperty\('display', 'inline-flex', 'important'\)/);
   assert.match(script, /setProperty\('flex-wrap', 'nowrap', 'important'\)/);
   assert.match(script, /setProperty\('white-space', 'nowrap', 'important'\)/);
+  assert.match(script, /setProperty\('width', 'max-content', 'important'\)/);
   assert.match(script, /catalog-individual-price-inline/);
   assert.match(script, /individualFromInline/);
   assert.doesNotMatch(script, /const CATALOG = '#catalog-tours'/);
 });
 
-test('catalog individual price CSS forces from and amount onto one physical row', () => {
-  assert.match(css, /catalog-individual-price-inline/);
+test('catalog individual price CSS supports actual price class and one physical row', () => {
+  assert.match(css, /\.tour-card \.price\.catalog-individual-price-inline/);
+  assert.match(css, /\.tour-card \.price \.catalog-price-row/);
   assert.match(css, /flex-direction:\s*row\s*!important/);
   assert.match(css, /flex-wrap:\s*nowrap\s*!important/);
+  assert.match(css, /width:\s*max-content\s*!important/);
   assert.match(css, /white-space:\s*nowrap\s*!important/);
   assert.match(css, /catalog-price-from/);
   assert.match(css, /catalog-price-amount/);
