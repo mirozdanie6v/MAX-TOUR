@@ -264,3 +264,202 @@
   globalThis.MaxTourCatalogCardV7 = api;
   globalThis.MaxTourCatalogCardV8 = api;
 })();
+
+(() => {
+  'use strict';
+
+  if (typeof document === 'undefined') return;
+
+  const AI_STATE_KEY = 'max-tour-ai-consultant-v5';
+  const LOCATION_KEY = 'max-tour-ai-location-v6';
+  const clean = value => String(value || '').replace(/\s+/g, ' ').trim();
+  const lower = value => clean(value).toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
+  const readJson = (key, fallback = {}) => {
+    try { return JSON.parse(sessionStorage.getItem(key) || 'null') || fallback; }
+    catch (_) { return fallback; }
+  };
+  const writeJson = (key, value) => {
+    try { sessionStorage.setItem(key, JSON.stringify(value)); } catch (_) {}
+  };
+
+  function aiState() { return readJson(AI_STATE_KEY, {}); }
+  function locationState() { return readJson(LOCATION_KEY, {}); }
+  function currentOrigin() {
+    return clean(globalThis.MaxTourAIOriginContextV20?.currentOrigin?.())
+      || clean(locationState().origin)
+      || clean(aiState()?.slots?.origin);
+  }
+  function peopleCount(slots = aiState()?.slots || {}) {
+    return Number(slots.adults || 0) + (Array.isArray(slots.children) ? slots.children.length : 0) + Number(slots.infants || 0);
+  }
+  function stageState(body = {}) {
+    const saved = aiState();
+    const slots = saved?.slots || {};
+    const context = body?.context || {};
+    const preferences = Array.isArray(context.preferences) && context.preferences.length
+      ? context.preferences
+      : (Array.isArray(slots.preferences) ? slots.preferences : []);
+    return {
+      origin: clean(context.origin) || currentOrigin(),
+      people: peopleCount(slots),
+      destination: clean(context.destination || slots.destination),
+      preferences,
+      date: clean(context.date || slots.date),
+      format: clean(context.format || slots.tripType),
+    };
+  }
+  function originGenitive(origin) {
+    return ({
+      'Нячанг':'Нячанга', 'Ханой':'Ханоя', 'Дананг':'Дананга', 'Фукуок':'Фукуока',
+      'Муйне/Фантьет':'Муйне/Фантьета',
+    })[origin] || origin;
+  }
+  function isFaq(text) {
+    return /(?:что\s+входит|включен|не\s+входит|цена|стоимост|сколько\s+стоит|оплат|депозит|предоплат|отмен|возврат|перенос|гид|русскоязыч|трансфер|забер|отель|встреч|питани|обед|вегетари|аллерг|погод|дожд|шторм|что\s+взять|одежд|коляск|пожил|доступн|места|наличи)/iu.test(String(text || ''));
+  }
+  function isAiChatRequest(input) {
+    try {
+      const raw = input instanceof Request ? input.url : String(input || '');
+      const url = new URL(raw, location.href);
+      return url.origin === location.origin && url.pathname === '/api/ai/chat';
+    } catch (_) { return false; }
+  }
+  function nextStageReply(state) {
+    if (!state.origin) return '';
+    if (!state.people) return 'Сколько человек едет? Если будут дети, укажите возраст — это влияет на цену.';
+    if (!state.destination && !state.preferences.length) return 'Что вам больше хочется: море и острова, природа и красивые виды или обзор города?';
+    if (!state.date) return `Подходящие варианты с выездом из ${originGenitive(state.origin)} уже подобраны. На какую дату хотите поехать?`;
+    if (!state.format) return 'Какой формат удобнее — групповой или индивидуальный? После выбора сразу покажу варианты с ценой и бронированием.';
+    return 'Готово — ниже подходящие экскурсии. Выберите вариант и нажмите «Забронировать»: дату и состав группы перенесу в оформление автоматически.';
+  }
+  function explicitOrigin(text) {
+    try { return clean(globalThis.MaxTourAIOriginContextV20?.explicitOriginFrom?.(text)); }
+    catch (_) { return ''; }
+  }
+  function clearTransientLocation(message) {
+    const state = locationState();
+    if (!state.origin) return;
+    const explicit = explicitOrigin(message);
+    const current = currentOrigin();
+    if (explicit && explicit !== current) return;
+    if (!state.locationJustSet) return;
+    writeJson(LOCATION_KEY, { ...state, locationJustSet:false });
+  }
+
+  const previousFetch = globalThis.fetch;
+  if (typeof previousFetch === 'function' && !previousFetch.__maxTourSalesFinalizerV23) {
+    const wrappedFetch = async function(input, init = {}) {
+      if (!isAiChatRequest(input) || !init?.body || typeof init.body !== 'string') return previousFetch.call(this, input, init);
+      let body;
+      try { body = JSON.parse(init.body); }
+      catch (_) { return previousFetch.call(this, input, init); }
+
+      const response = await previousFetch.call(this, input, init);
+      clearTransientLocation(body?.message || '');
+      if (!response?.ok || isFaq(body?.message || '')) return response;
+      const data = await response.clone().json().catch(() => null);
+      if (!data?.ok || data?.source === 'faq-verified') return response;
+      const state = stageState(body);
+      const reply = nextStageReply(state);
+      if (!reply) return response;
+      const headers = new Headers(response.headers);
+      headers.delete('content-length');
+      return new Response(JSON.stringify({ ...data, reply, source:'sales-finalizer-v23' }), {
+        status:response.status, statusText:response.statusText, headers,
+      });
+    };
+    wrappedFetch.__maxTourSalesFinalizerV23 = true;
+    wrappedFetch.__maxTourSalesFinalizerPrevious = previousFetch;
+    globalThis.fetch = wrappedFetch;
+  }
+
+  function stageOptions() {
+    const state = stageState();
+    if (!state.origin) return [];
+    if (!state.people) return [['2 взрослых','Нас 2 взрослых'],['С ребёнком','2 взрослых и ребёнок 7 лет']];
+    if (!state.destination && !state.preferences.length) return [['Острова','Хочу море и острова'],['Красивые виды','Хочу природу и красивые виды'],['Обзор города','Хочу обзорную экскурсию']];
+    if (!state.date) return [['Сегодня','Сегодня'],['Завтра','Завтра'],['Дата гибкая','Дата гибкая']];
+    if (!state.format) return [['Групповой','Хочу групповой тур'],['Индивидуальный','Хочу индивидуальный тур']];
+    return [];
+  }
+
+  function ensureQuickReplies(root) {
+    const below = root?.querySelector?.('.ai-chat-below');
+    if (!below) return;
+    const options = stageOptions();
+    let box = below.querySelector('.ai-quick-replies');
+    if (!options.length) {
+      box?.remove();
+      return;
+    }
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'ai-quick-replies';
+      below.prepend(box);
+    }
+    const desired = options.map(([label,value]) => `<button type="button" data-ai-action="quick" data-value="${String(value).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}">${label}</button>`).join('');
+    if (box.innerHTML !== desired) box.innerHTML = desired;
+    box.dataset.salesFlowV23 = '1';
+  }
+
+  function ensureBookingStyle() {
+    if (document.getElementById('ai-catalog-book-v23-style')) return;
+    const style = document.createElement('style');
+    style.id = 'ai-catalog-book-v23-style';
+    style.textContent = '.ai-catalog-book-v23{width:100%;margin:8px 0 16px;min-height:48px;font-weight:800}.ai-catalog-card-v7[hidden]+.ai-catalog-book-v23{display:none!important}';
+    document.head.append(style);
+  }
+
+  function ensureBookingButtons(root) {
+    ensureBookingStyle();
+    const lists = root?.querySelectorAll?.('.ai-sales-results .ai-recommendations') || [];
+    lists.forEach(list => {
+      const cards = [...list.querySelectorAll(':scope > .tour-card[data-tour-id]')];
+      const validIds = new Set(cards.map(card => String(card.dataset.tourId || '')));
+      list.querySelectorAll(':scope > .ai-catalog-book-v23').forEach(button => {
+        if (!validIds.has(String(button.dataset.id || ''))) button.remove();
+      });
+      cards.forEach(card => {
+        const id = String(card.dataset.tourId || '');
+        if (!id) return;
+        let button = [...list.querySelectorAll(':scope > .ai-catalog-book-v23')].find(node => String(node.dataset.id || '') === id);
+        if (!button) {
+          button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'primary ai-catalog-book-v23';
+          button.dataset.aiAction = 'book-tour';
+          button.dataset.id = id;
+          button.textContent = 'Забронировать';
+        }
+        if (card.nextElementSibling !== button) card.after(button);
+      });
+    });
+  }
+
+  let scheduled = false;
+  function refreshSalesUi() {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => {
+      scheduled = false;
+      const root = document.querySelector('#aiScreen,#ai,[data-screen="ai"]') || document.querySelector('.ai-consultant-shell')?.parentElement;
+      if (!root) return;
+      ensureQuickReplies(root);
+      ensureBookingButtons(root);
+    });
+  }
+
+  new MutationObserver(refreshSalesUi).observe(document.documentElement, { childList:true, subtree:true });
+  document.addEventListener('click', refreshSalesUi, true);
+  document.addEventListener('submit', refreshSalesUi, true);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', refreshSalesUi, { once:true });
+  else refreshSalesUi();
+
+  globalThis.MaxTourAISalesFinalizerV23 = {
+    stageState,
+    nextStageReply,
+    stageOptions,
+    clearTransientLocation,
+    _test:{ isFaq, originGenitive },
+  };
+})();
