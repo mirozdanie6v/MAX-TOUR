@@ -194,8 +194,6 @@
   }
 
   document.addEventListener('pointerdown', event => {
-    // Capture phase: guarantee the augmented catalogue exists before any
-    // bubble-phase navigation or AI click handler starts matching tours.
     ensureVerifiedIslandTours();
     const button = targetFromEvent(event);
     if (button) press(button);
@@ -218,8 +216,6 @@
   }, true);
 
   const observer = new MutationObserver(records => {
-    // TOURS may be created after this enhancement script. Any subsequent UI
-    // mutation is another safe synchronization point.
     ensureVerifiedIslandTours();
     for (const record of records) {
       record.addedNodes.forEach(node => {
@@ -250,4 +246,82 @@
     ensureVerifiedIslandTours,
     verifiedIslandToursReady,
   };
+})();
+
+(() => {
+  'use strict';
+
+  // Quick replies must not depend on #aiScreen.onclick: other AI layers can
+  // remount the screen and replace property handlers. Delegate at document
+  // level and submit through the canonical chat form instead.
+  const BUTTON_SELECTOR = '#aiScreen .ai-quick-replies [data-ai-action="quick"]';
+  const pointerStarts = new Map();
+  let lastSubmit = { value:'', at:0 };
+
+  function buttonFrom(target) {
+    return target instanceof Element ? target.closest(BUTTON_SELECTOR) : null;
+  }
+
+  function submitQuick(button, event) {
+    if (!button || button.disabled) return false;
+    const value = String(button.dataset.value || button.textContent || '').trim();
+    if (!value) return false;
+
+    const screen = button.closest('#aiScreen');
+    const form = screen?.querySelector('[data-ai-form="chat"]');
+    const textarea = form?.querySelector('textarea[name="message"]');
+    if (!form || !textarea || textarea.disabled) return false;
+
+    const now = Date.now();
+    if (lastSubmit.value === value && now - lastSubmit.at < 650) {
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+      event?.stopImmediatePropagation?.();
+      return true;
+    }
+
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    event?.stopImmediatePropagation?.();
+    lastSubmit = { value, at:now };
+
+    textarea.value = value;
+    textarea.dispatchEvent(new Event('input', { bubbles:true }));
+    if (typeof form.requestSubmit === 'function') form.requestSubmit();
+    else form.dispatchEvent(new Event('submit', { bubbles:true, cancelable:true }));
+    return true;
+  }
+
+  document.addEventListener('pointerdown', event => {
+    const button = buttonFrom(event.target);
+    if (!button) return;
+    pointerStarts.set(event.pointerId, {
+      button,
+      x:Number(event.clientX) || 0,
+      y:Number(event.clientY) || 0,
+    });
+  }, true);
+
+  document.addEventListener('pointerup', event => {
+    const start = pointerStarts.get(event.pointerId);
+    pointerStarts.delete(event.pointerId);
+    if (!start) return;
+    const button = buttonFrom(event.target);
+    if (!button || button !== start.button) return;
+    const dx = (Number(event.clientX) || 0) - start.x;
+    const dy = (Number(event.clientY) || 0) - start.y;
+    if (Math.hypot(dx, dy) > 14) return;
+    submitQuick(button, event);
+  }, true);
+
+  document.addEventListener('pointercancel', event => {
+    pointerStarts.delete(event.pointerId);
+  }, true);
+
+  document.addEventListener('click', event => {
+    const button = buttonFrom(event.target);
+    if (button) submitQuick(button, event);
+  }, true);
+
+  globalThis.MaxTourAiQuickRepliesV24 = { submitQuick };
 })();
