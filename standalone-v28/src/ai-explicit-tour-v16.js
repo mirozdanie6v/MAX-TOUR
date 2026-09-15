@@ -112,96 +112,6 @@
 (() => {
   'use strict';
 
-  const locationTest = globalThis.MaxTourAI?._locationTest;
-  if (!locationTest?.inspectInput || !locationTest?.placeFrom || !locationTest?.placesFrom) return;
-
-  const CASE_FIXES = [
-    [/ханоя/giu, 'Ханой'],
-    [/ханою/giu, 'Ханой'],
-    [/нячанга/giu, 'Нячанг'],
-    [/дананга/giu, 'Дананг'],
-    [/фукуока/giu, 'Фукуок'],
-    [/далата/giu, 'Далат'],
-    [/хойана/giu, 'Хойан'],
-    [/халонга/giu, 'Халонг'],
-    [/нинь\s*биня/giu, 'Ниньбинь'],
-    [/фу[йи]ена/giu, 'Фуйен'],
-    [/фан\s*тьета/giu, 'Фантьет'],
-  ];
-
-  function normalizeRussianCases(value) {
-    return CASE_FIXES.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), String(value || ''));
-  }
-
-  function placeFromFragment(fragment) {
-    const normalized = normalizeRussianCases(fragment);
-    return locationTest.placeFrom(normalized) || locationTest.placesFrom(normalized)?.[0] || '';
-  }
-
-  function correctionTarget(value) {
-    const normalized = normalizeRussianCases(value).trim();
-    if (!normalized) return '';
-
-    const contrast = normalized.match(/(?:^|[\s,;])не\s+[^,;.!?]{0,40}?[,;]?\s+а\s+(.+)$/iu);
-    if (contrast) {
-      const target = placeFromFragment(contrast[1]);
-      if (target) return target;
-    }
-
-    const explicitOrigin = normalized.match(/(?:^|[\s,;])(?:выезд|старт|отправление)\s+(?:будет\s+)?из\s+(.+)$/iu)
-      || normalized.match(/(?:^|[\s,;])из\s+(.+)$/iu);
-    if (explicitOrigin) {
-      const target = placeFromFragment(explicitOrigin[1]);
-      if (target) return target;
-    }
-
-    const located = normalized.match(/(?:^|[\s,;])(?:я|мы|сейчас|нахожусь|находимся|живу|живём|живем)(?:\s+|$)[^.!?]{0,24}?(?:в|на)\s+(.+)$/iu);
-    if (located) {
-      const target = placeFromFragment(located[1]);
-      if (target) return target;
-    }
-
-    if (/^(?:нет|неверно|ошибка|поправка|точнее|всё-таки|все-таки)(?:[\s,;:.-]|$)/iu.test(normalized)
-      || /(?:имею|имел|имела|имели)\s+в\s+виду/iu.test(normalized)) {
-      const places = locationTest.placesFrom(normalized);
-      if (places.length) return places[places.length - 1];
-    }
-
-    return '';
-  }
-
-  function applyCorrection(value) {
-    const target = correctionTarget(value);
-    if (!target) return '';
-    locationTest.inspectInput(`выезд из ${target}`);
-    return target;
-  }
-
-  function submittedText(event) {
-    return event.target?.querySelector?.('textarea[name="message"]')?.value?.trim() || '';
-  }
-
-  document.addEventListener('submit', event => {
-    const value = submittedText(event);
-    if (value) applyCorrection(value);
-  }, true);
-
-  document.addEventListener('keydown', event => {
-    if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
-    const value = event.target?.closest?.('textarea[name="message"]')?.value?.trim();
-    if (value) applyCorrection(value);
-  }, true);
-
-  globalThis.MaxTourAiLocationCorrectionV17 = {
-    normalizeRussianCases,
-    correctionTarget,
-    applyCorrection,
-  };
-})();
-
-(() => {
-  'use strict';
-
   const QUESTION_SETS = [
     {
       id:'preferences',
@@ -306,4 +216,94 @@
   else syncAll();
 
   globalThis.MaxTourAIQuickRepliesV18 = { setForQuestion, lastBotQuestion, syncQuickReplies };
+})();
+
+(() => {
+  'use strict';
+
+  const locationTest = globalThis.MaxTourAI?._locationTest;
+  if (!locationTest?.inspectInput || !locationTest?.placeFrom || !locationTest?.placesFrom) return;
+
+  const CASE_FIXES = [
+    [/ханоя/giu, 'Ханой'],
+    [/ханою/giu, 'Ханой'],
+    [/нячанга/giu, 'Нячанг'],
+    [/дананга/giu, 'Дананг'],
+    [/фукуока/giu, 'Фукуок'],
+    [/далата/giu, 'Далат'],
+    [/хойана/giu, 'Хойан'],
+    [/халонга/giu, 'Халонг'],
+    [/нинь\s*биня/giu, 'Ниньбинь'],
+    [/фу[йи]ена/giu, 'Фуйен'],
+    [/фан\s*тьета/giu, 'Фантьет'],
+  ];
+
+  function normalizeRussianCases(value) {
+    return CASE_FIXES.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), String(value || ''));
+  }
+
+  function placeFromFragment(fragment) {
+    const normalized = normalizeRussianCases(fragment);
+    return locationTest.placeFrom(normalized) || locationTest.placesFrom(normalized)?.[0] || '';
+  }
+
+  function correctionTarget(value) {
+    const normalized = normalizeRussianCases(value).trim();
+    if (!normalized) return '';
+
+    const contrast = normalized.match(/(?:^|[\s,;])не\s+[^,;.!?]{0,40}?[,;]?\s+а\s+(.+)$/iu);
+    if (contrast) {
+      const target = placeFromFragment(contrast[1]);
+      if (target) return target;
+    }
+
+    const explicitOrigin = normalized.match(/(?:^|[\s,;])(?:выезд|старт|отправление)\s+(?:будет\s+)?из\s+(.+)$/iu)
+      || normalized.match(/(?:^|[\s,;])из\s+(.+)$/iu);
+    if (explicitOrigin) {
+      const target = placeFromFragment(explicitOrigin[1]);
+      if (target) return target;
+    }
+
+    const located = normalized.match(/(?:^|[\s,;])(?:я|мы|сейчас|нахожусь|находимся|живу|живём|живем)(?:\s+|$)[^.!?]{0,24}?(?:в|на)\s+(.+)$/iu);
+    if (located) {
+      const target = placeFromFragment(located[1]);
+      if (target) return target;
+    }
+
+    if (/^(?:нет|неверно|ошибка|поправка|точнее|всё-таки|все-таки)(?:[\s,;:.-]|$)/iu.test(normalized)
+      || /(?:имею|имел|имела|имели)\s+в\s+виду/iu.test(normalized)) {
+      const places = locationTest.placesFrom(normalized);
+      if (places.length) return places[places.length - 1];
+    }
+
+    return '';
+  }
+
+  function applyCorrection(value) {
+    const target = correctionTarget(value);
+    if (!target) return '';
+    locationTest.inspectInput(`выезд из ${target}`);
+    return target;
+  }
+
+  function submittedText(event) {
+    return event.target?.querySelector?.('textarea[name="message"]')?.value?.trim() || '';
+  }
+
+  document.addEventListener('submit', event => {
+    const value = submittedText(event);
+    if (value) applyCorrection(value);
+  }, true);
+
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+    const value = event.target?.closest?.('textarea[name="message"]')?.value?.trim();
+    if (value) applyCorrection(value);
+  }, true);
+
+  globalThis.MaxTourAiLocationCorrectionV17 = {
+    normalizeRussianCases,
+    correctionTarget,
+    applyCorrection,
+  };
 })();
