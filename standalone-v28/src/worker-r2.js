@@ -19,6 +19,7 @@ const ADMIN_SHARED_ASSETS = new Set([
 ]);
 const ADMIN_TOURIST_ROLE_PATTERN = /\s*<a href="\/" aria-label="Открыть кабинет туриста"><span class="role-long">Турист<\/span><span class="role-short">Турист<\/span><\/a>/i;
 const AVAILABILITY_INTENT = /(?:есть|мест[ао]?|свобод|наличи|заброни)/i;
+const ORIGIN_CUE = /(?:^|\s)(?:я|мы|сейчас|нахожусь|находимся|живу|живем|живём|из|выезд(?:\s+из)?|старт(?:\s+из)?)(?:\s|$|[^а-яё])/i;
 const MONTHS = [
   ['янв', 1], ['фев', 2], ['мар', 3], ['апр', 4], ['ма[йя]', 5], ['июн', 6],
   ['июл', 7], ['авг', 8], ['сен', 9], ['окт', 10], ['ноя', 11], ['дек', 12],
@@ -45,8 +46,45 @@ function addIsoDays(iso, days) {
   return date.toISOString().slice(0, 10);
 }
 
+function normalizeRussian(value) {
+  return String(value || '').trim().toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
+}
+
+function originReply(message) {
+  const q = normalizeRussian(message);
+  if (!q || !ORIGIN_CUE.test(q)) return '';
+  if (/хано(?:й|е|я)|hanoi/.test(q)) {
+    return 'Хорошо, выезд из Ханоя. Могу подобрать Ниньбинь, Халонг, обзор Ханоя или другой доступный маршрут.';
+  }
+  if (/нячанг(?:е|а)?|на-?чанг(?:е|а)?|nha\s*trang/.test(q)) {
+    return 'Хорошо, выезд из Нячанга. Могу подобрать острова, Нячанг, Далат, Фуйен и другие доступные маршруты.';
+  }
+  if (/дананг(?:е|а)?|да-?нанг(?:е|а)?|da\s*nang/.test(q)) {
+    return 'Хорошо, выезд из Дананга. Могу подобрать Дананг, Хойан и другие доступные варианты.';
+  }
+  if (/фу\s*куок(?:е|а)?|фукуок(?:е|а)?|phu\s*quoc/.test(q)) {
+    return 'Хорошо, вы на Фукуоке. Подберу варианты с выездом с острова — скажите, что интереснее: море, природа или обзорная программа.';
+  }
+  return '';
+}
+
+async function originFastPath(request, url) {
+  if (url.pathname !== '/api/ai/chat' || request.method !== 'POST') return null;
+  const body = await request.clone().json().catch(() => ({}));
+  const reply = originReply(body?.message);
+  if (!reply) return null;
+  return json({
+    ok: true,
+    reply,
+    source: 'origin-fast',
+    faqIntent: 'origin',
+    tourId: '',
+    currentDateVietnam: vietnamTodayIso(),
+  });
+}
+
 function departureIso(value, today) {
-  const raw = String(value || '').trim().toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
+  const raw = normalizeRussian(value);
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
   const day = Number((raw.match(/\d{1,2}/) || [])[0]);
   const month = MONTHS.find(([stem]) => new RegExp(stem).test(raw))?.[1];
@@ -61,7 +99,7 @@ function departureIso(value, today) {
 }
 
 function requestedPeople(text) {
-  const q = String(text || '').toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
+  const q = normalizeRussian(text);
   const digit = q.match(/(?:нас|для|на)\s*(\d{1,2})\s*(?:человек|чел|взросл)?|(\d{1,2})\s*(?:человек|взросл)/);
   if (digit) return Number(digit[1] || digit[2] || 0);
   if (/дво(?:их|е)|два|две/.test(q)) return 2;
@@ -221,7 +259,7 @@ async function filterAdminHostRoles(response, url) {
   });
 }
 
-export const _availabilityTest = { vietnamTodayIso, addIsoDays, departureIso, requestedPeople, availabilityReply };
+export const _availabilityTest = { vietnamTodayIso, addIsoDays, departureIso, requestedPeople, availabilityReply, originReply };
 
 export default {
   async fetch(request, env, ctx) {
@@ -231,6 +269,8 @@ export default {
     if (url.pathname.startsWith('/tour-media/')) {
       return serveTourMedia(request, env, url.pathname);
     }
+    const originResponse = await originFastPath(request, url);
+    if (originResponse) return originResponse;
     const availabilityResponse = await availabilityFastPath(request, env, url);
     if (availabilityResponse) return availabilityResponse;
     const response = await profileWorker.fetch(request, env, ctx);
