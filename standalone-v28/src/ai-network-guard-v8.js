@@ -33,3 +33,42 @@
     _test:{ isAiChatRequest },
   };
 })();
+
+(() => {
+  'use strict';
+
+  if (typeof document === 'undefined') return;
+
+  function submitQuickLocation(button) {
+    const value = String(button?.dataset?.locationV6Value || '').trim();
+    if (!value) return false;
+
+    const root = button.closest('#ai,[data-screen="ai"]') || button.closest('.ai-consultant-shell')?.parentElement;
+    const form = root?.querySelector?.('[data-ai-form="chat"]');
+    const textarea = form?.querySelector?.('textarea[name="message"]');
+    if (!form || !textarea) return false;
+
+    textarea.value = value;
+    try { globalThis.MaxTourAI?._locationTest?.inspectInput?.(value); } catch (_) {}
+
+    textarea.dispatchEvent(new Event('input', { bubbles:true }));
+    if (typeof form.requestSubmit === 'function') form.requestSubmit();
+    else form.dispatchEvent(new Event('submit', { bubbles:true, cancelable:true }));
+    return true;
+  }
+
+  document.addEventListener('click', event => {
+    const button = event.target?.closest?.('[data-location-v6-value]');
+    if (!button) return;
+    if (!submitQuickLocation(button)) return;
+
+    // Capture-phase handling keeps the first-screen location buttons working even
+    // if later AI layers replace root.onclick during a mobile rerender.
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
+
+  globalThis.MaxTourAIFirstScreenQuickV19 = {
+    submitQuickLocation,
+  };
+})();
