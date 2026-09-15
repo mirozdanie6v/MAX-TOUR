@@ -27,6 +27,19 @@ test('live departure guard hides past dates, blocks full departures and marks AI
   assert.match(departure, /targetDate && iso === targetDate/);
 });
 
+test('AI booking handoff clears the legacy observer intent before native booking and reapplies party/date once', () => {
+  new vm.Script(departure);
+  const clearAt = departure.indexOf('sessionStorage.removeItem(BOOKING_INTENT_KEY)');
+  const joinAt = departure.indexOf("typeof joinDeparture === 'function'");
+  assert.ok(clearAt >= 0 && joinAt > clearAt);
+  assert.match(departure, /handoffAiBooking/);
+  assert.match(departure, /root\.addEventListener\('click',[\s\S]*true\)/);
+  assert.match(departure, /state\.booking\.date = targetDate/);
+  assert.match(departure, /state\.booking\[key\] = value/);
+  assert.match(departure, /renderBooking\(\)/);
+  assert.match(departure, /dateInput\.min = today/);
+});
+
 test('build loads network guard before AI client and departure guard after card parity', () => {
   const networkAt = build.indexOf('/ai-network-guard-v8.js');
   const aiAt = build.indexOf('/ai-consultant-v5.js');
