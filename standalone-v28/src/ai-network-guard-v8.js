@@ -271,3 +271,64 @@
     _test:{ cityFrom, explicitOriginFrom, hotelOriginFrom, pickupFrom },
   };
 })();
+
+(() => {
+  'use strict';
+
+  if (typeof document === 'undefined') return;
+
+  const TWO_ADULTS = 'Нас 2 взрослых';
+  const shortcut = value => /^(?:мы\s+)?вдво[её]м[.!]?$/iu.test(String(value || '').trim());
+
+  function normalizeTwoAdultsInput(event) {
+    let textarea = null;
+    if (event.type === 'submit') textarea = event.target?.querySelector?.('textarea[name="message"]');
+    if (event.type === 'keydown' && event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+      textarea = event.target?.closest?.('textarea[name="message"]');
+    }
+    if (!textarea || !shortcut(textarea.value)) return;
+    textarea.dataset.aiOriginalPartyV21 = textarea.value.trim();
+    textarea.value = TWO_ADULTS;
+    textarea.dispatchEvent(new Event('input', { bubbles:true }));
+  }
+
+  document.addEventListener('submit', normalizeTwoAdultsInput, true);
+  document.addEventListener('keydown', normalizeTwoAdultsInput, true);
+
+  const grammarPairs = [
+    [/\bИз Нячанг(?=[\s,.!?]|$)/gu, 'Из Нячанга'],
+    [/\bиз Нячанг(?=[\s,.!?]|$)/gu, 'из Нячанга'],
+    [/\bИз Ханой(?=[\s,.!?]|$)/gu, 'Из Ханоя'],
+    [/\bиз Ханой(?=[\s,.!?]|$)/gu, 'из Ханоя'],
+    [/\bИз Дананг(?=[\s,.!?]|$)/gu, 'Из Дананга'],
+    [/\bиз Дананг(?=[\s,.!?]|$)/gu, 'из Дананга'],
+    [/\bИз Фукуок(?=[\s,.!?]|$)/gu, 'С Фукуока'],
+    [/\bиз Фукуок(?=[\s,.!?]|$)/gu, 'с Фукуока'],
+  ];
+
+  function fixGrammar(text) {
+    return grammarPairs.reduce((value, [pattern, replacement]) => value.replace(pattern, replacement), String(text || ''));
+  }
+
+  let queued = false;
+  function polishBotCopy() {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      document.querySelectorAll('.ai-msg.bot .ai-msg-text').forEach(node => {
+        const next = fixGrammar(node.textContent || '');
+        if (next !== node.textContent) node.textContent = next;
+      });
+    });
+  }
+
+  new MutationObserver(polishBotCopy).observe(document.documentElement, { childList:true, subtree:true });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', polishBotCopy, { once:true });
+  else polishBotCopy();
+
+  globalThis.MaxTourAIConversationPolishV21 = {
+    shortcut,
+    fixGrammar,
+  };
+})();
