@@ -28,13 +28,13 @@ test('short FAQ follow-up keeps tour from recent conversation history', () => {
   assert.match(r.reply, /Далат «Премиум»/);
   assert.match(r.reply, /русскоязыч/i);
   assert.doesNotMatch(r.reply, /зависит от экскурсии/i);
-  assert.equal(r.styleVersion, 'faq-style-v11');
+  assert.equal(r.styleVersion, 'faq-style-v11.1');
 });
 
 test('senior answer is grammatical, grounded and does not make a medical guarantee', () => {
   const r = deterministicFaqReply('Маме 72 года. Далат Премиум ей подойдёт или будет тяжело?', catalog);
   assert.equal(r.intent, 'senior_load');
-  assert.match(r.reply, /Уровень нагрузки — средний/);
+  assert.match(r.reply, /Уровень нагрузки — средний|уровень нагрузки — средний/);
   assert.match(r.reply, /05:00–05:30/);
   assert.match(r.reply, /по одному возрасту нельзя сказать/i);
   assert.doesNotMatch(r.reply, /нагрузка — средний/i);
