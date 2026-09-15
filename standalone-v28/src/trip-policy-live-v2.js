@@ -3,6 +3,10 @@
 
   const TIME_ZONE = 'Asia/Ho_Chi_Minh';
   const OFFSET = '+07:00';
+  const MONTHS = [
+    ['янв',1],['фев',2],['мар',3],['апр',4],['ма[йя]',5],['июн',6],
+    ['июл',7],['авг',8],['сен',9],['окт',10],['ноя',11],['дек',12],
+  ];
 
   const amount = value => {
     const match = String(value || '').match(/-?\d[\d,.]*/);
@@ -16,6 +20,87 @@
     if (Number.isNaN(date.getTime())) return '';
     date.setUTCDate(date.getUTCDate() + Number(days || 0));
     return date.toISOString().slice(0, 10);
+  }
+
+  function vietnamTodayIso(now = new Date()) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: TIME_ZONE,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).formatToParts(now);
+    const value = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    return `${value.year}-${value.month}-${value.day}`;
+  }
+
+  function parseDepartureDate(value, today = vietnamTodayIso()) {
+    const raw = String(value || '').trim().toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
+    const direct = raw.match(/\b(20\d{2}-\d{2}-\d{2})\b/);
+    if (direct) return direct[1];
+
+    const day = Number((raw.match(/\d{1,2}/) || [])[0]);
+    const month = MONTHS.find(([stem]) => new RegExp(stem).test(raw))?.[1];
+    if (!day || !month) return '';
+
+    let year = Number(today.slice(0, 4));
+    let iso = new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10);
+    const currentMonth = Number(today.slice(5, 7));
+    if (iso < today && currentMonth >= 11 && month <= 2) {
+      year += 1;
+      iso = new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10);
+    }
+    return iso;
+  }
+
+  function fixedGroupDepartureIso(today = vietnamTodayIso()) {
+    try {
+      if (state?.format !== 'group') return '';
+      const departure = state?.selectedDeparture;
+      if (!departure) return '';
+      const label = String(departure?.date || '').trim();
+      if (/своя дата|дата на выбор|по согласованию/i.test(label)) return '';
+      return parseDepartureDate(departure?.iso || label, today);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function syncBookingDate(now = new Date()) {
+    const today = vietnamTodayIso(now);
+    const tomorrow = shiftIsoDate(today, 1);
+    try {
+      if (!state?.booking) return { changed:false, date:'', fixed:'', today };
+      const parsedFixed = fixedGroupDepartureIso(today);
+      const fixed = parsedFixed && parsedFixed >= today ? parsedFixed : '';
+      const current = String(state.booking.date || '').trim();
+      const currentValid = /^\d{4}-\d{2}-\d{2}$/.test(current) && current >= today;
+      const next = fixed || (currentValid ? current : tomorrow);
+      const changed = Boolean(next && next !== current);
+      if (changed) state.booking.date = next;
+      return { changed, date:next, fixed, today };
+    } catch (_) {
+      return { changed:false, date:'', fixed:'', today };
+    }
+  }
+
+  function enforceBookingDateInput(now = new Date()) {
+    const synced = syncBookingDate(now);
+    const input = document.querySelector('#bookingScreen input[type="date"]');
+    if (!input) return synced;
+
+    if (synced.date && input.value !== synced.date) input.value = synced.date;
+    if (synced.fixed) {
+      input.min = synced.fixed;
+      input.max = synced.fixed;
+      input.readOnly = true;
+      input.setAttribute('aria-readonly', 'true');
+      input.title = 'Дата группового выезда фиксирована';
+    } else {
+      input.min = synced.today;
+      input.removeAttribute('max');
+      input.readOnly = false;
+      input.removeAttribute('aria-readonly');
+      input.removeAttribute('title');
+    }
+    return synced;
   }
 
   function firstTime(value) {
@@ -135,6 +220,36 @@
   }
 
   injectStyles();
+
+  try {
+    const previousStartBooking = startBooking;
+    startBooking = function(format, ...args) {
+      try { if (format) state.format = format; } catch (_) {}
+      syncBookingDate(new Date());
+      const result = previousStartBooking.apply(this, [format, ...args]);
+      enforceBookingDateInput(new Date());
+      return result;
+    };
+  } catch (_) {}
+
+  try {
+    const previousRenderBooking = renderBooking;
+    renderBooking = function(...args) {
+      syncBookingDate(new Date());
+      const result = previousRenderBooking.apply(this, args);
+      enforceBookingDateInput(new Date());
+      return result;
+    };
+  } catch (_) {}
+
+  try {
+    const previousCompletePayment = completePayment;
+    completePayment = function(...args) {
+      syncBookingDate(new Date());
+      return previousCompletePayment.apply(this, args);
+    };
+  } catch (_) {}
+
   try {
     const previousRenderTrips = renderTrips;
     renderTrips = function(...args) {
@@ -147,5 +262,12 @@
   setTimeout(() => refreshLivePolicies(new Date()), 0);
   setInterval(() => refreshLivePolicies(new Date()), 60 * 1000);
 
-  globalThis.MaxTourLivePolicy = { livePolicy, tripMoment, refreshLivePolicies };
+  globalThis.MaxTourLivePolicy = {
+    livePolicy,
+    tripMoment,
+    refreshLivePolicies,
+    syncBookingDate,
+    enforceBookingDateInput,
+    _test:{ vietnamTodayIso, parseDepartureDate, fixedGroupDepartureIso, shiftIsoDate },
+  };
 })();
