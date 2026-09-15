@@ -24,17 +24,18 @@ test('all asset requests run through Worker so admin host cannot fall through to
   assert.doesNotMatch(wrangler, /"run_worker_first"\s*:\s*\[/);
 });
 
-test('tourist role is removed only from the dedicated admin host cabinets', () => {
-  assert.match(worker, /const ADMIN_ROLE_FILTER/);
-  assert.match(worker, /\.role-switch a\[href=\"\/\"\]/);
-  assert.match(worker, /document\.querySelectorAll\('\.role-switch a\[href=\"\/\"\]'\)/);
-  assert.match(worker, /url\.hostname !== ADMIN_HOST/);
+test('tourist role is physically removed only from dedicated admin host cabinet HTML', () => {
+  assert.match(worker, /const ADMIN_TOURIST_ROLE_PATTERN/);
+  assert.match(worker, /Открыть кабинет туриста/);
+  assert.match(worker, /Турист/);
+  assert.match(worker, /html\.replace\(ADMIN_TOURIST_ROLE_PATTERN, ''\)/);
+  assert.match(worker, /if \(url\.hostname !== ADMIN_HOST\) return response/);
   assert.match(worker, /url\.pathname\.startsWith\('\/admin'\)/);
   assert.match(worker, /url\.pathname\.startsWith\('\/director'\)/);
   assert.match(worker, /return filterAdminHostRoles\(response, url\)/);
 });
 
-test('main mini app host still uses the normal profile worker response', () => {
+test('main mini app host still uses the normal unfiltered profile worker response', () => {
   assert.match(worker, /const response = await profileWorker\.fetch\(request, env, ctx\)/);
   assert.match(worker, /if \(url\.hostname !== ADMIN_HOST\) return response/);
 });
