@@ -25,9 +25,10 @@ test('short FAQ follow-up keeps tour from recent conversation history', () => {
   });
   assert.equal(r.intent, 'guide');
   assert.equal(r.tourId, 'dalat-premium');
-  assert.match(r.reply, /Да\. На Далат/);
+  assert.match(r.reply, /Далат «Премиум»/);
   assert.match(r.reply, /русскоязыч/i);
   assert.doesNotMatch(r.reply, /зависит от экскурсии/i);
+  assert.equal(r.styleVersion, 'faq-style-v11');
 });
 
 test('senior answer is grammatical, grounded and does not make a medical guarantee', () => {
