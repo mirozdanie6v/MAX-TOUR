@@ -207,7 +207,69 @@ function genericStrollerReply() {
   return 'Зависит от маршрута: общего подтверждения полной доступности с коляской нет. Назовите экскурсию — проверю её условия; коляску лучше подтвердить до оплаты.';
 }
 
-export function deterministicFaqReply(message, catalog = [], options = {}) {
+const FAQ_STYLE_OPENERS = {
+  transfer_hotel: ['', 'По трансферу из Amiana — ', 'По Amiana правило такое: ', 'Для Amiana считаем так: '],
+  transfer: ['', 'По трансферу — ', 'Что касается трансфера: ', 'Здесь по трансферу так: '],
+  schedule: ['', 'По времени — ', 'Расписание такое: ', 'Если смотреть по времени: '],
+  included: ['', 'По составу стоимости — ', 'Что уже включено: ', 'В этой части всё просто: '],
+  stroller: ['', 'По коляске — ', 'С коляской важный момент: ', 'Здесь лучше учитывать маршрут: '],
+  child_price: ['', 'По детскому тарифу — ', 'Для ребёнка расчёт такой: ', 'По детям здесь так: '],
+  guide: ['', 'По гиду — ', 'Что касается гида: ', 'По языку сопровождения — '],
+  group_size: ['', 'По размеру группы — ', 'Обычно по группе так: ', 'По составу группы — '],
+  payment: ['', 'По оплате — ', 'Варианты оплаты такие: ', 'Здесь можно выбрать: '],
+  reschedule: ['', 'По переносу — ', 'Условия переноса такие: ', 'Если менять дату: '],
+  cancellation: ['', 'По отмене — ', 'Условия отмены такие: ', 'Если отменять поездку: '],
+  weather_force_majeure: ['', 'По погоде — ', 'Если погода испортится: ', 'При плохой погоде действует такое правило: '],
+  what_to_take: ['', 'По вещам с собой — ', 'Что лучше взять: ', 'Для поездки пригодится следующее: '],
+  dietary: ['', 'По питанию — ', 'Если есть ограничения по еде: ', 'С питанием важный момент: '],
+  senior_load: ['', 'По нагрузке — ', 'Если оцениваем комфорт поездки: ', 'Для старшего путешественника важнее всего нагрузка и длительность: '],
+  availability_tomorrow: ['', 'По местам на завтра — ', 'На завтра ситуация такая: ', 'Если смотреть завтрашний выезд: '],
+  individual: ['', 'По индивидуальному формату — ', 'Для вашей компании расчёт такой: ', 'Если ехать индивидуально: '],
+};
+
+function faqHash(value) {
+  let hash = 2166136261;
+  const text = String(value || '');
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function faqHistory(options = {}) {
+  return (Array.isArray(options.history) ? options.history : []).slice(-10).map(item => ({
+    role: item?.role === 'assistant' ? 'assistant' : 'user',
+    text: clip(item?.text || item?.content, 700),
+  })).filter(item => item.text);
+}
+
+function stripLeadAgreement(reply) {
+  return String(reply || '').replace(/^(?:Да|Конечно)\.\s*/u, '').trim();
+}
+
+function applyFaqStyle(result, message, options = {}) {
+  if (!result?.reply) return result;
+  const openers = FAQ_STYLE_OPENERS[result.intent] || ['', 'Коротко: ', 'По этому вопросу — ', 'Здесь так: '];
+  const history = faqHistory(options);
+  const lastAssistant = [...history].reverse().find(item => item.role === 'assistant')?.text || '';
+  const seed = `${result.intent}|${result.tourId || ''}|${norm(message)}|${history.length}|${norm(lastAssistant)}`;
+  let index = faqHash(seed) % openers.length;
+  const base = String(result.reply).trim();
+
+  for (let attempt = 0; attempt < openers.length; attempt += 1) {
+    const opener = openers[index] || '';
+    const body = opener ? stripLeadAgreement(base) : base;
+    const candidate = opener ? `${opener}${body}` : body;
+    if (!lastAssistant || norm(candidate) !== norm(lastAssistant)) {
+      return { ...result, reply:candidate, replyVariant:index, styleVersion:'faq-style-v11' };
+    }
+    index = (index + 1) % openers.length;
+  }
+  return { ...result, reply:base, replyVariant:0, styleVersion:'faq-style-v11' };
+}
+
+function deterministicFaqReplyBase(message, catalog = [], options = {}) {
   const q = norm(message);
   if (!q) return null;
   const tour = findTourForQuestion(message, catalog, options);
@@ -326,4 +388,9 @@ export function deterministicFaqReply(message, catalog = [], options = {}) {
   }
 
   return null;
+}
+
+export function deterministicFaqReply(message, catalog = [], options = {}) {
+  const result = deterministicFaqReplyBase(message, catalog, options);
+  return result ? applyFaqStyle(result, message, options) : null;
 }
