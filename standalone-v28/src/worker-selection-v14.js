@@ -1,5 +1,3 @@
-import baseWorker from './worker-r2.js';
-
 const json = (data, init = {}) => new Response(JSON.stringify(data), {
   ...init,
   headers: { 'content-type':'application/json; charset=utf-8', ...(init.headers || {}) },
@@ -44,7 +42,7 @@ function marinePreference(body = {}) {
   return { sea, islands };
 }
 
-async function selectionFastPath(request, url) {
+export async function selectionFastPath(request, url) {
   if (url.pathname !== '/api/ai/chat' || request.method !== 'POST') return null;
   const body = await request.clone().json().catch(() => ({}));
   const preference = marinePreference(body);
@@ -93,12 +91,3 @@ async function selectionFastPath(request, url) {
 }
 
 export const _selectionTest = { inferOrigin, marinePreference, peopleKnown };
-
-export default {
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    const fast = await selectionFastPath(request, url);
-    if (fast) return fast;
-    return baseWorker.fetch(request, env, ctx);
-  },
-};
