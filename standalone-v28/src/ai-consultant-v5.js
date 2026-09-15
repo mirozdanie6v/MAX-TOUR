@@ -106,7 +106,7 @@
     const explicitAdults = countBefore(q, 'взросл|совершеннолет|родител');
     const explicitChildren = countBefore(q, 'дет(?:ей|и)?|ребен(?:ок|ка)?');
     const explicitInfants = countBefore(q, 'малыш|младен|груднич');
-    const totalMatch = q.match(new RegExp(`(?:нас|едем|поедем|всего|семья(?: из)?|группа(?: из)?|на|для)\s*(\\d+|${Object.keys(PARTY_WORDS).join('|')})`, 'i'));
+    const totalMatch = q.match(new RegExp(`(?:нас|едем|поедем|всего|семья(?: из)?|группа(?: из)?|на|для)\\s*(\\d+|${Object.keys(PARTY_WORDS).join('|')})`, 'i'));
     const total = totalMatch ? numberWord(totalMatch[1]) : 0;
     const ages = [...q.matchAll(/(\d{1,2})\s*(?:лет|года|год)/g)].map(item => Number(item[1])).filter(age => age >= 3 && age <= 17).slice(0, 12);
     const hasChild = /дет|ребен/.test(q);
