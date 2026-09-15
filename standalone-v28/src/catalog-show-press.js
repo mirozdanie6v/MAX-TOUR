@@ -4,7 +4,6 @@
   const TARGETS = new Set(['Показать', 'Сбросить']);
   const MARK = 'catalog-show-press';
   const PRESSED = 'catalog-show-pressed';
-  const CATALOG = '#catalog-tours';
   const INDIVIDUAL_WITH_FROM = /^индивидуальный\s+от$/i;
   const pressedAt = new WeakMap();
 
@@ -23,19 +22,13 @@
     });
   }
 
-  function catalogRootFor(root = document) {
-    if (root === document) return document.querySelector(CATALOG);
-    if (!(root instanceof Element)) return null;
-    if (root.matches(CATALOG)) return root;
-    return root.closest(CATALOG) || root.querySelector(CATALOG);
-  }
-
   function patchIndividualPrices(root = document) {
-    const catalog = catalogRootFor(root);
-    if (!catalog) return 0;
-    let changed = 0;
+    const labels = [];
+    if (root instanceof Element && root.matches?.('.tour-card .price-label')) labels.push(root);
+    root.querySelectorAll?.('.tour-card .price-label').forEach(label => labels.push(label));
 
-    catalog.querySelectorAll('.tour-card .price-label').forEach(label => {
+    let changed = 0;
+    labels.forEach(label => {
       if (!INDIVIDUAL_WITH_FROM.test(normalize(label.textContent))) return;
       const value = label.parentElement?.querySelector('.price-value');
       if (!value) return;
@@ -43,8 +36,17 @@
       const price = normalize(value.textContent).replace(/^от\s+/i, '');
       if (!price) return;
 
+      const from = document.createElement('span');
+      from.className = 'catalog-price-from';
+      from.textContent = 'от';
+
+      const amount = document.createElement('span');
+      amount.className = 'catalog-price-amount';
+      amount.textContent = price;
+
       label.textContent = normalize(label.textContent).replace(/\s+от$/i, '');
-      value.textContent = `от\u00A0${price}`;
+      value.replaceChildren(from, amount);
+      value.classList.add('catalog-individual-price-inline');
       value.dataset.individualFromInline = 'true';
       changed += 1;
     });
@@ -97,14 +99,14 @@
         if (!(node instanceof Element)) return;
         if (node.matches?.('button') && isTarget(node)) node.classList.add(MARK);
         mark(node);
-        patchIndividualPrices(node);
       });
     }
+    if (records.some(record => record.type === 'childList')) patchIndividualPrices(document);
   });
 
   const initialize = () => {
     mark();
-    patchIndividualPrices();
+    patchIndividualPrices(document);
   };
 
   if (document.readyState === 'loading') {
