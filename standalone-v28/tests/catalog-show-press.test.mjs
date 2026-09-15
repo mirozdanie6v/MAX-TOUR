@@ -23,6 +23,15 @@ test('catalog filter press script parses and targets exact Show and Reset labels
   assert.doesNotMatch(script, /stopPropagation\s*\(/);
 });
 
+test('catalog individual price keeps from on the same line as the price', () => {
+  assert.match(script, /#catalog-tours/);
+  assert.match(script, /\.tour-card \.price-label/);
+  assert.match(script, /\.price-value/);
+  assert.match(script, /\^индивидуальный\\s\+от\$/i);
+  assert.match(script, /value\.textContent = `от\\u00A0\$\{price\}`/);
+  assert.match(script, /individualFromInline/);
+});
+
 test('catalog filter press CSS provides visible tactile feedback', () => {
   assert.match(css, /\.catalog-show-press:active/);
   assert.match(css, /translate:\s*0 3px/);
