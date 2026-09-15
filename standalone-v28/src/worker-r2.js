@@ -16,10 +16,7 @@ const ADMIN_SHARED_ASSETS = new Set([
   '/production-embed-polish.css',
   '/production-embed-polish.js',
 ]);
-
-const ADMIN_ROLE_FILTER = `
-<style id="max-tour-admin-role-filter-style">.role-switch a[href="/"]{display:none!important}</style>
-<script id="max-tour-admin-role-filter-script">document.querySelectorAll('.role-switch a[href="/"]').forEach((item)=>item.remove());</script>`;
+const ADMIN_TOURIST_ROLE_PATTERN = /\s*<a href="\/" aria-label="Открыть кабинет туриста"><span class="role-long">Турист<\/span><span class="role-short">Турист<\/span><\/a>/i;
 
 function mediaKey(pathname) {
   let decoded;
@@ -94,9 +91,7 @@ async function filterAdminHostRoles(response, url) {
   if (!response.ok || !contentType.includes('text/html')) return response;
 
   const html = await response.text();
-  const filteredHtml = html.includes('</body>')
-    ? html.replace('</body>', `${ADMIN_ROLE_FILTER}</body>`)
-    : `${html}${ADMIN_ROLE_FILTER}`;
+  const filteredHtml = html.replace(ADMIN_TOURIST_ROLE_PATTERN, '');
   const headers = new Headers(response.headers);
   headers.delete('content-length');
   headers.set('cache-control', 'no-store');
