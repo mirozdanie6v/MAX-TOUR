@@ -239,13 +239,20 @@ function faqHash(value) {
 
 function faqHistory(options = {}) {
   return (Array.isArray(options.history) ? options.history : []).slice(-10).map(item => ({
-    role: item?.role === 'assistant' ? 'assistant' : 'user',
+    role: item?.role === 'assistant' || item?.role === 'bot' ? 'assistant' : 'user',
     text: clip(item?.text || item?.content, 700),
   })).filter(item => item.text);
 }
 
 function stripLeadAgreement(reply) {
   return String(reply || '').replace(/^(?:Да|Конечно)\.\s*/u, '').trim();
+}
+
+const FAQ_COMMON_SENTENCE_LEADS = /^(При|На|В|Если|Для|У|С|Размер|Язык|Отмена|Перенос|Обычный|Вегетарианское|Уровень|Точная|Индивидуальный|Завтра|Зависит)\b/u;
+
+function conversationalContinuation(reply) {
+  const text = stripLeadAgreement(reply);
+  return text.replace(FAQ_COMMON_SENTENCE_LEADS, word => word.charAt(0).toLocaleLowerCase('ru-RU') + word.slice(1));
 }
 
 function applyFaqStyle(result, message, options = {}) {
@@ -259,14 +266,14 @@ function applyFaqStyle(result, message, options = {}) {
 
   for (let attempt = 0; attempt < openers.length; attempt += 1) {
     const opener = openers[index] || '';
-    const body = opener ? stripLeadAgreement(base) : base;
+    const body = opener ? conversationalContinuation(base) : base;
     const candidate = opener ? `${opener}${body}` : body;
     if (!lastAssistant || norm(candidate) !== norm(lastAssistant)) {
-      return { ...result, reply:candidate, replyVariant:index, styleVersion:'faq-style-v11' };
+      return { ...result, reply:candidate, replyVariant:index, styleVersion:'faq-style-v11.1' };
     }
     index = (index + 1) % openers.length;
   }
-  return { ...result, reply:base, replyVariant:0, styleVersion:'faq-style-v11' };
+  return { ...result, reply:base, replyVariant:0, styleVersion:'faq-style-v11.1' };
 }
 
 function deterministicFaqReplyBase(message, catalog = [], options = {}) {
