@@ -3,6 +3,7 @@
 
   const STORAGE_KEY = 'max-tour-ai-consultant-v5';
   const BOOKING_INTENT_KEY = 'max-tour-ai-booking-intent-v1';
+  const LOCATION_KEY = 'max-tour-ai-location-v6';
   const TIME_ZONE = 'Asia/Ho_Chi_Minh';
   const MAX_MESSAGES = 100;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
@@ -81,7 +82,18 @@
     return '';
   }
 
-  const PARTY_WORDS = { один:1, одна:1, двое:2, два:2, две:2, трое:3, три:3, четверо:4, четыре:4, пятеро:5, пять:5, шестеро:6, шесть:6, семеро:7, семь:7, восемь:8, девять:9, десять:10 };
+  const PARTY_WORDS = {
+    один:1, одна:1,
+    двое:2, два:2, две:2, двоих:2,
+    трое:3, три:3, троих:3,
+    четверо:4, четыре:4, четверых:4,
+    пятеро:5, пять:5, пятерых:5,
+    шестеро:6, шесть:6, шестерых:6,
+    семеро:7, семь:7, семерых:7,
+    восемь:8, восьмерых:8,
+    девять:9, девятерых:9,
+    десять:10, десятерых:10,
+  };
   function numberWord(value) { const q = lower(value).replace(/ё/g,'е'); return /^\d+$/.test(q) ? Number(q) : PARTY_WORDS[q] || 0; }
   function countBefore(text, noun) {
     const words = Object.keys(PARTY_WORDS).join('|');
@@ -94,7 +106,7 @@
     const explicitAdults = countBefore(q, 'взросл|совершеннолет|родител');
     const explicitChildren = countBefore(q, 'дет(?:ей|и)?|ребен(?:ок|ка)?');
     const explicitInfants = countBefore(q, 'малыш|младен|груднич');
-    const totalMatch = q.match(new RegExp(`(?:нас|едем|поедем|всего|семья(?: из)?|группа(?: из)?)\s*(\\d+|${Object.keys(PARTY_WORDS).join('|')})`, 'i'));
+    const totalMatch = q.match(new RegExp(`(?:нас|едем|поедем|всего|семья(?: из)?|группа(?: из)?|на|для)\s*(\\d+|${Object.keys(PARTY_WORDS).join('|')})`, 'i'));
     const total = totalMatch ? numberWord(totalMatch[1]) : 0;
     const ages = [...q.matchAll(/(\d{1,2})\s*(?:лет|года|год)/g)].map(item => Number(item[1])).filter(age => age >= 3 && age <= 17).slice(0, 12);
     const hasChild = /дет|ребен/.test(q);
@@ -241,6 +253,32 @@
   }
   function updateRecommendations(text) { state.recommendations = shouldShowRecommendations(text) ? matchTours() : []; }
 
+  function locationAllowsTour(tour) {
+    let location = null;
+    try { location = JSON.parse(sessionStorage.getItem(LOCATION_KEY) || 'null'); } catch (_) {}
+    if (!location?.origin) return true;
+    const guard = globalThis.MaxTourAI?._locationTest;
+    if (!guard?.allowed || !guard?.tourPlacesFromTour) return true;
+    const destinations = guard.tourPlacesFromTour(tour);
+    return !destinations.length || destinations.some(destination => guard.allowed(location.origin, destination));
+  }
+
+  function recommendationForTourId(tourId) {
+    const id = clean(tourId, 120);
+    if (!id) return null;
+    const tour = catalog().find(item => String(item?.id) === id);
+    if (!tour || !locationAllowsTour(tour)) return null;
+    return evaluate(tour);
+  }
+
+  function applyServerTour(result) {
+    const item = recommendationForTourId(result?.tourId);
+    if (!item) return false;
+    state.selectedTourId = String(item.tour.id);
+    state.recommendations = [item];
+    return true;
+  }
+
   function recommendationPrice(item) {
     if (item.format === 'compare') return [item.groupPrice && `группа от ${moneyLabel(item.groupPrice)}`, item.individualPrice && `индивидуально от ${moneyLabel(item.individualPrice)}`].filter(Boolean).join(' · ');
     return item.format === 'group' ? `от ${moneyLabel(item.groupPrice)} / взрослый` : `от ${moneyLabel(item.individualPrice)} за поездку`;
@@ -282,7 +320,12 @@
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok || !result.ok || !result.reply) throw new Error(result.error || 'ai_unavailable');
-    return clean(result.reply,1800);
+    return {
+      reply:clean(result.reply,1800),
+      tourId:clean(result.tourId,120),
+      faqIntent:clean(result.faqIntent,120),
+      source:clean(result.source,120),
+    };
   }
 
   function bookingIntent(item) {
@@ -416,9 +459,10 @@
     }
     pending = true; add('bot', 'Подбираю…'); render(root, { scrollToEnd:true });
     try {
-      const reply = await requestAiReply(text);
+      const result = await requestAiReply(text);
       if (state.messages.at(-1)?.text === 'Подбираю…') state.messages.pop();
-      add('bot', reply || nextQuestion());
+      applyServerTour(result);
+      add('bot', result.reply || nextQuestion());
     } catch (_) {
       if (state.messages.at(-1)?.text === 'Подбираю…') state.messages.pop();
       add('bot', nextQuestion());
@@ -461,5 +505,11 @@
   });
   try { observer.observe(document.documentElement, { childList:true, subtree:true }); } catch (_) {}
 
-  globalThis.MaxTourAI = { mount, _test:{ vietnamTodayIso, parseDate, parseParty, departureIso, isDiscoveryIntent, isBookingIntent } };
+  globalThis.MaxTourAI = {
+    mount,
+    _test:{
+      vietnamTodayIso, parseDate, parseParty, departureIso, isDiscoveryIntent, isBookingIntent,
+      recommendationForTourId, applyServerTour, locationAllowsTour,
+    },
+  };
 })();
