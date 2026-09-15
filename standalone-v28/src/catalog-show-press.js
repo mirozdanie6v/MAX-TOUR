@@ -71,8 +71,6 @@
       if (!Array.isArray(TOURS)) return 0;
       const existing = new Set(TOURS.map(tour => String(tour?.id || '')));
       let added = 0;
-      // Unshift in reverse so the exact island matches outrank generic coastal tours
-      // when the existing score is otherwise tied.
       [...VERIFIED_NHATRANG_ISLAND_TOURS].reverse().forEach(tour => {
         if (existing.has(tour.id)) return;
         TOURS.unshift(tour);
@@ -85,7 +83,26 @@
     }
   }
 
-  injectVerifiedIslandTours();
+  function verifiedIslandToursReady() {
+    try {
+      if (!Array.isArray(TOURS)) return false;
+      const ids = new Set(TOURS.map(tour => String(tour?.id || '')));
+      return VERIFIED_NHATRANG_ISLAND_TOURS.every(tour => ids.has(tour.id));
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // The compressed v28 prototype initializes TOURS later than some deferred
+  // enhancement scripts. Poll briefly instead of losing the first AI request.
+  function ensureVerifiedIslandTours(attempt = 0) {
+    injectVerifiedIslandTours();
+    if (verifiedIslandToursReady()) return true;
+    if (attempt < 60) window.setTimeout(() => ensureVerifiedIslandTours(attempt + 1), 50);
+    return false;
+  }
+
+  ensureVerifiedIslandTours();
 
   const TARGETS = new Set(['Показать', 'Сбросить']);
   const MARK = 'catalog-show-press';
@@ -212,7 +229,7 @@
   });
 
   const initialize = () => {
-    injectVerifiedIslandTours();
+    ensureVerifiedIslandTours();
     mark();
     patchIndividualPrices(document);
   };
@@ -227,5 +244,7 @@
   globalThis.MaxTourCatalogUi = {
     patchIndividualPrices,
     injectVerifiedIslandTours,
+    ensureVerifiedIslandTours,
+    verifiedIslandToursReady,
   };
 })();
