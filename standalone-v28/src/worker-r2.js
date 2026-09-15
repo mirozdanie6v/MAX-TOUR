@@ -8,6 +8,15 @@ const CONTENT_TYPES = {
   avif: 'image/avif',
 };
 
+const ADMIN_HOST = 'max-tour-demo-admin.viiversion.com';
+const ADMIN_SHARED_ASSETS = new Set([
+  '/max-tour-logo.svg',
+  '/admin-app.css',
+  '/admin-app.js',
+  '/production-embed-polish.css',
+  '/production-embed-polish.js',
+]);
+
 function mediaKey(pathname) {
   let decoded;
   try {
@@ -47,9 +56,38 @@ async function serveTourMedia(request, env, pathname) {
   return new Response(request.method === 'HEAD' ? null : object.body, { status: 200, headers });
 }
 
+function isAdminHostAllowedPath(pathname) {
+  return pathname === '/' ||
+    pathname === '/admin' ||
+    pathname.startsWith('/admin/') ||
+    pathname === '/director' ||
+    pathname.startsWith('/director/') ||
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/tour-media/') ||
+    ADMIN_SHARED_ASSETS.has(pathname);
+}
+
+function routeAdminHost(url) {
+  if (url.hostname !== ADMIN_HOST) return null;
+  if (url.pathname === '/') return Response.redirect(new URL('/admin/', url), 302);
+  if (url.pathname === '/director') return Response.redirect(new URL('/director/', url), 308);
+  if (!isAdminHostAllowedPath(url.pathname)) {
+    return new Response('Not Found', {
+      status: 404,
+      headers: {
+        'cache-control': 'no-store',
+        'x-content-type-options': 'nosniff',
+      },
+    });
+  }
+  return null;
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    const adminHostResponse = routeAdminHost(url);
+    if (adminHostResponse) return adminHostResponse;
     if (url.pathname.startsWith('/tour-media/')) {
       return serveTourMedia(request, env, url.pathname);
     }
