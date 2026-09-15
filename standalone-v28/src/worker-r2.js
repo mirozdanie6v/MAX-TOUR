@@ -18,7 +18,7 @@ const ADMIN_SHARED_ASSETS = new Set([
   '/production-embed-polish.js',
 ]);
 const ADMIN_TOURIST_ROLE_PATTERN = /\s*<a href="\/" aria-label="Открыть кабинет туриста"><span class="role-long">Турист<\/span><span class="role-short">Турист<\/span><\/a>/i;
-const AVAILABILITY_INTENT = /(?:\bесть\b|мест[ао]?|свобод|наличи|заброни)/i;
+const AVAILABILITY_INTENT = /(?:есть|мест[ао]?|свобод|наличи|заброни)/i;
 const MONTHS = [
   ['янв', 1], ['фев', 2], ['мар', 3], ['апр', 4], ['ма[йя]', 5], ['июн', 6],
   ['июл', 7], ['авг', 8], ['сен', 9], ['окт', 10], ['ноя', 11], ['дек', 12],
@@ -62,11 +62,11 @@ function departureIso(value, today) {
 
 function requestedPeople(text) {
   const q = String(text || '').toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
-  const digit = q.match(/(?:нас|для|на)\s*(\d{1,2})\s*(?:человек|чел|взросл)?|\b(\d{1,2})\s*(?:человек|взросл)/);
+  const digit = q.match(/(?:нас|для|на)\s*(\d{1,2})\s*(?:человек|чел|взросл)?|(\d{1,2})\s*(?:человек|взросл)/);
   if (digit) return Number(digit[1] || digit[2] || 0);
-  if (/\bдво(?:их|е)\b|\bдва\b|\bдве\b/.test(q)) return 2;
-  if (/\bтро(?:их|е)\b|\bтри\b/.test(q)) return 3;
-  if (/\bчетвер(?:ых|о)\b|\bчетыре\b/.test(q)) return 4;
+  if (/дво(?:их|е)|два|две/.test(q)) return 2;
+  if (/тро(?:их|е)|три/.test(q)) return 3;
+  if (/четвер(?:ых|о)|четыре/.test(q)) return 4;
   return 0;
 }
 
