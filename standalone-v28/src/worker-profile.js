@@ -1,4 +1,5 @@
 import baseWorker from './worker.js';
+import { compactTourForAi, deterministicFaqReply } from './ai-faq-knowledge.js';
 
 const json = (data, init = {}) => new Response(JSON.stringify(data), {
   ...init,
@@ -75,6 +76,19 @@ function clean(value, max = 1200) {
   return String(value ?? '').trim().slice(0, max);
 }
 
+async function loadFaqCatalog(request, env) {
+  try {
+    if (!env.ASSETS) return [];
+    const response = await env.ASSETS.fetch(new Request(new URL('/catalog.v28.json', request.url)));
+    if (!response.ok) return [];
+    const data = await response.json();
+    return Array.isArray(data) ? data.slice(0, 40).map(compactTourForAi) : [];
+  } catch (error) {
+    console.warn('FAQ catalogue unavailable', error?.message || error);
+    return [];
+  }
+}
+
 function fastDeterministicReply(body = {}) {
   const message = clean(body?.message, 900);
   const q = message.toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
@@ -116,6 +130,19 @@ async function safeAiChat(request, env) {
   const selectedDate = String(body?.context?.date || '');
   if (/^\d{4}-\d{2}-\d{2}$/.test(selectedDate) && selectedDate < today) {
     return json({ ok:true, reply:pastDateReply(today), source:'date-guard', currentDateVietnam:today });
+  }
+
+  const faqCatalog = await loadFaqCatalog(request, env);
+  const faq = deterministicFaqReply(body?.message, faqCatalog, { context:body?.context, history:body?.history });
+  if (faq?.reply) {
+    return json({
+      ok:true,
+      reply:faq.reply,
+      source:'faq-verified',
+      faqIntent:faq.intent,
+      tourId:faq.tourId || '',
+      currentDateVietnam:today,
+    });
   }
 
   const instant = fastDeterministicReply(body);
@@ -189,7 +216,7 @@ async function replaceTravelers(env, sid, travelers) {
   return normalized;
 }
 
-export const _test = { vietnamTodayIso, containsPastDate, pastDateReply, fastDeterministicReply, timeoutFallback };
+export const _test = { vietnamTodayIso, containsPastDate, pastDateReply, fastDeterministicReply, timeoutFallback, loadFaqCatalog };
 
 export default {
   async fetch(request, env) {
