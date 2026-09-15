@@ -2,8 +2,6 @@
   'use strict';
 
   // Verified from the current MAX TOUR product pages on 2026-09-15.
-  // These two products are missing from the legacy v28 source catalogue, so
-  // inject them into the shared TOURS array before the catalogue/AI is used.
   const VERIFIED_NHATRANG_ISLAND_TOURS = [
     {
       id:'orchid-monkey-islands',
@@ -93,12 +91,10 @@
     }
   }
 
-  // The compressed v28 prototype initializes TOURS later than some deferred
-  // enhancement scripts. Poll briefly instead of losing the first AI request.
   function ensureVerifiedIslandTours(attempt = 0) {
     injectVerifiedIslandTours();
     if (verifiedIslandToursReady()) return true;
-    if (attempt < 60) window.setTimeout(() => ensureVerifiedIslandTours(attempt + 1), 50);
+    if (attempt < 120) window.setTimeout(() => ensureVerifiedIslandTours(attempt + 1), 50);
     return false;
   }
 
@@ -198,6 +194,9 @@
   }
 
   document.addEventListener('pointerdown', event => {
+    // Capture phase: guarantee the augmented catalogue exists before any
+    // bubble-phase navigation or AI click handler starts matching tours.
+    ensureVerifiedIslandTours();
     const button = targetFromEvent(event);
     if (button) press(button);
   }, true);
@@ -206,6 +205,7 @@
   document.addEventListener('pointercancel', event => release(targetFromEvent(event)), true);
 
   document.addEventListener('keydown', event => {
+    ensureVerifiedIslandTours();
     if (event.key !== 'Enter' && event.key !== ' ') return;
     const button = event.target?.closest?.(`button.${MARK}`);
     if (button && isTarget(button)) press(button);
@@ -218,6 +218,9 @@
   }, true);
 
   const observer = new MutationObserver(records => {
+    // TOURS may be created after this enhancement script. Any subsequent UI
+    // mutation is another safe synchronization point.
+    ensureVerifiedIslandTours();
     for (const record of records) {
       record.addedNodes.forEach(node => {
         if (!(node instanceof Element)) return;
