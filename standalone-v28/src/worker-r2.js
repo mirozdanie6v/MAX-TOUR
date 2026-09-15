@@ -17,6 +17,10 @@ const ADMIN_SHARED_ASSETS = new Set([
   '/production-embed-polish.js',
 ]);
 
+const ADMIN_ROLE_FILTER = `
+<style id="max-tour-admin-role-filter-style">.role-switch a[href="/"]{display:none!important}</style>
+<script id="max-tour-admin-role-filter-script">document.querySelectorAll('.role-switch a[href="/"]').forEach((item)=>item.remove());</script>`;
+
 function mediaKey(pathname) {
   let decoded;
   try {
@@ -83,6 +87,26 @@ function routeAdminHost(url) {
   return null;
 }
 
+async function filterAdminHostRoles(response, url) {
+  if (url.hostname !== ADMIN_HOST) return response;
+  if (!(url.pathname.startsWith('/admin') || url.pathname.startsWith('/director'))) return response;
+  const contentType = response.headers.get('content-type') || '';
+  if (!response.ok || !contentType.includes('text/html')) return response;
+
+  const html = await response.text();
+  const filteredHtml = html.includes('</body>')
+    ? html.replace('</body>', `${ADMIN_ROLE_FILTER}</body>`)
+    : `${html}${ADMIN_ROLE_FILTER}`;
+  const headers = new Headers(response.headers);
+  headers.delete('content-length');
+  headers.set('cache-control', 'no-store');
+  return new Response(filteredHtml, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -91,6 +115,7 @@ export default {
     if (url.pathname.startsWith('/tour-media/')) {
       return serveTourMedia(request, env, url.pathname);
     }
-    return profileWorker.fetch(request, env, ctx);
+    const response = await profileWorker.fetch(request, env, ctx);
+    return filterAdminHostRoles(response, url);
   },
 };
