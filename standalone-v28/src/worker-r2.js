@@ -1,4 +1,5 @@
 import profileWorker from './worker-profile.js';
+import { compactTourForAi, findTourForQuestion } from './ai-faq-knowledge.js';
 
 const CONTENT_TYPES = {
   jpg: 'image/jpeg',
@@ -17,6 +18,124 @@ const ADMIN_SHARED_ASSETS = new Set([
   '/production-embed-polish.js',
 ]);
 const ADMIN_TOURIST_ROLE_PATTERN = /\s*<a href="\/" aria-label="Открыть кабинет туриста"><span class="role-long">Турист<\/span><span class="role-short">Турист<\/span><\/a>/i;
+const AVAILABILITY_INTENT = /(?:\bесть\b|мест[ао]?|свобод|наличи|заброни)/i;
+const MONTHS = [
+  ['янв', 1], ['фев', 2], ['мар', 3], ['апр', 4], ['ма[йя]', 5], ['июн', 6],
+  ['июл', 7], ['авг', 8], ['сен', 9], ['окт', 10], ['ноя', 11], ['дек', 12],
+];
+
+function json(data, init = {}) {
+  return new Response(JSON.stringify(data), {
+    ...init,
+    headers: { 'content-type': 'application/json; charset=utf-8', ...(init.headers || {}) },
+  });
+}
+
+function vietnamTodayIso(now = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(now);
+  const value = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
+function addIsoDays(iso, days) {
+  const date = new Date(`${iso}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + Number(days || 0));
+  return date.toISOString().slice(0, 10);
+}
+
+function departureIso(value, today) {
+  const raw = String(value || '').trim().toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const day = Number((raw.match(/\d{1,2}/) || [])[0]);
+  const month = MONTHS.find(([stem]) => new RegExp(stem).test(raw))?.[1];
+  if (!day || !month) return '';
+  let year = Number(today.slice(0, 4));
+  let iso = new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10);
+  if (iso < today && Number(today.slice(5, 7)) >= 11 && month <= 2) {
+    year += 1;
+    iso = new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10);
+  }
+  return iso;
+}
+
+function requestedPeople(text) {
+  const q = String(text || '').toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
+  const digit = q.match(/(?:нас|для|на)\s*(\d{1,2})\s*(?:человек|чел|взросл)?|\b(\d{1,2})\s*(?:человек|взросл)/);
+  if (digit) return Number(digit[1] || digit[2] || 0);
+  if (/\bдво(?:их|е)\b|\bдва\b|\bдве\b/.test(q)) return 2;
+  if (/\bтро(?:их|е)\b|\bтри\b/.test(q)) return 3;
+  if (/\bчетвер(?:ых|о)\b|\bчетыре\b/.test(q)) return 4;
+  return 0;
+}
+
+async function loadAvailabilityCatalog(request, env) {
+  if (!env.ASSETS) return [];
+  try {
+    const response = await env.ASSETS.fetch(new Request(new URL('/catalog.v28.json', request.url)));
+    if (!response.ok) return [];
+    const data = await response.json();
+    return Array.isArray(data) ? data.slice(0, 60).map(compactTourForAi) : [];
+  } catch (error) {
+    console.warn('availability catalogue unavailable', error?.message || error);
+    return [];
+  }
+}
+
+function availabilityReply(message, catalog, now = new Date()) {
+  const q = String(message || '').trim();
+  if (!/завтра/i.test(q) || !AVAILABILITY_INTENT.test(q)) return null;
+  const tour = findTourForQuestion(q, catalog, {});
+  if (!tour) return null;
+
+  const today = vietnamTodayIso(now);
+  const target = addIsoDays(today, 1);
+  const departure = (tour.group?.departures || []).find(item => departureIso(item.date, today) === target);
+  const tourName = tour.title || 'экскурсия';
+  if (!departure || /лист ожидания|полон|full|отмен/i.test(String(departure.status || ''))) {
+    return {
+      tourId: tour.id,
+      reply: `В опубликованном расписании ${tourName} на завтра подтверждённого свободного группового выезда не вижу. Могу проверить индивидуальный формат или ближайшую следующую дату.`,
+    };
+  }
+
+  const capacity = Math.max(0, Number(departure.capacity) || 0);
+  const taken = Math.max(0, Number(departure.taken) || 0);
+  const seats = capacity ? Math.max(0, capacity - taken) : null;
+  const people = requestedPeople(q);
+  if (seats !== null && people && seats < people) {
+    return {
+      tourId: tour.id,
+      reply: `На завтра у ${tourName} осталось ${seats} мест — для ${people} человек этого недостаточно. Могу проверить индивидуальный формат или ближайшую следующую дату.`,
+    };
+  }
+
+  const seatsText = seats === null ? '' : `, свободно ${seats} мест`;
+  const time = departure.time ? ` ${departure.time}` : '';
+  return {
+    tourId: tour.id,
+    reply: `На завтра у ${tourName} есть групповой выезд${time}${seatsText}. Для ${people || 'вашего состава'} можно переходить к оформлению — откройте карточку экскурсии.`,
+  };
+}
+
+async function availabilityFastPath(request, env, url) {
+  if (url.pathname !== '/api/ai/chat' || request.method !== 'POST') return null;
+  const body = await request.clone().json().catch(() => ({}));
+  const message = String(body?.message || '');
+  if (!/завтра/i.test(message) || !AVAILABILITY_INTENT.test(message)) return null;
+  const catalog = await loadAvailabilityCatalog(request, env);
+  const result = availabilityReply(message, catalog);
+  if (!result?.reply) return null;
+  return json({
+    ok: true,
+    reply: result.reply,
+    source: 'availability-fast',
+    faqIntent: 'availability_tomorrow',
+    tourId: result.tourId || '',
+    currentDateVietnam: vietnamTodayIso(),
+  });
+}
 
 function mediaKey(pathname) {
   let decoded;
@@ -102,6 +221,8 @@ async function filterAdminHostRoles(response, url) {
   });
 }
 
+export const _availabilityTest = { vietnamTodayIso, addIsoDays, departureIso, requestedPeople, availabilityReply };
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -110,6 +231,8 @@ export default {
     if (url.pathname.startsWith('/tour-media/')) {
       return serveTourMedia(request, env, url.pathname);
     }
+    const availabilityResponse = await availabilityFastPath(request, env, url);
+    if (availabilityResponse) return availabilityResponse;
     const response = await profileWorker.fetch(request, env, ctx);
     return filterAdminHostRoles(response, url);
   },
