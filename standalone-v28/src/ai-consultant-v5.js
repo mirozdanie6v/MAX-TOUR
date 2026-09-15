@@ -165,7 +165,19 @@
     if (/красив|природ|горы|водопад|фото|вид/.test(q)) prefs.add('природа');
     if (/город|храм|культур|истори|музе/.test(q)) prefs.add('город и культура');
     if (/легк|лёгк|спокойн|без долг/.test(q)) prefs.add('лёгкая программа');
-    if (/vip|вип|премиум|комфорт/.test(q)) prefs.add('комфорт / премиум');
+    if (/подешев|дешев|бюджет|эконом|не\s+переплач|минимальн.{0,16}цен|цен[ау].{0,16}важн/.test(q)) {
+      prefs.delete('комфорт / премиум');
+      prefs.delete('насыщенная программа');
+      prefs.add('выгодная цена');
+    }
+    if (/интересн.{0,16}программ|насыщенн|максимум.{0,20}(?:посмотр|увид)|ярк.{0,16}программ/.test(q)) {
+      prefs.delete('выгодная цена');
+      prefs.add('насыщенная программа');
+    }
+    if (/vip|вип|премиум|комфорт/.test(q)) {
+      prefs.delete('выгодная цена');
+      prefs.add('комфорт / премиум');
+    }
     s.preferences = [...prefs];
     s.question = clean(text, 1200);
   }
@@ -242,8 +254,24 @@
     return { tour, format, score, groupPrice, individualPrice, availability, exactDeparture, nearest };
   }
 
+  function priceForSort(item) {
+    if (item.format === 'group') return item.groupPrice || Number.POSITIVE_INFINITY;
+    if (item.format === 'individual') return item.individualPrice || Number.POSITIVE_INFINITY;
+    return item.groupPrice || item.individualPrice || Number.POSITIVE_INFINITY;
+  }
+
   function matchTours() {
-    return catalog().map(evaluate).filter(Boolean).sort((a,b) => b.score - a.score || Number(b.tour.popular) - Number(a.tour.popular)).slice(0,3);
+    const budgetFirst = state.slots.preferences.includes('выгодная цена');
+    return catalog().map(evaluate).filter(Boolean).sort((a,b) => {
+      if (budgetFirst) {
+        const relevanceA = a.score - (Number(a.tour.popular) ? 2 : 0);
+        const relevanceB = b.score - (Number(b.tour.popular) ? 2 : 0);
+        if (relevanceA !== relevanceB) return relevanceB - relevanceA;
+        const byPrice = priceForSort(a) - priceForSort(b);
+        if (byPrice) return byPrice;
+      }
+      return b.score - a.score || Number(b.tour.popular) - Number(a.tour.popular);
+    }).slice(0,3);
   }
 
   function shouldShowRecommendations(text) {
@@ -286,6 +314,7 @@
   function imageFor(tour) { return tour.image || tour.gallery?.[0] || tour.images?.[0] || tour.fallbackImage || ''; }
   function reasonFor(item) {
     const bits = [];
+    if (state.slots.preferences.includes('выгодная цена')) bits.push('выгоднее по цене');
     if (state.slots.preferences.includes('море')) bits.push('море / острова');
     if (state.slots.preferences.includes('природа')) bits.push('красивые виды');
     if (state.slots.children.length && item.tour.childrenOk !== false) bits.push('подходит с детьми');
