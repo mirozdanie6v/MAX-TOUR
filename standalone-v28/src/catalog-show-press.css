@@ -22,6 +22,39 @@
     0 1px 2px rgba(60, 15, 0, 0.16) !important;
 }
 
+.tour-card .price-value.catalog-individual-price-inline,
+.tour-card .price-value[data-individual-from-inline="true"] {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: baseline !important;
+  justify-content: flex-start !important;
+  gap: 4px !important;
+  white-space: nowrap !important;
+}
+
+.tour-card .price-value .catalog-price-from,
+.tour-card .price-value .catalog-price-amount {
+  display: inline-block !important;
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+}
+
+.tour-card .price-value .catalog-price-from {
+  font-size: 11px !important;
+  line-height: 1 !important;
+  font-weight: 800 !important;
+  color: #8b6652 !important;
+  text-transform: lowercase;
+}
+
+.tour-card .price-value .catalog-price-amount {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .catalog-show-press {
     transition: none !important;
