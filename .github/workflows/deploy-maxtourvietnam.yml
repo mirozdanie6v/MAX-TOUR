@@ -1,0 +1,91 @@
+name: Deploy maxtourvietnam production
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.deploy-maxtourvietnam-production'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maxtourvietnam-production-from-max-tour
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - name: Checkout runner repository
+        uses: actions/checkout@v5
+
+      - name: Checkout maxtourvietnam
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch main https://github.com/mirozdanie6v/maxtourvietnam.git target
+          cd target
+          git rev-parse HEAD
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Require Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo 'CLOUDFLARE_API_TOKEN is missing'; exit 1; }
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || { echo 'CLOUDFLARE_ACCOUNT_ID is missing'; exit 1; }
+
+      - name: Install dependencies
+        working-directory: target
+        run: npm install --no-audit --no-fund
+
+      - name: Synchronize source-backed assets and exact tour blocks
+        working-directory: target
+        run: npm run sync:source
+
+      - name: Typecheck and build
+        working-directory: target
+        run: npm run build
+
+      - name: Resolve existing production D1 binding
+        working-directory: target
+        shell: bash
+        run: |
+          set -euo pipefail
+          DB_ID="$(npx wrangler d1 list --json | jq -r '.[] | select(.name == "maxtourvietnam") | (.uuid // .id)' | head -n 1)"
+          test -n "$DB_ID" && test "$DB_ID" != "null" || { echo 'Existing D1 database maxtourvietnam was not found'; exit 1; }
+          export DB_ID
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const config = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8'));
+          config.d1_databases[0].database_id = process.env.DB_ID;
+          fs.writeFileSync('wrangler.production.jsonc', `${JSON.stringify(config, null, 2)}\n`);
+          NODE
+
+      - name: Deploy Worker and static assets
+        working-directory: target
+        run: npx wrangler deploy --config wrangler.production.jsonc
+
+      - name: Production smoke checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://maxtourvietnam.viiversion.com'
+          curl -L -fsS --retry 8 --retry-delay 3 --connect-timeout 8 --max-time 45 "$base/api/health" -o /tmp/health.json
+          jq -e '.ok == true and .project == "maxtourvietnam" and .database == "D1"' /tmp/health.json >/dev/null
+          curl -L -fsS --retry 8 --retry-delay 3 --connect-timeout 8 --max-time 45 "$base/tour-main/dnevnaya-obzornaya-ekskursiya-po-nyachangu.html" -o /tmp/tour-main.html
+          grep -q 'Пагода Лонг Шон' /tmp/tour-main.html
+          curl -L -fsS --retry 8 --retry-delay 3 --connect-timeout 8 --max-time 45 "$base/" -o /tmp/home.html
+          grep -q 'Max Tour - Экскурсионное бюро во Вьетнаме' /tmp/home.html
+          echo 'maxtourvietnam production smoke passed.'
