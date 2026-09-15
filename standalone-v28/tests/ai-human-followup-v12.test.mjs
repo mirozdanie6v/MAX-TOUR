@@ -35,6 +35,25 @@ test('timeout fallback advances from route to date and party instead of restarti
   assert.doesNotMatch(partyReply, /откуда|где вы сейчас/i);
 });
 
+test('known nature preference advances to party and then date instead of asking interests again', () => {
+  const history = [
+    { role:'user', text:'Я в Ханое' },
+    { role:'bot', text:'Хорошо, выезд из Ханоя.' },
+    { role:'user', text:'Хочу природу и красивые виды' },
+  ];
+  const partyReply = timeoutFallback(body('Хочу природу и красивые виды', {
+    destination:'', people:'состав не указан', date:'', preferences:['природа'],
+  }, history));
+  assert.match(partyReply, /сколько|вдвоём|компани/i);
+  assert.doesNotMatch(partyReply, /что.*интерес|море.*природ|природ.*море/i);
+
+  const dateReply = timeoutFallback(body('Нас 2 взрослых', {
+    destination:'', people:'2 взр.', date:'', preferences:['природа'],
+  }, [...history, { role:'bot', text:partyReply }, { role:'user', text:'Нас 2 взрослых' }]));
+  assert.match(dateReply, /день|дата|когда/i);
+  assert.doesNotMatch(dateReply, /что.*интерес|море.*природ|природ.*море/i);
+});
+
 test('timeout fallback asks a natural preference question when core facts are known', () => {
   const history = [{ role:'user', text:'Я в Нячанге' }];
   const reply = timeoutFallback(body('Что дальше?', { destination:'Далат', people:'2 взр.', date:'2026-09-20' }, history));
