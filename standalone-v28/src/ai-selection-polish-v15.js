@@ -2,7 +2,6 @@
   'use strict';
 
   const LOCATION_KEY = 'max-tour-ai-location-v6';
-  const CARD_SELECTOR = '.ai-sales-results .ai-recommendations > .tour-card[data-tour-id]';
   const ALL_CARD_SELECTOR = '.tour-card,.wide-card';
   const FROM_LABELS = {
     'Нячанг':'Нячанга',
@@ -120,12 +119,23 @@
   function patchResultLabels(root = document) {
     const origin = locationState()?.origin || '';
     if (!origin) return 0;
-    const from = FROM_LABELS[origin] || origin;
+    const desired = `Подходящие экскурсии из ${FROM_LABELS[origin] || origin}`;
     let changed = 0;
-    root.querySelectorAll('.ai-sales-results .ai-chat-results-label').forEach(label => {
-      const desired = `Подходящие экскурсии из ${from}`;
-      if (label.textContent !== desired) {
-        label.textContent = desired;
+
+    root.querySelectorAll('.ai-sales-results').forEach(group => {
+      const legacy = group.querySelector('.ai-chat-results-label:not(.ai-chat-results-label-v15)');
+      if (!legacy) return;
+      let polished = group.querySelector('.ai-chat-results-label-v15');
+      if (!polished) {
+        polished = legacy.cloneNode(false);
+        polished.classList.add('ai-chat-results-label-v15');
+        polished.removeAttribute('hidden');
+        legacy.insertAdjacentElement('afterend', polished);
+        changed += 1;
+      }
+      legacy.hidden = true;
+      if (polished.textContent !== desired) {
+        polished.textContent = desired;
         changed += 1;
       }
     });
