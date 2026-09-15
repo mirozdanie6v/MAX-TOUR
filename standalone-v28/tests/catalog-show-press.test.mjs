@@ -23,13 +23,18 @@ test('catalog filter press script parses and targets exact Show and Reset labels
   assert.doesNotMatch(script, /stopPropagation\s*\(/);
 });
 
-test('catalog individual price moves from into the price row with explicit spans', () => {
+test('catalog individual price puts from and amount inside one non-wrapping row', () => {
   assert.match(script, /\.tour-card \.price-label/);
   assert.match(script, /\.price-value/);
   assert.match(script, /\^индивидуальный\\s\+от\$/i);
+  assert.match(script, /catalog-price-row/);
   assert.match(script, /catalog-price-from/);
   assert.match(script, /catalog-price-amount/);
-  assert.match(script, /replaceChildren\(from, amount\)/);
+  assert.match(script, /row\.append\(from, amount\)/);
+  assert.match(script, /replaceChildren\(row\)/);
+  assert.match(script, /setProperty\('display', 'inline-flex', 'important'\)/);
+  assert.match(script, /setProperty\('flex-wrap', 'nowrap', 'important'\)/);
+  assert.match(script, /setProperty\('white-space', 'nowrap', 'important'\)/);
   assert.match(script, /catalog-individual-price-inline/);
   assert.match(script, /individualFromInline/);
   assert.doesNotMatch(script, /const CATALOG = '#catalog-tours'/);
