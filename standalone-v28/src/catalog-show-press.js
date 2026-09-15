@@ -36,18 +36,35 @@
       const price = normalize(value.textContent).replace(/^от\s+/i, '');
       if (!price) return;
 
+      const row = document.createElement('span');
+      row.className = 'catalog-price-row';
+      row.style.setProperty('display', 'inline-flex', 'important');
+      row.style.setProperty('flex-direction', 'row', 'important');
+      row.style.setProperty('flex-wrap', 'nowrap', 'important');
+      row.style.setProperty('align-items', 'baseline', 'important');
+      row.style.setProperty('white-space', 'nowrap', 'important');
+      row.style.setProperty('gap', '4px', 'important');
+
       const from = document.createElement('span');
       from.className = 'catalog-price-from';
       from.textContent = 'от';
+      from.style.setProperty('display', 'inline-block', 'important');
+      from.style.setProperty('white-space', 'nowrap', 'important');
+      from.style.setProperty('flex', '0 0 auto', 'important');
 
       const amount = document.createElement('span');
       amount.className = 'catalog-price-amount';
       amount.textContent = price;
+      amount.style.setProperty('display', 'inline-block', 'important');
+      amount.style.setProperty('white-space', 'nowrap', 'important');
+      amount.style.setProperty('flex', '0 0 auto', 'important');
 
+      row.append(from, amount);
       label.textContent = normalize(label.textContent).replace(/\s+от$/i, '');
-      value.replaceChildren(from, amount);
+      value.replaceChildren(row);
       value.classList.add('catalog-individual-price-inline');
       value.dataset.individualFromInline = 'true';
+      value.style.setProperty('white-space', 'nowrap', 'important');
       changed += 1;
     });
 
