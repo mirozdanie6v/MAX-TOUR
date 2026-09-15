@@ -135,10 +135,11 @@ export function findTourForQuestion(message, catalog = [], options = {}) {
     if (!title) continue;
     let score = 0;
     if (current.includes(title)) score += 140;
+    else if (history && norm(history).includes(title)) score += 80;
     const tokens = titleTokens(tour.title);
     const currentHits = tokens.filter(token => current.includes(token)).length;
     const historyHits = tokens.filter(token => !current.includes(token) && combined.includes(token)).length;
-    score += currentHits * 30 + historyHits * 7;
+    score += currentHits * 30 + historyHits * 12;
     if (/далат/.test(current) && /далат/.test(`${title} ${norm(tour.region)}`)) score += 18;
     if (/премиум/.test(current) && /премиум/.test(title)) score += 40;
     if (/вип|vip/.test(current) && /вип|vip/.test(title)) score += 40;
@@ -293,9 +294,9 @@ export function deterministicFaqReply(message, catalog = [], options = {}) {
   }
 
   if (tour && /(пожил|72\s*год|70\s*лет|маме|папе|тяжело|нагрузк|ходить)/.test(q)) {
-    const activity = tour.activity ? `Нагрузка — ${tour.activity}.` : 'Точная нагрузка зависит от маршрута.';
+    const activity = tour.activity ? `Уровень нагрузки — ${tour.activity}.` : 'Точная нагрузка зависит от маршрута.';
     const timing = tour.time ? ` День длинный: ${tour.time}.` : '';
-    const calmer = tour.individual ? ' Если нужен более спокойный темп, индивидуальный формат позволяет сделать программу комфортнее.' : '';
+    const calmer = tour.individual ? ' По одному возрасту нельзя сказать, будет ли тяжело: если сложно долго быть на ногах, индивидуальный формат позволит сделать темп спокойнее.' : '';
     return { intent:'senior_load', tourId:tour.id, reply:`${activity}${timing}${calmer}`.trim() };
   }
 
