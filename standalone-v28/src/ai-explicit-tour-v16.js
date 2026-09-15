@@ -112,6 +112,7 @@
 (() => {
   'use strict';
 
+  const AI_STATE_KEY = 'max-tour-ai-consultant-v5';
   const QUESTION_SETS = [
     {
       id:'preferences',
@@ -161,13 +162,77 @@
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const normalize = value => String(value || '').replace(/\s+/g,' ').trim();
 
-  function lastBotQuestion(root) {
+  function readAiState() {
+    try { return JSON.parse(sessionStorage.getItem(AI_STATE_KEY) || '{}') || {}; }
+    catch (_) { return {}; }
+  }
+
+  function saveAiState(state) {
+    try { sessionStorage.setItem(AI_STATE_KEY, JSON.stringify(state)); }
+    catch (_) {}
+  }
+
+  function lastBotNode(root) {
     const nodes = [...root.querySelectorAll('.ai-msg.bot .ai-msg-text')];
-    return normalize(nodes.at(-1)?.textContent || '');
+    return nodes.at(-1) || null;
+  }
+
+  function lastBotQuestion(root) {
+    return normalize(lastBotNode(root)?.textContent || '');
   }
 
   function setForQuestion(text) {
     return QUESTION_SETS.find(set => set.match(text)) || null;
+  }
+
+  function peopleKnown(slots = {}) {
+    return Number(slots.adults || 0) + (Array.isArray(slots.children) ? slots.children.length : 0) + Number(slots.infants || 0) > 0;
+  }
+
+  function interestKnown(slots = {}) {
+    return (Array.isArray(slots.preferences) ? slots.preferences : []).some(value => /море|природ|город|культур|истор|вид|остров/i.test(String(value || '')));
+  }
+
+  function replacementForKnownQuestion(kind, slots = {}) {
+    if (kind === 'preferences' && interestKnown(slots)) {
+      if (!peopleKnown(slots)) return 'Сколько человек едет?';
+      if (!slots.date) return 'На какой день планируете поездку?';
+      if (!slots.tripType) return 'Какой формат вам удобнее — групповой или индивидуальный?';
+      return 'Подходящие варианты уже показываю ниже.';
+    }
+    if (kind === 'party' && peopleKnown(slots)) {
+      if (!slots.date) return 'На какой день планируете поездку?';
+      if (!slots.tripType) return 'Какой формат вам удобнее — групповой или индивидуальный?';
+    }
+    if (kind === 'date' && slots.date && !slots.tripType) return 'Какой формат вам удобнее — групповой или индивидуальный?';
+    return '';
+  }
+
+  function persistCorrectedBotText(previousText, nextText) {
+    const state = readAiState();
+    const messages = Array.isArray(state.messages) ? state.messages : [];
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i]?.role !== 'bot' && messages[i]?.role !== 'assistant') continue;
+      if (normalize(messages[i]?.text) !== normalize(previousText)) break;
+      messages[i] = { ...messages[i], text:nextText };
+      state.messages = messages;
+      saveAiState(state);
+      break;
+    }
+  }
+
+  function advanceKnownQuestion(root) {
+    const node = lastBotNode(root);
+    if (!node) return '';
+    const current = normalize(node.textContent || '');
+    const kind = setForQuestion(current)?.id || '';
+    if (!kind) return current;
+    const state = readAiState();
+    const replacement = replacementForKnownQuestion(kind, state?.slots || {});
+    if (!replacement || replacement === current) return current;
+    node.textContent = replacement;
+    persistCorrectedBotText(current, replacement);
+    return replacement;
   }
 
   function expectedHtml(set) {
@@ -176,12 +241,12 @@
 
   function syncQuickReplies(root) {
     if (!root) return;
-    const question = lastBotQuestion(root);
+    const question = advanceKnownQuestion(root) || lastBotQuestion(root);
     const set = setForQuestion(question);
     let box = root.querySelector('.ai-quick-replies');
 
     if (!set) {
-      if (box && /\?\s*$/u.test(question)) box.remove();
+      if (box && (/\?\s*$/u.test(question) || !/\?/.test(question))) box.remove();
       return;
     }
 
@@ -215,7 +280,7 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', syncAll, { once:true });
   else syncAll();
 
-  globalThis.MaxTourAIQuickRepliesV18 = { setForQuestion, lastBotQuestion, syncQuickReplies };
+  globalThis.MaxTourAIQuickRepliesV18 = { setForQuestion, lastBotQuestion, replacementForKnownQuestion, syncQuickReplies };
 })();
 
 (() => {
