@@ -23,13 +23,25 @@ test('catalog filter press script parses and targets exact Show and Reset labels
   assert.doesNotMatch(script, /stopPropagation\s*\(/);
 });
 
-test('catalog individual price keeps from on the same line as the price', () => {
-  assert.match(script, /#catalog-tours/);
+test('catalog individual price moves from into the price row with explicit spans', () => {
   assert.match(script, /\.tour-card \.price-label/);
   assert.match(script, /\.price-value/);
   assert.match(script, /\^индивидуальный\\s\+от\$/i);
-  assert.match(script, /value\.textContent = `от\\u00A0\$\{price\}`/);
+  assert.match(script, /catalog-price-from/);
+  assert.match(script, /catalog-price-amount/);
+  assert.match(script, /replaceChildren\(from, amount\)/);
+  assert.match(script, /catalog-individual-price-inline/);
   assert.match(script, /individualFromInline/);
+  assert.doesNotMatch(script, /const CATALOG = '#catalog-tours'/);
+});
+
+test('catalog individual price CSS forces from and amount onto one physical row', () => {
+  assert.match(css, /catalog-individual-price-inline/);
+  assert.match(css, /flex-direction:\s*row\s*!important/);
+  assert.match(css, /flex-wrap:\s*nowrap\s*!important/);
+  assert.match(css, /white-space:\s*nowrap\s*!important/);
+  assert.match(css, /catalog-price-from/);
+  assert.match(css, /catalog-price-amount/);
 });
 
 test('catalog filter press CSS provides visible tactile feedback', () => {
