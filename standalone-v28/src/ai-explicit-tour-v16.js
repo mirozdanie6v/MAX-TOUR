@@ -116,17 +116,17 @@
   if (!locationTest?.inspectInput || !locationTest?.placeFrom || !locationTest?.placesFrom) return;
 
   const CASE_FIXES = [
-    [/\bханоя\b/giu, 'Ханой'],
-    [/\bханою\b/giu, 'Ханой'],
-    [/\bнячанга\b/giu, 'Нячанг'],
-    [/\bдананга\b/giu, 'Дананг'],
-    [/\bфукуока\b/giu, 'Фукуок'],
-    [/\bдалата\b/giu, 'Далат'],
-    [/\bхойана\b/giu, 'Хойан'],
-    [/\bхалонга\b/giu, 'Халонг'],
-    [/\bнинь\s*биня\b/giu, 'Ниньбинь'],
-    [/\bфу[йи]ена\b/giu, 'Фуйен'],
-    [/\bфан\s*тьета\b/giu, 'Фантьет'],
+    [/ханоя/giu, 'Ханой'],
+    [/ханою/giu, 'Ханой'],
+    [/нячанга/giu, 'Нячанг'],
+    [/дананга/giu, 'Дананг'],
+    [/фукуока/giu, 'Фукуок'],
+    [/далата/giu, 'Далат'],
+    [/хойана/giu, 'Хойан'],
+    [/халонга/giu, 'Халонг'],
+    [/нинь\s*биня/giu, 'Ниньбинь'],
+    [/фу[йи]ена/giu, 'Фуйен'],
+    [/фан\s*тьета/giu, 'Фантьет'],
   ];
 
   function normalizeRussianCases(value) {
@@ -155,13 +155,13 @@
       if (target) return target;
     }
 
-    const located = normalized.match(/(?:^|[\s,;])(?:я|мы|сейчас|нахожусь|находимся|живу|живём|живем)\b[^.!?]{0,24}?(?:в|на)\s+(.+)$/iu);
+    const located = normalized.match(/(?:^|[\s,;])(?:я|мы|сейчас|нахожусь|находимся|живу|живём|живем)(?:\s+|$)[^.!?]{0,24}?(?:в|на)\s+(.+)$/iu);
     if (located) {
       const target = placeFromFragment(located[1]);
       if (target) return target;
     }
 
-    if (/^(?:нет|неверно|ошибка|поправка|точнее|всё-таки|все-таки)\b/iu.test(normalized)
+    if (/^(?:нет|неверно|ошибка|поправка|точнее|всё-таки|все-таки)(?:[\s,;:.-]|$)/iu.test(normalized)
       || /(?:имею|имел|имела|имели)\s+в\s+виду/iu.test(normalized)) {
       const places = locationTest.placesFrom(normalized);
       if (places.length) return places[places.length - 1];
