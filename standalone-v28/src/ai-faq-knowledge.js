@@ -248,7 +248,7 @@ function stripLeadAgreement(reply) {
   return String(reply || '').replace(/^(?:Да|Конечно)\.\s*/u, '').trim();
 }
 
-const FAQ_COMMON_SENTENCE_LEADS = /^(При|На|В|Если|Для|У|С|Размер|Язык|Отмена|Перенос|Обычный|Вегетарианское|Уровень|Точная|Индивидуальный|Завтра|Зависит)\b/u;
+const FAQ_COMMON_SENTENCE_LEADS = /^(При|На|В|Если|Для|У|С|Размер|Язык|Отмена|Перенос|Обычный|Вегетарианское|Уровень|Точная|Индивидуальный|Завтра|Зависит)(?=\s|[,:;.!?—-]|$)/u;
 
 function conversationalContinuation(reply) {
   const text = stripLeadAgreement(reply);
@@ -269,11 +269,11 @@ function applyFaqStyle(result, message, options = {}) {
     const body = opener ? conversationalContinuation(base) : base;
     const candidate = opener ? `${opener}${body}` : body;
     if (!lastAssistant || norm(candidate) !== norm(lastAssistant)) {
-      return { ...result, reply:candidate, replyVariant:index, styleVersion:'faq-style-v11.1' };
+      return { ...result, reply:candidate, replyVariant:index, styleVersion:'faq-style-v11.2' };
     }
     index = (index + 1) % openers.length;
   }
-  return { ...result, reply:base, replyVariant:0, styleVersion:'faq-style-v11.1' };
+  return { ...result, reply:base, replyVariant:0, styleVersion:'faq-style-v11.2' };
 }
 
 function deterministicFaqReplyBase(message, catalog = [], options = {}) {
