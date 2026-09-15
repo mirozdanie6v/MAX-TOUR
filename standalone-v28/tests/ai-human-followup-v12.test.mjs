@@ -42,6 +42,30 @@ test('timeout fallback asks a natural preference question when core facts are kn
   assert.equal((reply.match(/\?/g) || []).length, 1);
 });
 
+test('answering "Подешевле" acknowledges the choice and never repeats the same preference question', () => {
+  const history = [
+    { role:'user', text:'Я сейчас в Дананге' },
+    { role:'bot', text:'Вы вдвоём или компанией?' },
+    { role:'user', text:'Нас 2 взрослых' },
+    { role:'bot', text:'Поняла. Вы бы выбрали вариант подешевле или тот, где программа интереснее, даже если чуть дороже?' },
+  ];
+  const reply = timeoutFallback(body('Подешевле', {
+    destination:'Дананг', people:'2 взр.', date:'2026-09-20', preferences:['выгодная цена'],
+  }, history));
+  assert.match(reply, /цен|доступн|выгод|без переплат/i);
+  assert.match(reply, /вариант/i);
+  assert.doesNotMatch(reply, /вы бы выбрали вариант подешевле|программа интереснее/i);
+  assert.equal((reply.match(/\?/g) || []).length, 0);
+});
+
+test('budget answer can acknowledge choice and ask only a genuinely missing field', () => {
+  const history = [{ role:'user', text:'Мы сейчас в Нячанге' }];
+  const reply = timeoutFallback(body('Подешевле', { destination:'Далат', people:'2 взр.', date:'' }, history));
+  assert.match(reply, /цен|доступн|выгод|без переплат/i);
+  assert.match(reply, /день|дата|планируете/i);
+  assert.equal((reply.match(/\?/g) || []).length, 1);
+});
+
 test('timeout fallback varies wording and avoids exact repetition', () => {
   const firstBody = body('Подбери экскурсию');
   const first = timeoutFallback(firstBody);
