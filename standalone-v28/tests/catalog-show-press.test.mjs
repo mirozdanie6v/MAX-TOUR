@@ -23,8 +23,10 @@ test('catalog filter press script parses and targets exact Show and Reset labels
   assert.doesNotMatch(script, /stopPropagation\s*\(/);
 });
 
-test('catalog individual price targets the actual mini and price DOM', () => {
+test('individual price patch covers home tour cards and catalog wide cards', () => {
   assert.match(script, /\.tour-card \.price-row > div/);
+  assert.match(script, /\.wide-card \.price-row > div/);
+  assert.match(script, /PRICE_BOX_SELECTOR/);
   assert.match(script, /\.mini, \.price-label/);
   assert.match(script, /\.price, \.price-value/);
   assert.match(script, /\^индивидуальный\\s\+от\$/i);
@@ -43,9 +45,11 @@ test('catalog individual price targets the actual mini and price DOM', () => {
   assert.doesNotMatch(script, /const CATALOG = '#catalog-tours'/);
 });
 
-test('catalog individual price CSS supports actual price class and one physical row', () => {
+test('individual price CSS enforces one physical row on home and catalog cards', () => {
   assert.match(css, /\.tour-card \.price\.catalog-individual-price-inline/);
+  assert.match(css, /\.wide-card \.price\.catalog-individual-price-inline/);
   assert.match(css, /\.tour-card \.price \.catalog-price-row/);
+  assert.match(css, /\.wide-card \.price \.catalog-price-row/);
   assert.match(css, /flex-direction:\s*row\s*!important/);
   assert.match(css, /flex-wrap:\s*nowrap\s*!important/);
   assert.match(css, /width:\s*max-content\s*!important/);
