@@ -59,20 +59,22 @@ export async function selectionFastPath(request, url) {
   const date = clean(context.date, 100);
   const label = preference.islands ? 'островную экскурсию' : 'морскую экскурсию';
 
-  if (!date) {
+  // Keep the server question in the same order as the visible quick replies:
+  // party first, then date. This avoids asking for a date while showing party chips.
+  if (!peopleKnown(context)) {
     return json({
       ok:true,
-      reply:`На какой день ищем ${label} из Нячанга?`,
+      reply:'Сколько вас будет? Если будут дети, напишите тоже — подберу тариф сразу правильно.',
       source:'selection-fast-v14',
       faqIntent:'marine_preference',
       tourId:'',
     });
   }
 
-  if (!peopleKnown(context)) {
+  if (!date) {
     return json({
       ok:true,
-      reply:'Сколько вас будет? Если будут дети, напишите тоже — подберу тариф сразу правильно.',
+      reply:`На какой день ищем ${label} из Нячанга?`,
       source:'selection-fast-v14',
       faqIntent:'marine_preference',
       tourId:'',
