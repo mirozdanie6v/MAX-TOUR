@@ -1,5 +1,6 @@
 import profileWorker from './worker-profile.js';
 import { compactTourForAi, findTourForQuestion } from './ai-faq-knowledge.js';
+import { selectionFastPath } from './worker-selection-v14.js';
 
 const CONTENT_TYPES = {
   jpg: 'image/jpeg',
@@ -269,6 +270,8 @@ export default {
     if (url.pathname.startsWith('/tour-media/')) {
       return serveTourMedia(request, env, url.pathname);
     }
+    const selectionResponse = await selectionFastPath(request, url);
+    if (selectionResponse) return selectionResponse;
     const originResponse = await originFastPath(request, url);
     if (originResponse) return originResponse;
     const availabilityResponse = await availabilityFastPath(request, env, url);
