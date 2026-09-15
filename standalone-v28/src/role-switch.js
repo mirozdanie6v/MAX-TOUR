@@ -12,7 +12,7 @@
   const MUI_NE_TRIP_TITLE = 'Муйне: дюны, Рыбацкая деревня и ручей Фей';
 
   function removeMuiNeBookedTripPhoto() {
-    const title = Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,strong,b,[class*="title"]'))
+    const title = Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,strong,b'))
       .find(node => String(node.textContent || '').trim().includes(MUI_NE_TRIP_TITLE));
     if (!title) return;
 
@@ -31,15 +31,7 @@
   const cleanTripPhoto = () => requestAnimationFrame(removeMuiNeBookedTripPhoto);
   cleanTripPhoto();
 
-  const observer = new MutationObserver(cleanTripPhoto);
-  observer.observe(document.body, { childList: true, subtree: true });
-
-  if (typeof renderTrips === 'function') {
-    const originalRenderTrips = renderTrips;
-    renderTrips = function (...args) {
-      const result = originalRenderTrips.apply(this, args);
-      cleanTripPhoto();
-      return result;
-    };
-  }
+  // The trips screen is re-rendered after tab changes and booking actions.
+  // Keep the correction applied whenever that DOM is rebuilt.
+  new MutationObserver(cleanTripPhoto).observe(document.body, { childList: true, subtree: true });
 })();
