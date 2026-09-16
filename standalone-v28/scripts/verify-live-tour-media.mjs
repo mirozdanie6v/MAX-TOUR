@@ -4,6 +4,11 @@ const expected = [
   'danang-ba-na-hoian','danang-city-sontra','phuquoc-4-islands','phuquoc-vinwonders-safari',
   'hanoi-halong-2d','hanoi-sapa-3d','hanoi-ninhbinh','muine-dunes-jeep',
 ];
+const cardCovers = [
+  '/tour-media/muine-dunes-jeep/card-cover.jpg',
+  '/tour-media/orchid-monkey-islands/card-cover.jpg',
+  '/tour-media/hon-tam-island/card-cover.jpg',
+];
 const fail = message => { throw new Error(`[tour-media-live] ${message}`); };
 
 const catalogResponse = await fetch(`${base}/catalog.v28.json?tourMediaVerify=${Date.now()}`, { redirect: 'follow' });
@@ -12,7 +17,7 @@ const catalog = await catalogResponse.json();
 if (!Array.isArray(catalog) || catalog.length !== expected.length) fail(`expected ${expected.length} tours, got ${catalog?.length}`);
 
 const byId = new Map(catalog.map(tour => [String(tour.id), tour]));
-const paths = new Set();
+const paths = new Set(cardCovers);
 for (const id of expected) {
   const tour = byId.get(id);
   if (!tour) fail(`missing tour ${id}`);
@@ -39,4 +44,4 @@ const list = [...paths];
 for (let index = 0; index < list.length; index += 6) {
   await Promise.all(list.slice(index, index + 6).map(verifyPath));
 }
-console.log(`[tour-media-live] verified ${expected.length} tours and ${list.length} same-origin R2 image objects at ${base}`);
+console.log(`[tour-media-live] verified ${expected.length} catalog tours, ${cardCovers.length} dedicated card covers and ${list.length} same-origin R2 image objects at ${base}`);
