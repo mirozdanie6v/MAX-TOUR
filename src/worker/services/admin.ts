@@ -6,16 +6,40 @@ import { HttpError } from './booking';
 import { recordAudit } from './internal-workflows';
 import { queueSiteSync } from './site-sync';
 
+function mergePricingRules(current: Tour['pricingRules'], input: unknown, legacyAdultMinor?: number): Tour['pricingRules'] {
+  const patch = input && typeof input === 'object' ? input as Record<string, unknown> : {};
+  const next: Record<string, unknown> = { ...current };
+  const has = (key: string) => Object.prototype.hasOwnProperty.call(patch, key);
+
+  if (has('adultMinor')) {
+    if (patch.adultMinor == null) delete next.adultMinor;
+    else next.adultMinor = patch.adultMinor;
+  }
+  if (has('adultFromMinor')) {
+    if (patch.adultFromMinor == null) delete next.adultFromMinor;
+    else next.adultFromMinor = patch.adultFromMinor;
+  }
+  if (has('childRules')) next.childRules = patch.childRules;
+  if (has('privateTiers')) next.privateTiers = patch.privateTiers;
+  if (has('note')) next.note = patch.note;
+
+  if (legacyAdultMinor != null) next.adultMinor = legacyAdultMinor;
+  if (!Array.isArray(next.childRules)) next.childRules = [];
+  return next as unknown as Tour['pricingRules'];
+}
+
 export async function patchTour(env: Env, sessionId: string, tourId: string, input: unknown, actorId = 'demo') {
   const parsed = adminTourPatchSchema.safeParse(input);
   if (!parsed.success) throw new HttpError(400,'Некорректные данные тура','VALIDATION_ERROR');
   const current = await getTourByIdOrSlug(env.DB,sessionId,tourId);
   if (!current) throw new HttpError(404,'Экскурсия не найдена','TOUR_NOT_FOUND');
+  const { adultMinor, pricingRules, ...tourPatch } = parsed.data;
+
   if (current.dataStatus === 'userCreatedDemo') {
     const next: Tour = {
       ...current,
-      ...parsed.data,
-      pricingRules: parsed.data.adultMinor != null ? { ...current.pricingRules, adultMinor: parsed.data.adultMinor } : current.pricingRules,
+      ...tourPatch,
+      pricingRules: mergePricingRules(current.pricingRules, pricingRules, adultMinor),
       dataStatus:'userCreatedDemo',
       updatedAt:new Date().toISOString()
     };
@@ -24,12 +48,13 @@ export async function patchTour(env: Env, sessionId: string, tourId: string, inp
     await queueSiteSync(env,sessionId,'tour',current.id,'upsert',next);
     return next;
   }
+
   const existing = await env.DB.prepare('SELECT override_json FROM demo_tour_overrides WHERE session_id=? AND tour_id=?').bind(sessionId,current.id).first<{override_json:string}>();
   const oldOverride = existing ? JSON.parse(existing.override_json) : {};
-  const patch:any = { ...oldOverride, ...parsed.data };
-  if (parsed.data.adultMinor != null) {
-    patch.pricingRules = { ...current.pricingRules, ...(oldOverride.pricingRules ?? {}), adultMinor: parsed.data.adultMinor };
-    delete patch.adultMinor;
+  const patch:any = { ...oldOverride, ...tourPatch };
+  if (pricingRules !== undefined || adultMinor != null) {
+    const currentPricing = { ...current.pricingRules, ...(oldOverride.pricingRules ?? {}) } as Tour['pricingRules'];
+    patch.pricingRules = mergePricingRules(currentPricing, pricingRules, adultMinor);
   }
   patch.updatedAt = new Date().toISOString();
   await env.DB.prepare(`INSERT INTO demo_tour_overrides(session_id,tour_id,override_json) VALUES (?,?,?)
