@@ -51,6 +51,9 @@
     {"tourId":"hanoi-ninhbinh","key":"hanoi-ninhbinh/03.png","source":"https://www.pelago.com/img/products/VN-Vietnam/hoa-lu-trang-an-mua-caves-standard-day-tour-from-hanoi/86e63713-5442-4950-ada2-73eb33928aa5_hoa-lu-trang-an-mua-caves-standard-day-tour-from-hanoi.png","label":"Ninh Binh — Trang An cave boat"},
     {"tourId":"muine-dunes-jeep","key":"muine-dunes-jeep/01.png","source":"https://www.pelago.com/img/products/VN-Vietnam/mui-ne-sunset-sand-dunes-half-day-tour-depart-from-mui-ne/c8b58ac3-f0b7-4084-95ec-b7c03a45cd2d_mui-ne-sunset-sand-dunes-half-day-tour-depart-from-mui-ne.jpg","label":"Mui Ne — dunes jeep"},
     {"tourId":"muine-dunes-jeep","key":"muine-dunes-jeep/02.jpg","source":"https://vietnambudgetcarrental.com/vnt_upload/news/10_2023/Jeep-vehicle-service-in-Bau-Trang.jpg","label":"Mui Ne — Bau Trang dunes jeep"},
-    {"tourId":"muine-dunes-jeep","key":"muine-dunes-jeep/03.png","source":"https://vietnamtimes.thoidai.com.vn/stores/news_dataimages/vietnamfriendshipcomvn/112016/03/16/road-to-vietnams-largest-sand-dune-46-.5495.PNG","label":"Mui Ne — White Sand Dunes"}
+    {"tourId":"muine-dunes-jeep","key":"muine-dunes-jeep/03.png","source":"https://vietnamtimes.thoidai.com.vn/stores/news_dataimages/vietnamfriendshipcomvn/112016/03/16/road-to-vietnams-largest-sand-dune-46-.5495.PNG","label":"Mui Ne — White Sand Dunes"},
+    {"tourId":"muine-dunes-jeep","key":"muine-dunes-jeep/card-cover.jpg","source":"https://images.unsplash.com/photo-1780140228627-9cf6712bf54e?auto=format&fit=crop&fm=jpg&w=1600&q=85","label":"Mui Ne — real location photo, Unsplash"},
+    {"tourId":"orchid-monkey-islands","key":"orchid-monkey-islands/card-cover.jpg","source":"https://ak-d.tripcdn.com/images/0350d12000rxi1tt95E0A.jpg","label":"Orchid + Monkey Islands — Nha Phu Bay tour photo"},
+    {"tourId":"hon-tam-island","key":"hon-tam-island/card-cover.jpg","source":"https://static.vinwonders.com/production/hon-tam-resort-banner.jpg","label":"Hon Tam Island — VinWonders location photo"}
   ]
 }
