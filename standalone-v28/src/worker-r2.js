@@ -2,6 +2,7 @@ import profileWorker from './worker-profile.js';
 import { compactTourForAi, findTourForQuestion } from './ai-faq-knowledge.js';
 import { selectionFastPath } from './worker-selection-v14.js';
 import { orchestrateAiRequest } from './ai-orchestrator-v23.js';
+import { handleAdminTourMediaApi } from './admin-tour-media-api.js';
 
 const CONTENT_TYPES = {
   jpg: 'image/jpeg',
@@ -16,6 +17,7 @@ const ADMIN_SHARED_ASSETS = new Set([
   '/max-tour-logo.svg',
   '/admin-app.css',
   '/admin-app.js',
+  '/admin-tour-media.js',
   '/production-embed-polish.css',
   '/production-embed-polish.js',
 ]);
@@ -268,6 +270,8 @@ export default {
     const url = new URL(request.url);
     const adminHostResponse = routeAdminHost(url);
     if (adminHostResponse) return adminHostResponse;
+    const mediaAdminResponse = await handleAdminTourMediaApi(request, env, url);
+    if (mediaAdminResponse) return mediaAdminResponse;
     if (url.pathname.startsWith('/tour-media/')) {
       return serveTourMedia(request, env, url.pathname);
     }
