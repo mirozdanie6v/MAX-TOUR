@@ -62,16 +62,51 @@ export const managerStatusSchema = z.object({
   status: z.enum(['Новый', 'Оплачено', 'Подтверждено'])
 });
 
+const adminChildRuleSchema = z.object({
+  type: z.enum(['height', 'age']),
+  min: z.number().min(0).max(500).optional(),
+  max: z.number().min(0).max(500).optional(),
+  priceMinor: z.number().int().min(0),
+  label: z.string().trim().max(240),
+});
+
+const adminPrivatePriceTierSchema = z.object({
+  minPeople: z.number().int().min(1).max(100),
+  maxPeople: z.number().int().min(1).max(100),
+  totalMinor: z.number().int().min(0).optional(),
+  perPersonMinor: z.number().int().min(0).optional(),
+});
+
+const adminPricingRulesPatchSchema = z.object({
+  adultMinor: z.number().int().min(0).nullable().optional(),
+  adultFromMinor: z.number().int().min(0).nullable().optional(),
+  childRules: z.array(adminChildRuleSchema).max(50).optional(),
+  privateTiers: z.array(adminPrivatePriceTierSchema).max(50).optional(),
+  note: z.string().max(1000).optional(),
+});
+
+const adminTextListSchema = z.array(z.string().trim().max(2000)).max(200);
+
 export const adminTourPatchSchema = z.object({
-  title: z.string().trim().min(2).optional(),
-  description: z.string().optional(),
+  title: z.string().trim().min(2).max(300).optional(),
+  direction: z.string().trim().min(1).max(160).optional(),
+  category: z.string().trim().min(1).max(160).optional(),
+  sourceUrl: z.string().trim().max(2000).optional(),
+  priceMode: z.enum(['fixed', 'from-price', 'dynamic-request']).optional(),
+  pricingRules: adminPricingRulesPatchSchema.optional(),
+  description: z.string().max(20_000).optional(),
   adultMinor: z.number().int().min(0).optional(),
   published: z.boolean().optional(),
-  program: z.array(z.string()).optional(),
-  included: z.array(z.string()).optional(),
-  extraCosts: z.array(z.string()).optional(),
-  whatToTake: z.array(z.string()).optional(),
-  images: z.array(z.string()).optional(),
+  requiredFields: z.array(z.string().trim().min(1).max(120)).max(80).optional(),
+  scheduleMode: z.enum(['demoDates', 'request']).optional(),
+  pickup: z.string().max(1000).optional(),
+  back: z.string().max(1000).optional(),
+  program: adminTextListSchema.optional(),
+  included: adminTextListSchema.optional(),
+  extraCosts: adminTextListSchema.optional(),
+  whatToTake: adminTextListSchema.optional(),
+  images: z.array(z.string().trim().min(1).max(4000)).max(100).optional(),
+  badges: z.array(z.string().trim().max(240)).max(100).optional(),
 });
 
 export const addTourSchema = z.object({

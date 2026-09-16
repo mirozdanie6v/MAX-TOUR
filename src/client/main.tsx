@@ -1,11 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, useLocation } from 'react-router-dom';
 import { PremiumApp } from './PremiumApp';
+import { UnifiedAdminTourPage } from './UnifiedAdminTourPage';
 import './styles/premium.css';
 import './styles/commerce-v6.css';
 import './styles/v6.css';
 import './styles/production-polish.css';
+import './styles/admin-unified-tour.css';
 
 declare global {
   interface Window { Telegram?: { WebApp?: { ready?:()=>void; expand?:()=>void; BackButton?:any; MainButton?:any } } }
@@ -44,8 +46,14 @@ function LiveDemoV28() {
   );
 }
 
+function DemoRouterRoot() {
+  const location = useLocation();
+  const isUnifiedTourEditor = /^\/admin\/tours\/[^/]+\/?$/.test(location.pathname);
+  return isUnifiedTourEditor ? <UnifiedAdminTourPage /> : <PremiumApp />;
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   isProduction
     ? <LiveDemoV28 />
-    : <React.StrictMode><BrowserRouter><PremiumApp/></BrowserRouter></React.StrictMode>
+    : <React.StrictMode><BrowserRouter><DemoRouterRoot /></BrowserRouter></React.StrictMode>
 );
