@@ -8,14 +8,13 @@
     adminButton.remove();
   }
 
-  // Stable generated covers committed to this demo branch. The previous island
-  // cards depended on external Tilda thumbnails; those requests could fail in
-  // the Telegram/browser client and left the yellow placeholder visible.
-  const MEDIA_BASE = 'https://raw.githubusercontent.com/mirozdanie6v/MAX-TOUR/demo/max-tour-demo/standalone-v28/src/tour-card-media';
+  // Real location photos are mirrored into the demo's private R2 bucket during
+  // deploy. Runtime uses only same-origin R2 URLs so Telegram/browser clients
+  // do not depend on third-party image hosts.
   const IMAGES = {
-    muine: `${MEDIA_BASE}/muine.jpg`,
-    orchidMonkey: `${MEDIA_BASE}/orchid-monkey.jpg`,
-    honTam: `${MEDIA_BASE}/hon-tam.jpg`,
+    muine: '/tour-media/muine-dunes-jeep/card-cover.jpg',
+    orchidMonkey: '/tour-media/orchid-monkey-islands/card-cover.jpg',
+    honTam: '/tour-media/hon-tam-island/card-cover.jpg',
   };
 
   const isMuiNe = value => /муйне|mui\s*ne/i.test(String(value || ''));
