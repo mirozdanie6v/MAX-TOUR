@@ -168,10 +168,11 @@ await copyFile(resolve(root, 'src/production-embed-polish.js'), resolve(dist, 'p
 await copyFile(resolve(root, 'src/max-tour-logo.svg'), resolve(dist, 'max-tour-logo.svg'));
 const adminBuilt = withViiversionAnalytics(replaceBrandLogos(adminPrototype)
   .replace('</head>', '<link rel="stylesheet" href="/admin-app.css">\n</head>')
-  .replace('</body>', '<script src="/admin-app.js" defer></script>\n</body>'));
+  .replace('</body>', '<script src="/admin-app.js" defer></script>\n<script src="/admin-tour-media.js" defer></script>\n</body>'));
 await writeFile(resolve(dist, 'admin/index.html'), adminBuilt, 'utf8');
 await writeFile(resolve(dist, 'director/index.html'), withViiversionAnalytics(directorPrototype), 'utf8');
 await copyFile(resolve(root, 'src/admin-app.css'), resolve(dist, 'admin-app.css'));
 await copyFile(resolve(root, 'src/admin-app.js'), resolve(dist, 'admin-app.js'));
+await copyFile(resolve(root, 'src/admin-tour-media.js'), resolve(dist, 'admin-tour-media.js'));
 await copyFile(resolve(root, 'src/runtime-api.js'), resolve(dist, 'runtime-api.js'));
-console.log(`Built standalone v28: ${catalog.length} tours with curated location-correct imagery + photo lightbox + live trip/departure policy + AI consultant v8 network guard, v15 selection ranking and v16 explicit-tour guard + v25 safe booking bridge + v7 catalog-card parity + admin v3 + director v3 + Telegram analytics; exact source checksums verified.`);
+console.log(`Built standalone v28: ${catalog.length} tours with curated location-correct imagery + photo lightbox + live trip/departure policy + AI consultant v8 network guard, v15 selection ranking and v16 explicit-tour guard + v25 safe booking bridge + v7 catalog-card parity + admin v3 + editable R2 tour photos + director v3 + Telegram analytics; exact source checksums verified.`);
