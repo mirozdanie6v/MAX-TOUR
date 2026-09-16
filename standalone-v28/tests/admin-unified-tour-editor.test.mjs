@@ -10,7 +10,7 @@ test('tour editor is a single form and has no separate photo manager', () => {
   assert.match(editor, /id="unifiedTourForm"/);
   assert.match(editor, /Все поля заполняются обычным текстом, числами, списками и переключателями\. JSON не нужен\./);
   assert.match(editor, /name="imageFile" type="file"/);
-  assert.match(editor, /name="gallery"/);
+  assert.match(editor, /area\('gallery','Фотографии галереи'/);
   assert.match(editor, /Сохранить все изменения/);
   assert.doesNotMatch(editor, /id="tourMediaManager"/);
   assert.doesNotMatch(editor, /Фото экскурсий<\/h2>/);
