@@ -9,6 +9,7 @@
 
   const clean = value => String(value || '').replace(/\s+/g, ' ').trim();
   const lower = value => clean(value).toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
+  const isIsoDate = value => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
 
   function readAiState() {
     try { return JSON.parse(sessionStorage.getItem(AI_STATE_KEY) || 'null') || {}; }
@@ -26,7 +27,7 @@
     const tour = tourById(tourId);
     const tripType = String(slots.tripType || '');
     const format = tripType === 'group' || tripType === 'individual' ? tripType : 'compare';
-    const date = /^\d{4}-\d{2}-\d{2}$/.test(String(slots.date || '')) ? String(slots.date) : '';
+    const date = isIsoDate(slots.date) ? String(slots.date) : '';
     return {
       tourId:String(tourId || ''),
       title:clean(tour?.title || ''),
@@ -55,15 +56,37 @@
     return candidates.find(isVisible) || null;
   }
 
-  function bookingButtonInTour(screen) {
+  function isBookingButton(button) {
+    if (!isVisible(button) || button.disabled) return false;
+    if (button.closest('#aiScreen') || button.matches('[data-ai-action]')) return false;
+    const text = lower(button.textContent || button.getAttribute('aria-label') || '');
+    return /^(?:присоединиться|продолжить бронирование|забронировать|оформить|выбрать дату|к бронированию)$/.test(text)
+      || /присоединиться|продолжить бронирование|забронировать|оформить бронирование|перейти к бронированию/.test(text);
+  }
+
+  function bookingButtonInTour(screen, intent = null) {
     if (!screen) return null;
-    const buttons = [...screen.querySelectorAll('button,[role="button"]')].filter(button => {
-      if (!isVisible(button) || button.disabled) return false;
-      if (button.closest('#aiScreen') || button.matches('[data-ai-action]')) return false;
-      const text = lower(button.textContent || button.getAttribute('aria-label') || '');
-      return /^(?:присоединиться|забронировать|оформить|выбрать дату|к бронированию)$/.test(text)
-        || /присоединиться|забронировать|оформить бронирование|перейти к бронированию/.test(text);
-    });
+
+    // Refresh departure metadata synchronously before choosing a button. The
+    // live-departure layer marks the exact date selected in the AI dialog.
+    try { globalThis.MaxTourDepartureLiveV3?.process?.(screen); } catch (_) {}
+
+    const buttons = [...screen.querySelectorAll('button,[role="button"]')].filter(isBookingButton);
+    const targetDate = isIsoDate(intent?.date) ? String(intent.date) : '';
+    const departureCards = [...screen.querySelectorAll('.depart-card')].filter(isVisible);
+
+    if (targetDate && departureCards.length) {
+      // A concrete date from the AI quick reply is authoritative. Never fall
+      // through to the first departure card with another date.
+      const targetCard = departureCards.find(card => {
+        if (String(card?.dataset?.departureIso || '') !== targetDate) return false;
+        if (card?.dataset?.liveDepartureState === 'past' || card?.dataset?.liveDepartureState === 'full') return false;
+        return true;
+      });
+      if (!targetCard) return null;
+      return buttons.find(button => button.closest('.depart-card') === targetCard) || null;
+    }
+
     return buttons[0] || null;
   }
 
@@ -73,39 +96,79 @@
     return [...document.querySelectorAll('[id*="booking" i][class*="screen" i], [data-screen="booking"]')].some(isVisible);
   }
 
+  function applyIntentToBooking(intent) {
+    if (!intent) return false;
+    let applied = false;
+
+    // Preferred path: the departure layer knows the prototype booking shape
+    // and updates date + party atomically without losing the chosen departure.
+    try {
+      if (typeof globalThis.MaxTourDepartureLiveV3?.applyIntentToBooking === 'function') {
+        applied = Boolean(globalThis.MaxTourDepartureLiveV3.applyIntentToBooking(intent, intent.date)) || applied;
+      }
+    } catch (_) {}
+
+    // Defensive fallback for tours without fixed departure cards (for example,
+    // individual tours). This also protects against a stale prototype date.
+    try {
+      if (typeof state === 'object' && state) {
+        if (intent.format === 'group' || intent.format === 'individual') state.format = intent.format;
+        if (!state.booking || typeof state.booking !== 'object') state.booking = {};
+        if (isIsoDate(intent.date) && state.booking.date !== intent.date) {
+          state.booking.date = intent.date;
+          applied = true;
+        }
+      }
+    } catch (_) {}
+
+    try {
+      const input = document.querySelector('#bookingScreen input[type="date"]');
+      if (input && isIsoDate(intent.date) && input.value !== intent.date) {
+        input.value = intent.date;
+        input.dispatchEvent?.(new Event('input', { bubbles:true }));
+        input.dispatchEvent?.(new Event('change', { bubbles:true }));
+        applied = true;
+      }
+    } catch (_) {}
+
+    return applied;
+  }
+
   function openTourSafely(tourId) {
     if (typeof globalThis.openTour !== 'function') return false;
     globalThis.openTour(tourId);
     return true;
   }
 
-  function continueOnceToBooking(attempt = 0) {
+  function continueOnceToBooking(intent, attempt = 0) {
     if (bookingScreenVisible()) {
+      // Re-apply after the legacy booking renderer finishes. This is critical
+      // for quick replies such as “завтра”: the booking screen must show the
+      // exact date selected in the AI dialog, not a stale/default date.
+      applyIntentToBooking(intent);
       transitionInFlight = false;
       return;
     }
 
     const screen = activeTourScreen();
     if (screen) {
-      const button = bookingButtonInTour(screen);
+      const button = bookingButtonInTour(screen, intent);
       if (button && !button.dataset.aiBridgeClicked) {
         button.dataset.aiBridgeClicked = '1';
         button.click();
-        window.setTimeout(() => {
-          transitionInFlight = false;
-        }, 700);
+        window.setTimeout(() => continueOnceToBooking(intent, attempt + 1), 90);
         return;
       }
     }
 
-    if (attempt < 20) {
-      window.setTimeout(() => continueOnceToBooking(attempt + 1), 100);
+    if (attempt < 25) {
+      window.setTimeout(() => continueOnceToBooking(intent, attempt + 1), 100);
       return;
     }
 
-    // Safe fallback: leave the real tour card open instead of repeatedly
-    // clicking controls across the whole document. The customer can continue
-    // manually and the app remains responsive.
+    // If a concrete AI date has no matching group departure, keep the tour
+    // card open instead of silently booking another day. For tours without
+    // fixed departure cards the normal booking button is still used above.
     transitionInFlight = false;
   }
 
@@ -125,15 +188,16 @@
     const tourId = clean(button.dataset.id || button.closest('[data-tour-id]')?.dataset.tourId || '');
     if (!tourId) return;
 
+    const intent = bookingIntent(tourId);
     transitionInFlight = true;
-    try { sessionStorage.setItem(BOOKING_INTENT_KEY, JSON.stringify(bookingIntent(tourId))); } catch (_) {}
+    try { sessionStorage.setItem(BOOKING_INTENT_KEY, JSON.stringify(intent)); } catch (_) {}
 
     try {
       if (!openTourSafely(tourId)) {
         transitionInFlight = false;
         return;
       }
-      window.setTimeout(() => continueOnceToBooking(0), 80);
+      window.setTimeout(() => continueOnceToBooking(intent, 0), 80);
     } catch (error) {
       console.warn('[MAX TOUR AI] safe booking bridge failed:', error);
       transitionInFlight = false;
@@ -147,6 +211,7 @@
     activeTourScreen,
     bookingButtonInTour,
     bookingScreenVisible,
-    _test:{ isVisible },
+    applyIntentToBooking,
+    _test:{ isVisible, isBookingButton, isIsoDate },
   };
 })();
