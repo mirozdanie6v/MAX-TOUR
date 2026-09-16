@@ -1,19 +1,23 @@
 (() => {
   'use strict';
 
-  // Despite the historical filename, this module is now the single tour editor.
-  // It replaces the former separate "Фото экскурсий" manager and intercepts
-  // every Catalog -> Edit action before the legacy compact drawer can open.
+  // Historical filename kept for compatibility. This module is the single
+  // editor for every tour field, including photos and uncommon catalog data.
   const state = { csrf:'', tours:[], loading:false, loaded:false };
+
   const h = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
   const lines = value => String(value || '').split(/\r?\n/).map(item => item.trim()).filter(Boolean);
-  const textLines = value => Array.isArray(value) ? value.filter(Boolean).join('\n') : String(value || '');
-  const pretty = value => JSON.stringify(value ?? {}, null, 2);
+  const textLines = value => Array.isArray(value) ? value.filter(value => value !== null && value !== undefined && value !== '').join('\n') : String(value || '');
   const toNumber = value => {
     const raw = String(value ?? '').trim().replace(',', '.');
     if (!raw) return undefined;
     const result = Number(raw);
     return Number.isFinite(result) ? result : undefined;
+  };
+  const clone = value => {
+    try { return structuredClone(value); } catch (_) {
+      try { return JSON.parse(JSON.stringify(value)); } catch (_) { return value; }
+    }
   };
 
   const TOP_LEVEL_FIELDS = new Set([
@@ -24,18 +28,101 @@
   ]);
   const GROUP_FIELDS = new Set(['from','adult','child','infant','deposit','notes','departures']);
   const INDIVIDUAL_FIELDS = new Set(['from','adult','child','infant','deposit','notes','tiers','departures']);
+  const DEPARTURE_FIELDS = new Set(['date','time','capacity','taken','status']);
+
+  const LABELS = {
+    id:'Служебный код экскурсии', title:'Название экскурсии', city:'Город отправления', location:'Локация', region:'Регион / направление',
+    category:'Категория', duration:'Продолжительность', time:'Время экскурсии', type:'Формат', types:'Форматы', format:'Формат',
+    formatsLabel:'Подпись формата для клиента', priceLabel:'Подпись цены', price:'Цена', priceFrom:'Цена от', priceFromUsd:'Цена от, USD',
+    capacity:'Максимум участников', maxPeople:'Максимум участников', published:'Показывать клиентам', childrenOk:'Подходит детям',
+    popular:'Отметка «Популярное»', tags:'Теги', searchText:'Ключевые слова для поиска', description:'Описание', subtitle:'Короткий подзаголовок',
+    program:'Программа экскурсии', included:'Что включено', notIncluded:'Что не включено', excluded:'Что не включено',
+    whatToTake:'Что взять с собой', recommendations:'Рекомендации', image:'Главное фото', fallbackImage:'Резервное фото', gallery:'Галерея',
+    from:'Цена от', adult:'Цена для взрослого', child:'Цена для ребёнка', infant:'Цена для младенца', deposit:'Условия оплаты',
+    notes:'Примечания', departures:'Расписание выездов', tiers:'Тарифы по количеству участников', date:'Дата выезда', status:'Статус',
+    taken:'Уже занято мест', minPeople:'Минимум участников', min:'Минимум', max:'Максимум', age:'Возраст', ages:'Возрастные правила',
+    height:'Рост', heightCm:'Рост, см', minHeight:'Минимальный рост', maxHeight:'Максимальный рост', meetingPoint:'Место встречи',
+    pickup:'Трансфер / место посадки', transfer:'Трансфер', language:'Язык', languages:'Языки', guide:'Гид', transport:'Транспорт',
+    meal:'Питание', meals:'Питание', lunch:'Обед', cancellation:'Отмена', cancellationPolicy:'Правила отмены',
+    bookingNotice:'Срок предварительного бронирования', notice:'Примечание', currency:'Валюта', currencyCode:'Валюта',
+    source:'Источник данных', provider:'Поставщик / партнёр', route:'Маршрут', highlights:'Главные особенности',
+    audience:'Для кого подходит', restrictions:'Ограничения', requirements:'Требования', pickupZones:'Зоны трансфера',
+    startTime:'Время начала', endTime:'Время окончания', weekdays:'Дни недели', days:'Дни', schedule:'Расписание',
+  };
+
+  const WORDS = {
+    min:'минимум', max:'максимум', people:'участников', person:'участник', persons:'участников', price:'цена', prices:'цены',
+    adult:'взрослый', adults:'взрослые', child:'ребёнок', children:'дети', infant:'младенец', infants:'младенцы',
+    age:'возраст', ages:'возраст', height:'рост', capacity:'вместимость', status:'статус', date:'дата', time:'время',
+    start:'начало', end:'окончание', duration:'продолжительность', transfer:'трансфер', pickup:'посадка', zone:'зона', zones:'зоны',
+    booking:'бронирование', notice:'срок бронирования', cancellation:'отмена', policy:'правила', guide:'гид', meal:'питание',
+    route:'маршрут', language:'язык', languages:'языки', source:'источник', provider:'поставщик', note:'примечание', notes:'примечания',
+    included:'включено', excluded:'не включено', required:'обязательно', optional:'необязательно', available:'доступно',
+    weekday:'день недели', weekdays:'дни недели', schedule:'расписание', deposit:'оплата', amount:'сумма', percent:'процент',
+    label:'подпись', title:'название', description:'описание', value:'значение', values:'значения', enabled:'включено',
+  };
+
+  const COMMON_HINTS = {
+    id:'Используется системой. Для существующей экскурсии код менять не нужно.',
+    title:'Так название увидит клиент в каталоге и карточке экскурсии.',
+    city:'Например: Нячанг. Укажите город, откуда начинается экскурсия.',
+    region:'Например: Далат, острова Нячанга, Муйне.',
+    category:'Например: Обзорные, Морские, Природа, Семейные.',
+    duration:'Например: 1 день или 4 часа.',
+    time:'Например: 07:00 → 18:00. Если время плавающее, напишите это обычным текстом.',
+    formatsLabel:'Короткая фраза для карточки, например: групповой / индивидуальный.',
+    capacity:'Максимальное количество туристов, которых можно принять на один выезд.',
+    priceFromUsd:'Число без знака валюты. Например: 45.',
+    priceLabel:'Текст, который увидит клиент. Например: от $45 или $36 взрослый / $28 ребёнок.',
+    typesText:'Каждый формат с новой строки. Например: групповой и индивидуальный.',
+    groupFrom:'Минимальная стоимость группового варианта, например: $36.',
+    groupAdult:'Полная цена для одного взрослого, например: $36.',
+    groupChild:'Цена для ребёнка. Если зависит от роста или возраста, укажите правило текстом.',
+    groupInfant:'Например: до 2 лет бесплатно.',
+    groupDeposit:'Например: 30% или 100%.',
+    groupNotes:'Каждое условие с новой строки. Например: обед включён.',
+    individualFrom:'Минимальная стоимость индивидуальной экскурсии.',
+    individualDeposit:'Например: 30% или 100%.',
+    individualTiers:'Каждый тариф с новой строки. Например: 1–2 человека — $350.',
+    individualNotes:'Каждое условие с новой строки.',
+    description:'Основной продающий текст экскурсии. Можно писать несколькими абзацами.',
+    subtitle:'Короткое дополнение под названием экскурсии.',
+    program:'Каждый пункт программы с новой строки в порядке прохождения.',
+    included:'Каждая включённая услуга с новой строки.',
+    notIncluded:'Каждая услуга, которую клиент оплачивает отдельно, с новой строки.',
+    whatToTake:'Каждая рекомендация с новой строки: купальник, головной убор, паспорт и т. п.',
+    recommendations:'Полезные советы клиенту перед поездкой, по одному на строку.',
+    tags:'По одному слову или короткой фразе на строку. Используются для подбора и фильтров.',
+    searchText:'Слова и фразы, по которым консультант и поиск должны находить экскурсию.',
+    image:'Служебный адрес текущего главного фото. Обычно его не нужно менять вручную — проще загрузить файл ниже.',
+    gallery:'Один адрес фотографии на строку. Первая фотография обычно показывается раньше остальных.',
+  };
 
   function injectStyles() {
     if (document.getElementById('unifiedTourEditorStyles')) return;
     const style = document.createElement('style');
     style.id = 'unifiedTourEditorStyles';
     style.textContent = `
-      .unified-tour-form{display:grid;gap:18px;padding-bottom:90px}.unified-tour-section{display:grid;gap:12px;padding:15px;border:1px solid rgba(226,196,155,.78);border-radius:22px;background:#fffaf2}
-      .unified-tour-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.unified-tour-section-head h3{margin:0;font-size:16px;line-height:1.15}.unified-tour-section-head p{margin:4px 0 0;color:#826853;font-size:11px;line-height:1.4}
-      .unified-tour-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.unified-tour-form label{display:grid;gap:6px;color:#765641;font-size:11px;font-weight:900}.unified-tour-form input,.unified-tour-form select,.unified-tour-form textarea{width:100%;border:1px solid #ead8c0;border-radius:14px;background:#fff;padding:10px 11px;color:#271005;font:inherit;font-size:13px;font-weight:700;outline:0}.unified-tour-form input,.unified-tour-form select{min-height:42px}.unified-tour-form textarea{resize:vertical;line-height:1.45}.unified-tour-form input:focus,.unified-tour-form textarea:focus,.unified-tour-form select:focus{border-color:#d8a33c;box-shadow:0 0 0 3px rgba(216,163,60,.12)}
-      .unified-tour-checks{display:flex;gap:14px;flex-wrap:wrap}.unified-tour-check{display:flex!important;grid-template-columns:auto 1fr!important;align-items:center!important;gap:8px!important}.unified-tour-check input{width:18px!important;height:18px!important;min-height:0!important}
-      .unified-tour-photo{display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;align-items:start}.unified-tour-preview{width:150px;aspect-ratio:16/10;border-radius:16px;object-fit:cover;background:#eee8dc;border:1px solid rgba(23,23,19,.1)}.unified-tour-photo-copy{display:grid;gap:10px}.unified-tour-file-note{font-size:11px;line-height:1.4;color:#826853}.unified-tour-json{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace!important;font-size:11px!important;font-weight:600!important;tab-size:2}
-      .unified-tour-save{position:sticky;bottom:0;z-index:5;display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 -4px;padding:12px 4px;background:linear-gradient(180deg,rgba(255,253,248,0),rgba(255,253,248,.94) 24%,#fffdf8 50%)}.unified-tour-save-note{font-size:11px;line-height:1.35;color:#826853}.unified-tour-uploading{opacity:.62;pointer-events:none}.unified-tour-error{color:#b00016;font-size:12px;font-weight:800;min-height:18px}.unified-tour-wide{grid-column:1/-1}
+      .unified-tour-form{display:grid;gap:18px;padding-bottom:90px}
+      .unified-tour-section{display:grid;gap:12px;padding:15px;border:1px solid rgba(226,196,155,.78);border-radius:22px;background:#fffaf2}
+      .unified-tour-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+      .unified-tour-section-head h3{margin:0;font-size:16px;line-height:1.15}.unified-tour-section-head p{margin:4px 0 0;color:#826853;font-size:11px;line-height:1.4}
+      .unified-tour-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+      .unified-tour-field{display:grid;gap:6px;align-content:start}.unified-tour-label{color:#5f422f;font-size:12px;font-weight:950;line-height:1.25}
+      .unified-tour-hint{display:block;color:#8a6d56;font-size:10.5px;line-height:1.4;font-weight:650}
+      .unified-tour-form input,.unified-tour-form select,.unified-tour-form textarea{width:100%;border:1px solid #ead8c0;border-radius:14px;background:#fff;padding:10px 11px;color:#271005;font:inherit;font-size:13px;font-weight:700;outline:0}
+      .unified-tour-form input,.unified-tour-form select{min-height:42px}.unified-tour-form textarea{resize:vertical;line-height:1.45}
+      .unified-tour-form input:focus,.unified-tour-form textarea:focus,.unified-tour-form select:focus{border-color:#d8a33c;box-shadow:0 0 0 3px rgba(216,163,60,.12)}
+      .unified-tour-checks{display:flex;gap:10px;flex-wrap:wrap}.unified-tour-check{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:start;padding:10px 12px;border:1px solid #ead8c0;border-radius:14px;background:#fff}
+      .unified-tour-check input{width:18px!important;height:18px!important;min-height:0!important;margin-top:1px}.unified-tour-check strong{display:block;color:#5f422f;font-size:12px}.unified-tour-check small{display:block;margin-top:2px;color:#8a6d56;font-size:10px;line-height:1.35}
+      .unified-tour-photo{display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;align-items:start}.unified-tour-preview{width:150px;aspect-ratio:16/10;border-radius:16px;object-fit:cover;background:#eee8dc;border:1px solid rgba(23,23,19,.1)}
+      .unified-tour-photo-copy{display:grid;gap:11px}.unified-tour-file-note{font-size:11px;line-height:1.4;color:#826853}
+      .unified-tour-save{position:sticky;bottom:0;z-index:5;display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 -4px;padding:12px 4px;background:linear-gradient(180deg,rgba(255,253,248,0),rgba(255,253,248,.94) 24%,#fffdf8 50%)}
+      .unified-tour-save-note{font-size:11px;line-height:1.35;color:#826853}.unified-tour-uploading{opacity:.62;pointer-events:none}.unified-tour-error{color:#b00016;font-size:12px;font-weight:800;min-height:18px}
+      .unified-tour-wide{grid-column:1/-1}.unified-tour-subcard{display:grid;gap:10px;padding:12px;border:1px dashed #ddc7aa;border-radius:17px;background:#fffdf8}
+      .unified-tour-subcard-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.unified-tour-subcard-title{font-size:12px;font-weight:950;color:#5f422f}
+      .unified-tour-departures{display:grid;gap:10px}.unified-tour-empty-note{margin:0;color:#8a6d56;font-size:11px;line-height:1.45}
+      .unified-tour-extra-group{display:grid;gap:10px;padding-top:2px}.unified-tour-extra-title{font-size:12px;font-weight:950;color:#5f422f}
       @media(max-width:620px){.unified-tour-grid{grid-template-columns:1fr}.unified-tour-photo{grid-template-columns:1fr}.unified-tour-preview{width:100%;max-width:280px}.unified-tour-save{align-items:stretch;flex-direction:column}.unified-tour-save .btn{width:100%}.unified-tour-wide{grid-column:auto}}
     `;
     document.head.appendChild(style);
@@ -56,7 +143,7 @@
         forbidden:'Для вашей роли это действие недоступно.',
         unauthorized:'Необходимо войти заново.',
         tour_not_found:'Экскурсия не найдена.',
-        tour_invalid:'Проверьте ID и название экскурсии.',
+        tour_invalid:'Проверьте служебный код и название экскурсии.',
       };
       throw new Error(messages[data.error] || 'Не удалось сохранить экскурсию.');
     }
@@ -85,26 +172,52 @@
     return result;
   }
 
-  function parseJsonField(form, name, fallback = {}) {
-    const field = form.elements.namedItem(name);
-    const raw = String(field?.value || '').trim();
-    if (!raw) return fallback;
-    let parsed;
-    try { parsed = JSON.parse(raw); }
-    catch { throw new Error(`Поле «${field?.dataset?.label || name}» содержит некорректный JSON.`); }
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error(`Поле «${field?.dataset?.label || name}» должно содержать JSON-объект.`);
-    return parsed;
+  function splitWords(key) {
+    return String(key || '')
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/[_-]+/g, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
   }
 
-  function parseJsonArray(form, name, fallback = []) {
-    const field = form.elements.namedItem(name);
-    const raw = String(field?.value || '').trim();
-    if (!raw) return fallback;
-    let parsed;
-    try { parsed = JSON.parse(raw); }
-    catch { throw new Error(`Поле «${field?.dataset?.label || name}» содержит некорректный JSON.`); }
-    if (!Array.isArray(parsed)) throw new Error(`Поле «${field?.dataset?.label || name}» должно содержать JSON-массив.`);
-    return parsed;
+  function humanizeKey(key) {
+    if (LABELS[key]) return LABELS[key];
+    const words = splitWords(key);
+    const translated = words.map(word => WORDS[word.toLowerCase()] || word.toLowerCase());
+    if (!translated.length) return 'Дополнительный параметр';
+    const phrase = translated.join(' ');
+    return phrase.charAt(0).toUpperCase() + phrase.slice(1);
+  }
+
+  function hintFor(key, fallback = '') {
+    if (COMMON_HINTS[key]) return COMMON_HINTS[key];
+    return fallback || 'Дополнительный параметр исходной экскурсии. Заполните обычным текстом или числом; формат JSON не требуется.';
+  }
+
+  function field(name, label, value, hint, options = {}) {
+    const { type='text', placeholder='', min='', max='', step='', readonly=false, wide=false } = options;
+    const attrs = [
+      `name="${h(name)}"`, `type="${h(type)}"`, `value="${h(value ?? '')}"`,
+      placeholder ? `placeholder="${h(placeholder)}"` : '',
+      min !== '' ? `min="${h(min)}"` : '',
+      max !== '' ? `max="${h(max)}"` : '',
+      step !== '' ? `step="${h(step)}"` : '',
+      readonly ? 'readonly' : '',
+    ].filter(Boolean).join(' ');
+    return `<label class="unified-tour-field ${wide ? 'unified-tour-wide' : ''}"><span class="unified-tour-label">${h(label)}</span><input ${attrs}><small class="unified-tour-hint">${h(hint)}</small></label>`;
+  }
+
+  function area(name, label, value, hint, rows = 4, wide = false, placeholder = '') {
+    return `<label class="unified-tour-field ${wide ? 'unified-tour-wide' : ''}"><span class="unified-tour-label">${h(label)}</span><textarea name="${h(name)}" rows="${rows}" ${placeholder ? `placeholder="${h(placeholder)}"` : ''}>${h(value ?? '')}</textarea><small class="unified-tour-hint">${h(hint)}</small></label>`;
+  }
+
+  function check(name, label, checked, hint) {
+    return `<label class="unified-tour-check"><input name="${h(name)}" type="checkbox" ${checked ? 'checked' : ''}><span><strong>${h(label)}</strong><small>${h(hint)}</small></span></label>`;
+  }
+
+  function section(title, note, body) {
+    return `<section class="unified-tour-section"><div class="unified-tour-section-head"><div><h3>${h(title)}</h3><p>${h(note)}</p></div></div>${body}</section>`;
   }
 
   function formatValues(tour) {
@@ -120,8 +233,131 @@
     return [];
   }
 
-  function section(title, note, body) {
-    return `<section class="unified-tour-section"><div class="unified-tour-section-head"><div><h3>${h(title)}</h3><p>${h(note)}</p></div></div>${body}</section>`;
+  function encodePath(path) {
+    return encodeURIComponent(path.join('\u001f'));
+  }
+
+  function decodePath(value) {
+    return decodeURIComponent(String(value || '')).split('\u001f').filter(Boolean);
+  }
+
+  function renderExtraValue(scope, key, value, path = []) {
+    const fullPath = [...path, key];
+    const pathAttr = encodePath(fullPath);
+    const label = humanizeKey(key);
+    const hint = hintFor(key);
+    if (typeof value === 'boolean') {
+      return `<label class="unified-tour-check"><input type="checkbox" data-extra-scope="${h(scope)}" data-extra-path="${h(pathAttr)}" data-extra-kind="boolean" ${value ? 'checked' : ''}><span><strong>${h(label)}</strong><small>${h(hint)}</small></span></label>`;
+    }
+    if (typeof value === 'number') {
+      return `<label class="unified-tour-field"><span class="unified-tour-label">${h(label)}</span><input type="number" step="any" value="${h(value)}" data-extra-scope="${h(scope)}" data-extra-path="${h(pathAttr)}" data-extra-kind="number"><small class="unified-tour-hint">${h(hint)}</small></label>`;
+    }
+    if (typeof value === 'string' || value === null || value === undefined) {
+      const text = value == null ? '' : String(value);
+      const multiline = text.length > 80 || text.includes('\n');
+      return `<label class="unified-tour-field ${multiline ? 'unified-tour-wide' : ''}"><span class="unified-tour-label">${h(label)}</span>${multiline
+        ? `<textarea rows="4" data-extra-scope="${h(scope)}" data-extra-path="${h(pathAttr)}" data-extra-kind="string">${h(text)}</textarea>`
+        : `<input type="text" value="${h(text)}" data-extra-scope="${h(scope)}" data-extra-path="${h(pathAttr)}" data-extra-kind="string">`}<small class="unified-tour-hint">${h(hint)}</small></label>`;
+    }
+    if (Array.isArray(value)) {
+      if (value.every(item => ['string','number','boolean'].includes(typeof item) || item == null)) {
+        return `<label class="unified-tour-field unified-tour-wide"><span class="unified-tour-label">${h(label)}</span><textarea rows="5" data-extra-scope="${h(scope)}" data-extra-path="${h(pathAttr)}" data-extra-kind="primitive-array">${h(textLines(value))}</textarea><small class="unified-tour-hint">${h(hint)} Каждый элемент вводите с новой строки.</small></label>`;
+      }
+      return `<div class="unified-tour-extra-group unified-tour-wide"><div class="unified-tour-extra-title">${h(label)}</div><small class="unified-tour-hint">${h(hint)} Элементы показаны отдельными карточками.</small>${value.map((item, index) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return '';
+        return `<div class="unified-tour-subcard"><div class="unified-tour-subcard-title">Элемент ${index + 1}</div><div class="unified-tour-grid">${Object.entries(item).map(([childKey, childValue]) => renderExtraValue(scope, childKey, childValue, [...fullPath, String(index)])).join('')}</div></div>`;
+      }).join('')}</div>`;
+    }
+    if (typeof value === 'object') {
+      return `<div class="unified-tour-extra-group unified-tour-wide"><div class="unified-tour-extra-title">${h(label)}</div><small class="unified-tour-hint">${h(hint)}</small><div class="unified-tour-grid">${Object.entries(value).map(([childKey, childValue]) => renderExtraValue(scope, childKey, childValue, fullPath)).join('')}</div></div>`;
+    }
+    return '';
+  }
+
+  function extraEditorMarkup(scope, extras, emptyText = 'Дополнительных параметров для этой экскурсии нет.') {
+    const entries = Object.entries(extras || {});
+    if (!entries.length) return `<p class="unified-tour-empty-note">${h(emptyText)}</p>`;
+    return `<div class="unified-tour-grid">${entries.map(([key, value]) => renderExtraValue(scope, key, value)).join('')}</div>`;
+  }
+
+  function setPath(target, path, value) {
+    let node = target;
+    path.forEach((part, index) => {
+      const last = index === path.length - 1;
+      const nextPart = path[index + 1];
+      const numeric = /^\d+$/.test(part);
+      const key = numeric ? Number(part) : part;
+      if (last) {
+        node[key] = value;
+        return;
+      }
+      if (node[key] == null || typeof node[key] !== 'object') node[key] = /^\d+$/.test(nextPart) ? [] : {};
+      node = node[key];
+    });
+  }
+
+  function collectExtras(form, scope, base) {
+    const result = clone(base || {});
+    form.querySelectorAll(`[data-extra-scope="${scope}"]`).forEach(control => {
+      const path = decodePath(control.dataset.extraPath);
+      const kind = control.dataset.extraKind;
+      let value;
+      if (kind === 'boolean') value = control.checked;
+      else if (kind === 'number') value = toNumber(control.value) ?? 0;
+      else if (kind === 'primitive-array') {
+        const original = path.reduce((node, part) => node?.[/^\d+$/.test(part) ? Number(part) : part], base || {});
+        const originalType = Array.isArray(original) && original.length ? typeof original[0] : 'string';
+        value = lines(control.value).map(item => originalType === 'number' ? (toNumber(item) ?? 0) : originalType === 'boolean' ? /^(true|1|да|yes)$/i.test(item) : item);
+      } else value = String(control.value ?? '');
+      setPath(result, path, value);
+    });
+    return result;
+  }
+
+  function departureCard(scope, item = {}, index = 0) {
+    const extras = extraObject(item, DEPARTURE_FIELDS);
+    return `<div class="unified-tour-subcard" data-departure-row="${h(scope)}" data-departure-index="${index}">
+      <div class="unified-tour-subcard-head"><div class="unified-tour-subcard-title">Выезд ${index + 1}</div><button class="btn small" type="button" data-remove-departure>Удалить</button></div>
+      <div class="unified-tour-grid">
+        ${field('', 'Дата выезда', item.date || '', 'Выберите конкретную дату. Если выезды повторяются по дням недели, используйте дополнительные параметры ниже.', { type:'date' }).replace('name=""', 'data-departure-field="date"')}
+        ${field('', 'Время отправления', item.time || '', 'Например: 07:00.', { type:'time' }).replace('name=""', 'data-departure-field="time"')}
+        ${field('', 'Всего мест', item.capacity ?? '', 'Максимальное число туристов на этом выезде.', { type:'number', min:0 }).replace('name=""', 'data-departure-field="capacity"')}
+        ${field('', 'Уже занято мест', item.taken ?? '', 'Сколько мест уже забронировано.', { type:'number', min:0 }).replace('name=""', 'data-departure-field="taken"')}
+        <label class="unified-tour-field unified-tour-wide"><span class="unified-tour-label">Статус выезда</span><select data-departure-field="status">
+          ${['','Открыт','Мало мест','Полон','Лист ожидания','Отменён'].map(value => `<option value="${h(value)}" ${String(item.status || '') === value ? 'selected' : ''}>${h(value || 'Не указан')}</option>`).join('')}
+        </select><small class="unified-tour-hint">Выберите состояние, которое должно учитывать бронирование и AI-консультант.</small></label>
+        ${extraEditorMarkup(`${scope}-departure-${index}`, extras, '')}
+      </div>
+    </div>`;
+  }
+
+  function departuresMarkup(scope, items) {
+    const list = Array.isArray(items) ? items : [];
+    return `<div class="unified-tour-departures" data-departure-list="${h(scope)}">${list.length ? list.map((item, index) => departureCard(scope, item, index)).join('') : '<p class="unified-tour-empty-note" data-departure-empty>Выезды пока не добавлены.</p>'}</div>
+      <button class="btn small" type="button" data-add-departure="${h(scope)}">+ Добавить выезд</button>
+      <small class="unified-tour-hint">Каждый выезд заполняется обычными полями: дата, время, количество мест и статус.</small>`;
+  }
+
+  function collectDepartures(form, scope, baseItems) {
+    const originals = Array.isArray(baseItems) ? baseItems : [];
+    return [...form.querySelectorAll(`[data-departure-row="${scope}"]`)].map(row => {
+      const originalIndex = Number(row.dataset.departureIndex);
+      const original = Number.isInteger(originalIndex) && originalIndex >= 0 ? (originals[originalIndex] || {}) : {};
+      const get = name => row.querySelector(`[data-departure-field="${name}"]`)?.value ?? '';
+      const capacity = toNumber(get('capacity'));
+      const taken = toNumber(get('taken'));
+      const extras = collectExtras(form, `${scope}-departure-${originalIndex}`, extraObject(original, DEPARTURE_FIELDS));
+      const result = {
+        ...original,
+        ...extras,
+        date:String(get('date') || ''),
+        time:String(get('time') || ''),
+        status:String(get('status') || ''),
+      };
+      if (capacity == null) delete result.capacity; else result.capacity = capacity;
+      if (taken == null) delete result.taken; else result.taken = taken;
+      return result;
+    });
   }
 
   async function openEditor(id = '') {
@@ -140,65 +376,69 @@
       const capacity = tour.capacity ?? tour.maxPeople ?? '';
       const priceFromUsd = tour.priceFromUsd ?? '';
 
-      openDrawer(`<div class="drawer-head"><div><h2 class="drawer-title">${isNew ? 'Новая экскурсия' : 'Редактировать экскурсию'}</h2><p class="drawer-sub">Все данные экскурсии, цены, программа и фотографии — в одной форме.</p></div><button class="close" onclick="closeDrawer()">×</button></div>
+      openDrawer(`<div class="drawer-head"><div><h2 class="drawer-title">${isNew ? 'Новая экскурсия' : 'Редактировать экскурсию'}</h2><p class="drawer-sub">Все поля заполняются обычным текстом, числами, списками и переключателями. JSON не нужен.</p></div><button class="close" onclick="closeDrawer()">×</button></div>
         <form class="unified-tour-form" id="unifiedTourForm" data-tour-id="${h(tour.id || '')}">
-          ${section('Основная информация','Название, география, формат и публикация.',`<div class="unified-tour-grid">
-            <label>ID<input name="id" value="${h(tour.id || '')}" ${isNew ? '' : 'readonly'} pattern="[A-Za-z0-9_-]+" required></label>
-            <label>Название<input name="title" value="${h(tour.title || '')}" required maxlength="250"></label>
-            <label>Город<input name="city" value="${h(tour.city || tour.location || '')}"></label>
-            <label>Регион / локация<input name="region" value="${h(tour.region || '')}"></label>
-            <label>Категория<input name="category" value="${h(tour.category || '')}"></label>
-            <label>Длительность<input name="duration" value="${h(tour.duration || '')}" placeholder="Например, 1 день"></label>
-            <label>Время / график<input name="time" value="${h(tour.time || '')}" placeholder="07:00 → 18:00"></label>
-            <label>Подпись форматов<input name="formatsLabel" value="${h(tour.formatsLabel || '')}"></label>
-            <label class="unified-tour-wide">Форматы — по одному на строку<textarea name="typesText" rows="3">${h(textLines(formats))}</textarea></label>
-            <label>Вместимость<input name="capacity" type="number" min="1" value="${h(capacity)}"></label>
-            <label>Цена «от», USD<input name="priceFromUsd" type="number" min="0" step="0.01" value="${h(priceFromUsd)}"></label>
-            <label class="unified-tour-wide">Цена / подпись<input name="priceLabel" value="${h(tour.priceLabel || tour.price || tour.priceFrom || '')}" placeholder="Например, от $45"></label>
-          </div><div class="unified-tour-checks"><label class="unified-tour-check"><input name="published" type="checkbox" ${tour.published === false ? '' : 'checked'}> Опубликовано</label><label class="unified-tour-check"><input name="popular" type="checkbox" ${tour.popular ? 'checked' : ''}> Популярное</label><label class="unified-tour-check"><input name="childrenOk" type="checkbox" ${tour.childrenOk === false ? '' : 'checked'}> Подходит детям</label></div>`) }
+          ${section('Основная информация','То, что клиент видит в каталоге и по чему система понимает экскурсию.',`<div class="unified-tour-grid">
+            ${field('id', 'Служебный код экскурсии', tour.id || '', COMMON_HINTS.id, { readonly:!isNew, placeholder:'nhatrang-city-tour' })}
+            ${field('title', 'Название экскурсии', tour.title || '', COMMON_HINTS.title, { placeholder:'Обзорная экскурсия по Нячангу' })}
+            ${field('city', 'Город отправления', tour.city || tour.location || '', COMMON_HINTS.city, { placeholder:'Нячанг' })}
+            ${field('region', 'Регион / направление', tour.region || '', COMMON_HINTS.region, { placeholder:'Нячанг и окрестности' })}
+            ${field('category', 'Категория', tour.category || '', COMMON_HINTS.category, { placeholder:'Обзорные' })}
+            ${field('duration', 'Продолжительность', tour.duration || '', COMMON_HINTS.duration, { placeholder:'1 день' })}
+            ${field('time', 'Время экскурсии', tour.time || '', COMMON_HINTS.time, { placeholder:'07:00 → 18:00' })}
+            ${field('formatsLabel', 'Подпись формата для клиента', tour.formatsLabel || '', COMMON_HINTS.formatsLabel, { placeholder:'групповой / индивидуальный' })}
+            ${area('typesText', 'Доступные форматы', textLines(formats), COMMON_HINTS.typesText, 3, true, 'групповой\nиндивидуальный')}
+            ${field('capacity', 'Максимум участников', capacity, COMMON_HINTS.capacity, { type:'number', min:1 })}
+            ${field('priceFromUsd', 'Минимальная цена, USD', priceFromUsd, COMMON_HINTS.priceFromUsd, { type:'number', min:0, step:'0.01', placeholder:'45' })}
+            ${field('priceLabel', 'Подпись цены для клиента', tour.priceLabel || tour.price || tour.priceFrom || '', COMMON_HINTS.priceLabel, { wide:true, placeholder:'от $45' })}
+          </div><div class="unified-tour-checks">
+            ${check('published','Показывать клиентам',tour.published !== false,'Выключите, если экскурсия должна временно исчезнуть из каталога.')}
+            ${check('popular','Отметить как популярную',Boolean(tour.popular),'Используется для приоритетного показа в каталоге и подборе.')}
+            ${check('childrenOk','Подходит детям',tour.childrenOk !== false,'Выключите, если экскурсия не подходит для семей с детьми.')}
+          </div>`)}
 
-          ${section('Цены и групповой формат','Тарифы, депозит, примечания и расписание группового тура.',`<div class="unified-tour-grid">
-            <label>Цена от<input name="groupFrom" value="${h(group.from || '')}"></label><label>Взрослый<input name="groupAdult" value="${h(group.adult || '')}"></label>
-            <label>Ребёнок<input name="groupChild" value="${h(group.child || '')}"></label><label>Младенец<input name="groupInfant" value="${h(group.infant || '')}"></label>
-            <label class="unified-tour-wide">Депозит / оплата<input name="groupDeposit" value="${h(group.deposit || '')}"></label>
-            <label class="unified-tour-wide">Примечания — по одному на строку<textarea name="groupNotes" rows="5">${h(textLines(group.notes))}</textarea></label>
-            <label class="unified-tour-wide">Отправления / расписание (JSON)<textarea class="unified-tour-json" name="groupDepartures" data-label="Отправления группового тура" rows="6">${h(pretty(Array.isArray(group.departures) ? group.departures : []))}</textarea></label>
-            <label class="unified-tour-wide">Доп. параметры группового тура (JSON)<textarea class="unified-tour-json" name="groupExtras" data-label="Дополнительные параметры группового тура" rows="5">${h(pretty(groupExtras))}</textarea></label>
-          </div>`) }
+          ${section('Групповой формат','Стоимость, условия оплаты и конкретные выезды групповой экскурсии.',`<div class="unified-tour-grid">
+            ${field('groupFrom','Цена от',group.from || '',COMMON_HINTS.groupFrom,{placeholder:'$36'})}
+            ${field('groupAdult','Цена для взрослого',group.adult || '',COMMON_HINTS.groupAdult,{placeholder:'$36'})}
+            ${field('groupChild','Цена для ребёнка',group.child || '',COMMON_HINTS.groupChild,{placeholder:'$28'})}
+            ${field('groupInfant','Цена для младенца',group.infant || '',COMMON_HINTS.groupInfant,{placeholder:'до 2 лет бесплатно'})}
+            ${field('groupDeposit','Условия оплаты',group.deposit || '',COMMON_HINTS.groupDeposit,{wide:true,placeholder:'30% или 100%'})}
+            ${area('groupNotes','Примечания к групповому туру',textLines(group.notes),COMMON_HINTS.groupNotes,5,true,'Русскоязычный гид\nОбед включён')}
+          </div><div class="unified-tour-extra-title">Расписание выездов</div>${departuresMarkup('group', group.departures)}
+          ${Object.keys(groupExtras).length ? `<div class="unified-tour-extra-title">Дополнительные параметры группового формата</div>${extraEditorMarkup('group-extra', groupExtras)}` : ''}`)}
 
-          ${section('Индивидуальный формат','Тарифы по количеству участников и дополнительные правила.',`<div class="unified-tour-grid">
-            <label>Цена от<input name="individualFrom" value="${h(individual.from || '')}"></label><label>Депозит / оплата<input name="individualDeposit" value="${h(individual.deposit || '')}"></label>
-            <label class="unified-tour-wide">Тарифы — по одному на строку<textarea name="individualTiers" rows="6">${h(textLines(individual.tiers))}</textarea></label>
-            <label class="unified-tour-wide">Примечания — по одному на строку<textarea name="individualNotes" rows="4">${h(textLines(individual.notes))}</textarea></label>
-            <label class="unified-tour-wide">Отправления / расписание (JSON)<textarea class="unified-tour-json" name="individualDepartures" data-label="Отправления индивидуального тура" rows="5">${h(pretty(Array.isArray(individual.departures) ? individual.departures : []))}</textarea></label>
-            <label class="unified-tour-wide">Доп. параметры индивидуального тура (JSON)<textarea class="unified-tour-json" name="individualExtras" data-label="Дополнительные параметры индивидуального тура" rows="5">${h(pretty(individualExtras))}</textarea></label>
-          </div>`) }
+          ${section('Индивидуальный формат','Стоимость частной экскурсии и тарифы по количеству участников.',`<div class="unified-tour-grid">
+            ${field('individualFrom','Цена от',individual.from || '',COMMON_HINTS.individualFrom,{placeholder:'$350'})}
+            ${field('individualDeposit','Условия оплаты',individual.deposit || '',COMMON_HINTS.individualDeposit,{placeholder:'30% или 100%'})}
+            ${area('individualTiers','Тарифы по количеству участников',textLines(individual.tiers),COMMON_HINTS.individualTiers,6,true,'1–2 человека — $350\n3 человека — $390')}
+            ${area('individualNotes','Примечания к индивидуальному туру',textLines(individual.notes),COMMON_HINTS.individualNotes,4,true)}
+          </div>${Array.isArray(individual.departures) && individual.departures.length ? `<div class="unified-tour-extra-title">Расписание индивидуальных выездов</div>${departuresMarkup('individual', individual.departures)}` : ''}
+          ${Object.keys(individualExtras).length ? `<div class="unified-tour-extra-title">Дополнительные параметры индивидуального формата</div>${extraEditorMarkup('individual-extra', individualExtras)}` : ''}`)}
 
-          ${section('Описание и программа','Весь контент карточки экскурсии.',`<div class="unified-tour-grid">
-            <label class="unified-tour-wide">Краткое описание<textarea name="description" rows="6">${h(tour.description || '')}</textarea></label>
-            <label class="unified-tour-wide">Подзаголовок / дополнительное описание<textarea name="subtitle" rows="3">${h(tour.subtitle || '')}</textarea></label>
-            <label class="unified-tour-wide">Программа — по одному пункту на строку<textarea name="program" rows="7">${h(textLines(arrayValue(tour,'program')))}</textarea></label>
-            <label>Что включено — по строкам<textarea name="included" rows="7">${h(textLines(arrayValue(tour,'included')))}</textarea></label>
-            <label>Что не включено — по строкам<textarea name="notIncluded" rows="7">${h(textLines(arrayValue(tour,'notIncluded','excluded')))}</textarea></label>
-            <label>Что взять с собой — по строкам<textarea name="whatToTake" rows="6">${h(textLines(arrayValue(tour,'whatToTake')))}</textarea></label>
-            <label>Рекомендации — по строкам<textarea name="recommendations" rows="6">${h(textLines(arrayValue(tour,'recommendations')))}</textarea></label>
-            <label>Теги — по одному на строку<textarea name="tags" rows="6">${h(textLines(arrayValue(tour,'tags')))}</textarea></label>
-            <label>Поисковые ключи<textarea name="searchText" rows="6">${h(tour.searchText || '')}</textarea></label>
-          </div>`) }
+          ${section('Описание и программа','Контент карточки экскурсии. Списки заполняются по одному пункту на строку.',`<div class="unified-tour-grid">
+            ${area('description','Основное описание',tour.description || '',COMMON_HINTS.description,6,true,'Расскажите, чем интересна экскурсия и что увидит турист.')}
+            ${area('subtitle','Короткий подзаголовок',tour.subtitle || '',COMMON_HINTS.subtitle,3,true)}
+            ${area('program','Программа экскурсии',textLines(arrayValue(tour,'program')),COMMON_HINTS.program,7,true,'Встреча в отеле\nПервая остановка\nОбед\nВозвращение')}
+            ${area('included','Что включено',textLines(arrayValue(tour,'included')),COMMON_HINTS.included,7,false,'Трансфер\nГид\nОбед')}
+            ${area('notIncluded','Что не включено',textLines(arrayValue(tour,'notIncluded','excluded')),COMMON_HINTS.notIncluded,7,false,'Личные расходы')}
+            ${area('whatToTake','Что взять с собой',textLines(arrayValue(tour,'whatToTake')),COMMON_HINTS.whatToTake,6,false,'Головной убор\nКупальник')}
+            ${area('recommendations','Рекомендации туристу',textLines(arrayValue(tour,'recommendations')),COMMON_HINTS.recommendations,6,false)}
+            ${area('tags','Теги',textLines(arrayValue(tour,'tags')),COMMON_HINTS.tags,6,false,'Нячанг\nобзорная\nсемья')}
+            ${area('searchText','Ключевые слова для поиска и AI-консультанта',tour.searchText || '',COMMON_HINTS.searchText,6,false,'обзорная экскурсия нячанг достопримечательности храм пагода')}
+          </div>`)}
 
-          ${section('Фотографии','Главное фото и галерея теперь редактируются здесь, без отдельного блока «Фото экскурсий».',`<div class="unified-tour-photo">
+          ${section('Фотографии','Главное фото и вся галерея редактируются здесь — отдельного редактора фотографий больше нет.',`<div class="unified-tour-photo">
             <img class="unified-tour-preview" id="unifiedTourPreview" src="${h(preview)}" alt="Текущее фото экскурсии">
             <div class="unified-tour-photo-copy">
-              <label>Главное фото — URL<input name="image" value="${h(tour.image || '')}" placeholder="/tour-media/..."></label>
-              <label>Загрузить новое главное фото<input id="unifiedTourFile" name="imageFile" type="file" accept="image/jpeg,image/png,image/webp,image/avif"></label>
-              <div class="unified-tour-file-note">JPG, PNG, WebP или AVIF, до 8 МБ. Если выбран файл, он загружается в R2 после сохранения остальных полей.</div>
-              <label>Галерея — один URL на строку<textarea name="gallery" rows="7">${h(textLines(gallery))}</textarea></label>
+              ${field('image','Текущее главное фото',tour.image || '',COMMON_HINTS.image,{placeholder:'/tour-media/...'})}
+              <label class="unified-tour-field"><span class="unified-tour-label">Загрузить новое главное фото</span><input id="unifiedTourFile" name="imageFile" type="file" accept="image/jpeg,image/png,image/webp,image/avif"><small class="unified-tour-hint">Выберите JPG, PNG, WebP или AVIF до 8 МБ. После сохранения файл попадёт в хранилище и автоматически станет главным фото.</small></label>
+              ${area('gallery','Фотографии галереи',textLines(gallery),COMMON_HINTS.gallery,7,false,'/tour-media/...')}
             </div>
-          </div>`) }
+          </div>`)}
 
-          ${section('Дополнительные данные','Редкие поля исходного каталога не теряются: их можно редактировать здесь.',`<label>Дополнительные поля экскурсии (JSON)<textarea class="unified-tour-json" name="topExtras" data-label="Дополнительные поля экскурсии" rows="10">${h(pretty(topExtras))}</textarea></label>`) }
+          ${Object.keys(topExtras).length ? section('Дополнительные параметры','Редкие данные исходной экскурсии показаны отдельными понятными полями. JSON вводить не нужно.', extraEditorMarkup('top-extra', topExtras)) : ''}
 
-          <div class="unified-tour-save"><div><div class="unified-tour-save-note">Одна кнопка сохраняет карточку, цены, программу, правила и фотографии.</div><div class="unified-tour-error" role="alert"></div></div><button class="btn primary" type="submit">Сохранить все изменения</button></div>
+          <div class="unified-tour-save"><div><div class="unified-tour-save-note">Одна кнопка сохраняет карточку, цены, программу, расписание, дополнительные параметры и фотографии.</div><div class="unified-tour-error" role="alert"></div></div><button class="btn primary" type="submit">Сохранить все изменения</button></div>
         </form>`);
 
       const form = document.getElementById('unifiedTourForm');
@@ -223,43 +463,43 @@
     const data = new FormData(form);
     const id = String(data.get('id') || '').trim().replace(/[^a-z0-9_-]/gi, '-').toLowerCase().slice(0, 100);
     const title = String(data.get('title') || '').trim();
-    if (!id || !title) throw new Error('ID и название экскурсии обязательны.');
+    if (!id || !title) throw new Error('Служебный код и название экскурсии обязательны.');
 
-    const topExtras = parseJsonField(form, 'topExtras', {});
-    const groupExtras = parseJsonField(form, 'groupExtras', {});
-    const individualExtras = parseJsonField(form, 'individualExtras', {});
-    const groupDepartures = parseJsonArray(form, 'groupDepartures', []);
-    const individualDepartures = parseJsonArray(form, 'individualDepartures', []);
     const types = lines(data.get('typesText'));
     const capacity = toNumber(data.get('capacity'));
     const priceFromUsd = toNumber(data.get('priceFromUsd'));
     const image = String(data.get('image') || '').trim();
     const gallery = lines(data.get('gallery'));
+    const baseGroup = base.group && typeof base.group === 'object' && !Array.isArray(base.group) ? base.group : {};
+    const baseIndividual = base.individual && typeof base.individual === 'object' && !Array.isArray(base.individual) ? base.individual : {};
 
     const group = {
-      ...(base.group && typeof base.group === 'object' && !Array.isArray(base.group) ? base.group : {}),
-      ...groupExtras,
+      ...baseGroup,
+      ...collectExtras(form, 'group-extra', extraObject(baseGroup, GROUP_FIELDS)),
       from:String(data.get('groupFrom') || '').trim(),
       adult:String(data.get('groupAdult') || '').trim(),
       child:String(data.get('groupChild') || '').trim(),
       infant:String(data.get('groupInfant') || '').trim(),
       deposit:String(data.get('groupDeposit') || '').trim(),
       notes:lines(data.get('groupNotes')),
-      departures:groupDepartures,
+      departures:collectDepartures(form, 'group', baseGroup.departures),
     };
+
     const individual = {
-      ...(base.individual && typeof base.individual === 'object' && !Array.isArray(base.individual) ? base.individual : {}),
-      ...individualExtras,
+      ...baseIndividual,
+      ...collectExtras(form, 'individual-extra', extraObject(baseIndividual, INDIVIDUAL_FIELDS)),
       from:String(data.get('individualFrom') || '').trim(),
       deposit:String(data.get('individualDeposit') || '').trim(),
       tiers:lines(data.get('individualTiers')),
       notes:lines(data.get('individualNotes')),
-      departures:individualDepartures,
     };
+    if (form.querySelector('[data-departure-list="individual"]')) {
+      individual.departures = collectDepartures(form, 'individual', baseIndividual.departures);
+    }
 
     const payload = {
       ...base,
-      ...topExtras,
+      ...collectExtras(form, 'top-extra', extraObject(base, TOP_LEVEL_FIELDS)),
       id,
       title,
       city:String(data.get('city') || '').trim(),
@@ -289,10 +529,8 @@
       fallbackImage:image || String(base.fallbackImage || ''),
       gallery,
     };
-    if (capacity == null) { delete payload.capacity; }
-    else payload.capacity = capacity;
-    if (priceFromUsd == null) { delete payload.priceFromUsd; }
-    else payload.priceFromUsd = priceFromUsd;
+    if (capacity == null) delete payload.capacity; else payload.capacity = capacity;
+    if (priceFromUsd == null) delete payload.priceFromUsd; else payload.priceFromUsd = priceFromUsd;
     return payload;
   }
 
@@ -343,15 +581,34 @@
     }
   }
 
-  // Capture phase is intentional: the base admin app still contains its old
-  // compact form for backwards compatibility, but users only reach this editor.
   document.addEventListener('click', event => {
-    const button = event.target.closest('[data-admin-action="edit-tour"]');
-    if (!button) return;
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-    void openEditor(decodeURIComponent(String(button.dataset.id || '')));
+    const edit = event.target.closest('[data-admin-action="edit-tour"]');
+    if (edit) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      void openEditor(decodeURIComponent(String(edit.dataset.id || '')));
+      return;
+    }
+
+    const add = event.target.closest('[data-add-departure]');
+    if (add) {
+      const scope = add.dataset.addDeparture;
+      const list = document.querySelector(`[data-departure-list="${scope}"]`);
+      if (!list) return;
+      list.querySelector('[data-departure-empty]')?.remove();
+      const nextIndex = Math.max(-1, ...[...list.querySelectorAll('[data-departure-row]')].map(row => Number(row.dataset.departureIndex) || 0)) + 1;
+      list.insertAdjacentHTML('beforeend', departureCard(scope, {}, nextIndex));
+      return;
+    }
+
+    const remove = event.target.closest('[data-remove-departure]');
+    if (remove) {
+      const row = remove.closest('[data-departure-row]');
+      const list = row?.parentElement;
+      row?.remove();
+      if (list && !list.querySelector('[data-departure-row]')) list.innerHTML = '<p class="unified-tour-empty-note" data-departure-empty>Выезды пока не добавлены.</p>';
+    }
   }, true);
 
   injectStyles();
