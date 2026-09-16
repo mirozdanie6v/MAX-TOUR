@@ -76,7 +76,7 @@ async function loadCatalog(request, env) {
 }
 
 function totalPeople(memory = {}) {
-  return Math.max(0, Number(memory.adults) || 0) + (Array.isArray(memory.children) ? memory.children.length : 0) + Math.max(0, Number(memory.infants) || 0));
+  return Math.max(0, Number(memory.adults) || 0) + (Array.isArray(memory.children) ? memory.children.length : 0) + Math.max(0, Number(memory.infants) || 0);
 }
 
 function peopleFromContext(value) {
