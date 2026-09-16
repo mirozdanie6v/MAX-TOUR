@@ -109,9 +109,9 @@
     fileInput?.addEventListener('change', () => {
       const file = fileInput.files?.[0];
       if (!file) return;
-      const url = URL.createObjectURL(file);
-      preview.src = url;
-      preview.onload = () => URL.revokeObjectURL(url);
+      const reader = new FileReader();
+      reader.onload = () => { preview.src = String(reader.result || ''); };
+      reader.readAsDataURL(file);
     });
     form?.addEventListener('submit', event => upload(event, tour));
   }
