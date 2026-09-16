@@ -22,6 +22,14 @@ const islandTour = {
   group:{ adult:'$45' },
 };
 
+const env = {
+  ASSETS:{
+    async fetch() {
+      return new Response(JSON.stringify([islandTour, cityTour]), { status:200, headers:{ 'content-type':'application/json' } });
+    },
+  },
+};
+
 test('typed and quick-reply city overview phrases resolve as the same intent', () => {
   assert.equal(isCityOverviewIntent('Хочу обзорную экскурсию'), true);
   assert.equal(isCityOverviewIntent('Обзор города'), true);
@@ -50,19 +58,47 @@ test('orchestrator response is polished into a concrete city recommendation with
     quickReplies:['Сегодня','Завтра','Дата гибкая'],
     memory:{ origin:'Нячанг', destination:'', preferences:['город и культура'], adults:2, children:[], infants:0, date:'', format:'' },
   }), { status:200, headers:{ 'content-type':'application/json; charset=utf-8' } });
-  const env = {
-    ASSETS:{
-      async fetch() {
-        return new Response(JSON.stringify([islandTour, cityTour]), { status:200, headers:{ 'content-type':'application/json' } });
-      },
-    },
-  };
 
   const polished = await polishCityOverviewResponse(request, env, new URL(request.url), original);
   const payload = await polished.json();
   assert.equal(payload.tourId, 'nhatrang-day');
   assert.equal(payload.nextStep, 'ask_date');
   assert.match(payload.reply, /Обзорная экскурсия по Нячангу/iu);
+  assert.match(payload.reply, /На какую дату/iu);
+  assert.doesNotMatch(payload.reply, /что вам больше хочется/iu);
+});
+
+test('exact mobile flow recovers Nha Trang overview from chat history even when backend memory/source are incomplete', async () => {
+  const request = new Request('https://max-tour-demo.viiversion.com/api/ai/chat', {
+    method:'POST',
+    headers:{ 'content-type':'application/json' },
+    body:JSON.stringify({
+      message:'Хочу обзорную экскурсию',
+      history:[
+        { role:'user', text:'Я в Нячанге' },
+        { role:'assistant', text:'Что вам больше хочется?' },
+        { role:'user', text:'Нас 2 взрослых' },
+      ],
+      context:{ people:'2 взр.', destination:'' },
+    }),
+  });
+  const original = new Response(JSON.stringify({
+    ok:true,
+    source:'fallback-ai',
+    reply:'Что вам больше хочется: море и острова, природа и красивые виды или обзор города?',
+    tourId:'',
+    tourIds:['hon-tam','nhatrang-day'],
+    nextStep:'ask_preferences',
+    quickReplies:['Острова','Красивые виды','Обзор города'],
+    memory:{ origin:'', destination:'', preferences:[], adults:0, children:[], infants:0, date:'', format:'' },
+  }), { status:200, headers:{ 'content-type':'application/json; charset=utf-8' } });
+
+  const polished = await polishCityOverviewResponse(request, env, new URL(request.url), original);
+  const payload = await polished.json();
+  assert.equal(payload.tourId, 'nhatrang-day');
+  assert.equal(payload.memory.adults, 2);
+  assert.equal(payload.nextStep, 'ask_date');
+  assert.match(payload.reply, /по Нячангу/iu);
   assert.match(payload.reply, /На какую дату/iu);
   assert.doesNotMatch(payload.reply, /что вам больше хочется/iu);
 });
