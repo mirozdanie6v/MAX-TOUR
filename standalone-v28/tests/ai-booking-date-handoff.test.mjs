@@ -15,7 +15,9 @@ test('AI booking bridge prefers the exact departure selected by date quick reply
 test('AI booking bridge does not silently fall back to another group date', () => {
   assert.match(source, /if \(targetDate && departureCards\.length\)/);
   assert.match(source, /return buttons\.find\(button => button\.closest\('\.depart-card'\) === targetCard\) \|\| null/);
-  assert.match(source, /keep the tour\s+card open instead of silently booking another day/i);
+  const guardedBranch = source.slice(source.indexOf('if (targetDate && departureCards.length)'), source.indexOf('return buttons[0] || null;'));
+  assert.match(guardedBranch, /if \(!targetCard\) return null/);
+  assert.doesNotMatch(guardedBranch, /buttons\[0\]/);
 });
 
 test('AI date is re-applied after the legacy booking screen opens', () => {
