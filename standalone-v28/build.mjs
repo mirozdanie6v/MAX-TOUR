@@ -97,6 +97,16 @@ function replaceBrandLogos(html) {
   return html;
 }
 
+function stripSalesContinuityV24(source) {
+  const pattern = /\(\(\) => \{\n  'use strict';\n\n  const AI_STATE_KEY = 'max-tour-ai-consultant-v5';\n  const LOCATION_KEY = 'max-tour-ai-location-v6';\n  const ORIGIN_KEY = 'max-tour-ai-origin-v20';[\s\S]*?  globalThis\.MaxTourAISalesContinuityV24 = \{ sanitizeStoredState, releaseLocationGuard, salesStage, nextReply \};\n\}\)\(\);\n?/;
+  if (!pattern.test(source)) throw new Error('sales-continuity-v24 reply rewriter block was not found');
+  const stripped = source.replace(pattern, "/* sales-continuity-v24 removed: server AI reply is authoritative. */\n");
+  if (stripped.includes('MaxTourAISalesContinuityV24') || stripped.includes("source:'sales-continuity-v24'")) {
+    throw new Error('sales-continuity-v24 reply rewriter survived build stripping');
+  }
+  return stripped;
+}
+
 const telegramSdk = '<script src="https://telegram.org/js/telegram-web-app.js?63"></script>';
 const analyticsTracker = '<script defer src="https://dashboard.viiversion.com/tracker.js" data-project="MAX TOUR Demo"></script>';
 const productionEmbedCss = '<link rel="stylesheet" href="/production-embed-polish.css">';
@@ -156,7 +166,8 @@ await copyFile(resolve(root, 'src/ai-consultant-v5.js'), resolve(dist, 'ai-consu
 await copyFile(resolve(root, 'src/ai-location-guard-v6.js'), resolve(dist, 'ai-location-guard-v6.js'));
 await copyFile(resolve(root, 'src/ai-catalog-card-v7.js'), resolve(dist, 'ai-catalog-card-v7.js'));
 await copyFile(resolve(root, 'src/ai-selection-polish-v15.js'), resolve(dist, 'ai-selection-polish-v15.js'));
-await copyFile(resolve(root, 'src/ai-explicit-tour-v16.js'), resolve(dist, 'ai-explicit-tour-v16.js'));
+const explicitTourSource = await readFile(resolve(root, 'src/ai-explicit-tour-v16.js'), 'utf8');
+await writeFile(resolve(dist, 'ai-explicit-tour-v16.js'), stripSalesContinuityV24(explicitTourSource), 'utf8');
 await copyFile(resolve(root, 'src/ai-booking-bridge-v25.js'), resolve(dist, 'ai-booking-bridge-v25.js'));
 await copyFile(resolve(root, 'src/tour-departure-live-v3.js'), resolve(dist, 'tour-departure-live-v3.js'));
 await copyFile(resolve(root, 'src/catalog-show-press.css'), resolve(dist, 'catalog-show-press.css'));
@@ -175,4 +186,4 @@ await copyFile(resolve(root, 'src/admin-app.css'), resolve(dist, 'admin-app.css'
 await copyFile(resolve(root, 'src/admin-app.js'), resolve(dist, 'admin-app.js'));
 await copyFile(resolve(root, 'src/admin-tour-media.js'), resolve(dist, 'admin-tour-media.js'));
 await copyFile(resolve(root, 'src/runtime-api.js'), resolve(dist, 'runtime-api.js'));
-console.log(`Built standalone v28: ${catalog.length} tours with curated location-correct imagery + photo lightbox + live trip/departure policy + AI consultant v8 network guard, v15 selection ranking and v16 explicit-tour guard + v25 safe booking bridge + v7 catalog-card parity + admin v3 + editable R2 tour photos + director v3 + Telegram analytics; exact source checksums verified.`);
+console.log(`Built standalone v28: ${catalog.length} tours with curated location-correct imagery + photo lightbox + live trip/departure policy + AI consultant v8 network guard, v15 selection ranking and v16 explicit-tour guard without sales-continuity reply rewriting + v25 safe booking bridge + v7 catalog-card parity + admin v3 + editable R2 tour photos + director v3 + Telegram analytics; exact source checksums verified.`);
