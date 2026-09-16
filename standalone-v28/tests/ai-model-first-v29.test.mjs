@@ -75,7 +75,7 @@ test('model-first overview keeps exact Nha Trang card while AI writes the answer
     headers:{ 'content-type':'application/json' },
     body:JSON.stringify({
       message:'Я в Нячанге, хочу обзорную экскурсию',
-      context:{ people:'2 взр.' },
+      context:{ people:'2 взрослых' },
       history:[],
     }),
   });
