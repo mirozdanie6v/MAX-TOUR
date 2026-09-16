@@ -369,11 +369,18 @@
   }
 
   function dispatchValue(input, value) {
-    if (!input || value == null || value === '') return;
+    if (!input || value == null || value === '') return false;
+    const nextValue = String(value);
+    if (String(input.value ?? '') === nextValue) return false;
     const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value');
-    try { descriptor?.set?.call(input, String(value)); } catch (_) { input.value = String(value); }
+    if (descriptor?.set) {
+      try { descriptor.set.call(input, nextValue); } catch (_) { input.value = nextValue; }
+    } else {
+      input.value = nextValue;
+    }
     input.dispatchEvent(new Event('input', { bubbles:true }));
     input.dispatchEvent(new Event('change', { bubbles:true }));
+    return true;
   }
 
   function smallestCounterRow(root, label) {
@@ -398,6 +405,7 @@
   function prefillBooking(intent) {
     const root = document.getElementById('bookingScreen') || document.querySelector('[id*="booking" i]');
     if (!root) return false;
+    if (root.id === 'bookingScreen' && !root.classList?.contains('active')) return false;
     const date = root.querySelector('input[type="date"]');
     if (date) {
       date.min = vietnamTodayIso();
@@ -538,7 +546,7 @@
     mount,
     _test:{
       vietnamTodayIso, parseDate, parseParty, departureIso, isDiscoveryIntent, isBookingIntent,
-      recommendationForTourId, applyServerTour, locationAllowsTour,
+      recommendationForTourId, applyServerTour, locationAllowsTour, dispatchValue, prefillBooking,
     },
   };
 })();

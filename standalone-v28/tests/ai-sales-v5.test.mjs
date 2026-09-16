@@ -12,9 +12,60 @@ const worker = await import('../src/worker-profile.js?ai-sales-v5-test');
 
 test('AI consultant v5 source is syntactically valid and wired into build', () => {
   assert.doesNotThrow(() => new vm.Script(ai));
-  assert.match(build, /ai-consultant-v5\.js/);
+  assert.match(build, /ai-consultant-v5\.js\?v=26/);
   assert.match(build, /ai-consultant-v5\.css/);
   assert.match(build, /copyFile\(resolve\(root, 'src\/ai-consultant-v5\.js'/);
+});
+
+test('AI booking prefill ignores hidden checkout and does not redispatch an unchanged date', () => {
+  const events = [];
+  let bookingActive = false;
+  const dateInput = {
+    value:'2026-09-17',
+    min:'',
+    dispatchEvent(event) { events.push(event.type); },
+  };
+  const bookingRoot = {
+    id:'bookingScreen',
+    classList:{ contains(name) { return name === 'active' && bookingActive; } },
+    querySelector(selector) { return selector === 'input[type="date"]' ? dateInput : null; },
+    querySelectorAll() { return []; },
+  };
+  const storage = new Map();
+  const context = {
+    console,
+    Date,
+    Intl,
+    TOURS:[],
+    Event:class { constructor(type) { this.type = type; } },
+    MutationObserver:class { observe() {} },
+    sessionStorage:{
+      getItem(key) { return storage.get(key) ?? null; },
+      setItem(key, value) { storage.set(key, value); },
+      removeItem(key) { storage.delete(key); },
+    },
+    document:{
+      documentElement:{},
+      getElementById(id) { return id === 'bookingScreen' ? bookingRoot : null; },
+      querySelector() { return null; },
+    },
+    setTimeout() { return 0; },
+  };
+  context.globalThis = context;
+  vm.createContext(context);
+  vm.runInContext(ai, context, { filename:'ai-consultant-v5.js' });
+
+  const intent = { tourId:'fuyen', date:'2026-09-17', adults:2, children:[], infants:0 };
+  assert.equal(context.MaxTourAI._test.prefillBooking(intent), false);
+  bookingActive = true;
+  assert.equal(context.MaxTourAI._test.prefillBooking(intent), true);
+  assert.deepEqual(events, []);
+
+  assert.equal(context.MaxTourAI._test.dispatchValue(dateInput, '2026-09-18'), true);
+  assert.equal(dateInput.value, '2026-09-18');
+  assert.deepEqual(events, ['input', 'change']);
+  assert.equal(context.MaxTourAI._test.dispatchValue(dateInput, '2026-09-18'), false);
+  assert.deepEqual(events, ['input', 'change']);
 });
 
 test('AI recommendations render visual excursion cards with direct booking action', () => {
