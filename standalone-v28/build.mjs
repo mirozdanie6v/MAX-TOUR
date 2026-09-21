@@ -110,7 +110,9 @@ function stripSalesContinuityV24(source) {
 const telegramSdk = '<script src="https://telegram.org/js/telegram-web-app.js?63"></script>';
 const analyticsTracker = '<script defer src="https://dashboard.viiversion.com/tracker.js" data-project="MAX TOUR Demo"></script>';
 const productionEmbedCss = '<link rel="stylesheet" href="/production-embed-polish.css">';
+const i18nCss = '<link rel="stylesheet" href="/i18n-v1.css">';
 const productionEmbedJs = '<script defer src="/production-embed-polish.js"></script>';
+const i18nJs = '<script defer src="/i18n-v1.js"></script>';
 
 function withViiversionAnalytics(html) {
   let result = html;
@@ -122,6 +124,10 @@ function withViiversionAnalytics(html) {
     if (!result.includes('</head>')) throw new Error('HTML has no </head> marker');
     result = result.replace('</head>', `${productionEmbedCss}\n</head>`);
   }
+  if (!result.includes('i18n-v1.css')) {
+    if (!result.includes('</head>')) throw new Error('HTML has no </head> marker');
+    result = result.replace('</head>', `${i18nCss}\n</head>`);
+  }
   if (!result.includes('dashboard.viiversion.com/tracker.js')) {
     if (!result.includes('</body>')) throw new Error('HTML has no </body> marker');
     result = result.replace('</body>', `${analyticsTracker}\n</body>`);
@@ -129,6 +135,10 @@ function withViiversionAnalytics(html) {
   if (!result.includes('production-embed-polish.js')) {
     if (!result.includes('</body>')) throw new Error('HTML has no </body> marker');
     result = result.replace('</body>', `${productionEmbedJs}\n</body>`);
+  }
+  if (!result.includes('i18n-v1.js')) {
+    if (!result.includes('</body>')) throw new Error('HTML has no </body> marker');
+    result = result.replace('</body>', `${i18nJs}\n</body>`);
   }
   return result;
 }
@@ -176,6 +186,8 @@ await copyFile(resolve(root, 'src/tour-lightbox.css'), resolve(dist, 'tour-light
 await copyFile(resolve(root, 'src/tour-lightbox.js'), resolve(dist, 'tour-lightbox.js'));
 await copyFile(resolve(root, 'src/production-embed-polish.css'), resolve(dist, 'production-embed-polish.css'));
 await copyFile(resolve(root, 'src/production-embed-polish.js'), resolve(dist, 'production-embed-polish.js'));
+await copyFile(resolve(root, 'src/i18n-v1.css'), resolve(dist, 'i18n-v1.css'));
+await copyFile(resolve(root, 'src/i18n-v1.js'), resolve(dist, 'i18n-v1.js'));
 await copyFile(resolve(root, 'src/max-tour-logo.svg'), resolve(dist, 'max-tour-logo.svg'));
 const adminBuilt = withViiversionAnalytics(replaceBrandLogos(adminPrototype)
   .replace('</head>', '<link rel="stylesheet" href="/admin-app.css">\n</head>')
