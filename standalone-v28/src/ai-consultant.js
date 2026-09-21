@@ -3,11 +3,14 @@
 
   // Bump the client state key so an older conversation created by the previous
   // guided flow cannot reappear after the chat interaction model changes.
-  const STORAGE_KEY = 'max-tour-ai-consultant-v4';
+  const ACTIVE_LOCALE = ['vi','en'].includes(String(localStorage.getItem('max-tour-locale-v1') || '').toLowerCase())
+    ? String(localStorage.getItem('max-tour-locale-v1')).toLowerCase() : 'ru';
+  const STORAGE_KEY = 'max-tour-ai-consultant-v4-' + ACTIVE_LOCALE;
   const MAX_MESSAGES = 120;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
-  const lower = value => String(value || '').toLocaleLowerCase('ru-RU');
+  const lower = value => String(value || '').toLocaleLowerCase(ACTIVE_LOCALE === 'vi' ? 'vi-VN' : ACTIVE_LOCALE === 'en' ? 'en-US' : 'ru-RU');
   const clean = (value, max = 500) => String(value ?? '').trim().slice(0, max);
+  const localeText = (ru, vi, en) => ACTIVE_LOCALE === 'vi' ? vi : ACTIVE_LOCALE === 'en' ? en : ru;
   const tours = () => {
     try { return Array.isArray(TOURS) ? TOURS : []; } catch (_) { return []; }
   };
@@ -19,7 +22,11 @@
   });
 
   const freshState = () => ({
-    slots: freshSlots(), messages: [{ role:'bot', text:'Задавайте вопрос — я помогу с поездкой.' }],
+    slots: freshSlots(), messages: [{ role:'bot', text:localeText(
+      'Задавайте вопрос — я помогу с поездкой.',
+      'Hãy đặt câu hỏi — tôi sẽ giúp bạn với chuyến đi.',
+      'Ask a question — I will help you with your trip.'
+    ) }],
     recommendations: [], handoff: null, handoffHidden: false, showContact: false,
   });
 
@@ -450,8 +457,9 @@
     const response = await fetch('/api/ai/chat', {
       method: 'POST',
       credentials: 'same-origin',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-max-tour-locale':ACTIVE_LOCALE },
       body: JSON.stringify({
+        locale: ACTIVE_LOCALE,
         message: clean(text, 900),
         history: (history || []).slice(-10).map(item => ({ role:item.role, text:item.text })),
         context: {
@@ -460,6 +468,7 @@
           people: formatPeople(),
           date: s.date,
           preferences: s.preferences,
+          locale: ACTIVE_LOCALE,
         },
       }),
     });
