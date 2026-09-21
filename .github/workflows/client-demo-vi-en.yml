@@ -1,0 +1,50 @@
+name: VI-EN client demo audit
+
+on:
+  push:
+    branches:
+      - demo/vi-en-tour-operator
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Test and build client-only demo
+        working-directory: standalone-v28
+        run: |
+          npm install --ignore-scripts --no-audit --no-fund --package-lock=false
+          node --check src/worker.js
+          node --check src/client-demo/app.js
+          node --check src/client-demo/ui-locales.js
+          npm test
+          npm run build:client-demo
+          test -f dist/index.html
+          test -f dist/client-demo.js
+          test -f dist/client-locales/vi-tours.json
+          test -f dist/client-locales/en-tours.json
+          test ! -d dist/admin
+          test ! -d dist/director
+          test "$(node -e "console.log(Object.keys(JSON.parse(require('fs').readFileSync('dist/client-locales/vi-tours.json','utf8'))).length)")" = "15"
+          test "$(node -e "console.log(Object.keys(JSON.parse(require('fs').readFileSync('dist/client-locales/en-tours.json','utf8'))).length)")" = "15"
+      - name: Browser E2E VI and EN
+        working-directory: standalone-v28
+        run: |
+          npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.55.0
+          npx playwright install chromium
+          python3 -m http.server 4174 --directory dist >/tmp/client-demo-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid || true' EXIT
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:4174/ >/dev/null && break
+            sleep 1
+          done
+          node scripts/smoke-client-demo.mjs
