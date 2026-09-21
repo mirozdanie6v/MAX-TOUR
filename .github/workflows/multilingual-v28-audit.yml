@@ -1,0 +1,32 @@
+name: Multilingual v28 i18n audit
+
+on:
+  push:
+    branches:
+      - production/max-tour-multilingual
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Build exact standalone v28
+        working-directory: standalone-v28
+        run: |
+          npm install --ignore-scripts --no-audit --no-fund --package-lock=false
+          npm run build
+      - name: Extract customer-facing Russian strings
+        working-directory: standalone-v28
+        run: node scripts/extract-i18n.mjs > i18n-audit.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: max-tour-v28-i18n-audit
+          path: standalone-v28/i18n-audit.json
