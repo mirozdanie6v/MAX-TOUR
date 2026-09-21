@@ -23,12 +23,13 @@ jobs:
         run: |
           npm install --ignore-scripts --no-audit --no-fund --package-lock=false
           node --check src/i18n-v1.js
+          node --check src/i18n-en-v1.js
           npm test
           npm run build
       - name: Extract customer-facing Russian strings
         working-directory: standalone-v28
         run: node scripts/extract-i18n.mjs > i18n-audit.json
-      - name: Browser smoke Vietnamese customer UI
+      - name: Browser smoke Vietnamese and English customer UI
         working-directory: standalone-v28
         run: |
           npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.55.0
