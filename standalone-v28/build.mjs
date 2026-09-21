@@ -187,7 +187,8 @@ await copyFile(resolve(root, 'src/tour-lightbox.js'), resolve(dist, 'tour-lightb
 await copyFile(resolve(root, 'src/production-embed-polish.css'), resolve(dist, 'production-embed-polish.css'));
 await copyFile(resolve(root, 'src/production-embed-polish.js'), resolve(dist, 'production-embed-polish.js'));
 await copyFile(resolve(root, 'src/i18n-v1.css'), resolve(dist, 'i18n-v1.css'));
-await copyFile(resolve(root, 'src/i18n-v1.js'), resolve(dist, 'i18n-v1.js'));\nawait copyFile(resolve(root, 'src/i18n-en-v1.js'), resolve(dist, 'i18n-en-v1.js'));
+await copyFile(resolve(root, 'src/i18n-v1.js'), resolve(dist, 'i18n-v1.js'));
+await copyFile(resolve(root, 'src/i18n-en-v1.js'), resolve(dist, 'i18n-en-v1.js'));
 await copyFile(resolve(root, 'src/max-tour-logo.svg'), resolve(dist, 'max-tour-logo.svg'));
 const adminBuilt = withViiversionAnalytics(replaceBrandLogos(adminPrototype)
   .replace('</head>', '<link rel="stylesheet" href="/admin-app.css">\n</head>')
