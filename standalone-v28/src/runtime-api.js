@@ -3,6 +3,20 @@
 
   const FALLBACK_KEY = 'max-tour-v28-demo-state';
   const original = {};
+  const LEGACY_DEMO_NAME_REPLACEMENTS = [
+    ['Иван Петров','Nguyen Van An'],
+    ['Анна Петрова','Tran Thi Mai'],
+    ['Марк Петров','Nguyen Minh Khoa'],
+  ];
+
+  function sanitizeLegacyDemoData(value) {
+    if (Array.isArray(value)) return value.map(sanitizeLegacyDemoData);
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, sanitizeLegacyDemoData(item)]));
+    }
+    if (typeof value !== 'string') return value;
+    return LEGACY_DEMO_NAME_REPLACEMENTS.reduce((text, [from, to]) => text.split(from).join(to), value);
+  }
 
   async function request(path, options = {}) {
     const response = await fetch(path, {
@@ -16,11 +30,11 @@
   }
 
   function snapshot() {
-    return {
+    return sanitizeLegacyDemoData({
       bookings: Array.isArray(demoTrips) ? demoTrips : [],
       travelers: Array.isArray(travelerDirectory) ? travelerDirectory : [],
       favorites: Array.from(liked || []),
-    };
+    });
   }
 
   function saveFallback() {
@@ -38,6 +52,7 @@
   }
 
   function applyBootstrap(data = {}) {
+    data = sanitizeLegacyDemoData(data);
     if (Array.isArray(data.bookings) && data.bookings.length) {
       demoTrips.splice(0, demoTrips.length, ...data.bookings);
     }
