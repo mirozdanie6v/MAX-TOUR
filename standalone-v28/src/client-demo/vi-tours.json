@@ -1,0 +1,753 @@
+{
+  "dalat-premium": {
+    "title": "Đà Lạt “Premium”",
+    "groupNotes": [
+      "Đoàn 14–20 khách",
+      "Bao gồm bữa trưa, vé tham quan và cáp treo",
+      "Hướng dẫn viên và xe đón từ khách sạn"
+    ],
+    "individualNotes": [
+      "Chọn ngày ngay khi đặt",
+      "Có thể điều chỉnh lịch trình thoải mái hơn",
+      "Có thể thanh toán phần còn lại cho hướng dẫn viên bằng VND"
+    ],
+    "route": [
+      [
+        "Đồn điền cà phê",
+        "Khám phá văn hóa cà phê Việt Nam và quán cà phê lớn nhất khu vực."
+      ],
+      [
+        "Đèo núi",
+        "Cung đường uốn lượn với tầm nhìn ra núi, mây và rừng."
+      ],
+      [
+        "Làng Đất Sét",
+        "Công viên sáng tạo với các tác phẩm nghệ thuật và những gương mặt đá nổi tiếng dưới nước."
+      ],
+      [
+        "Crazy House",
+        "Một trong những công trình kiến trúc độc đáo nhất Đà Lạt."
+      ],
+      [
+        "Chùa Linh Phước",
+        "Ngôi chùa Phật giáo với nghệ thuật khảm kính và gốm sứ."
+      ],
+      [
+        "Thác Datanla",
+        "Rừng thông, thiên nhiên núi rừng và xe trượt điện có phụ phí tại chỗ."
+      ],
+      [
+        "Cáp treo",
+        "Ngắm toàn cảnh Đà Lạt, hồ và rừng thông từ trên cao."
+      ]
+    ],
+    "included": [
+      "Bữa trưa ngon",
+      "Toàn bộ vé vào cửa và cáp treo",
+      "Hướng dẫn viên chuyên nghiệp",
+      "Xe minibus thoải mái",
+      "Mỗi khách một chai nước"
+    ],
+    "take": [
+      "Trang phục che vai và đầu gối khi vào chùa",
+      "Đặt bữa sáng mang đi từ tối hôm trước",
+      "Áo khoác vì Đà Lạt mát hơn",
+      "Áo mưa",
+      "Giày thoải mái",
+      "VND cho quà lưu niệm và chi phí nhỏ"
+    ]
+  },
+  "dalat-vip": {
+    "title": "Đà Lạt “VIP”",
+    "groupNotes": [
+      "Đoàn 14–20 khách",
+      "Bao gồm bữa trưa, vé, nước và hướng dẫn viên",
+      "Lịch trình phong phú nhưng không quá gấp"
+    ],
+    "individualNotes": [
+      "Nhịp độ riêng",
+      "Có thể ở lâu hơn tại các điểm chính",
+      "Phù hợp cho gia đình và nhóm bạn"
+    ],
+    "route": [
+      [
+        "Đồn điền cà phê",
+        "Khám phá văn hóa cà phê và quán cà phê lớn của khu vực."
+      ],
+      [
+        "Làng Hobbit",
+        "Không gian cổ tích với những ngôi nhà đẹp để chụp ảnh."
+      ],
+      [
+        "Đèo núi",
+        "Cung đường đẹp xuyên qua núi và rừng."
+      ],
+      [
+        "Làng Đất Sét",
+        "Công viên nghệ thuật với các gương mặt đá dưới nước."
+      ],
+      [
+        "Crazy House",
+        "Kiến trúc độc đáo và bầu không khí sáng tạo của Đà Lạt."
+      ],
+      [
+        "Chùa Linh Phước",
+        "Nghệ thuật khảm kính và gốm sứ."
+      ],
+      [
+        "Thác Datanla",
+        "Thác núi và xe trượt có phụ phí."
+      ],
+      [
+        "Nông trại động vật",
+        "Hổ, sư tử, capybara, voi và đà điểu; các hoạt động trả phí tại chỗ."
+      ]
+    ],
+    "included": [
+      "Bữa trưa ngon",
+      "Toàn bộ vé vào cửa",
+      "Hướng dẫn viên",
+      "Xe minibus thoải mái",
+      "Nhóm quy mô thoải mái",
+      "Nước uống"
+    ],
+    "take": [
+      "Mũ và kem chống nắng",
+      "Bữa sáng mang đi từ tối hôm trước",
+      "Giày thoải mái",
+      "Đồ bơi/đồ dự phòng tùy thời tiết",
+      "Tinh thần vui vẻ",
+      "VND cho chi phí nhỏ"
+    ]
+  },
+  "fuyen": {
+    "title": "Tỉnh Phú Yên",
+    "groupNotes": [
+      "Đoàn 14–20 khách",
+      "Bao gồm bữa trưa, vé, xe đưa đón và nước",
+      "Nhiều điểm thiên nhiên và chụp ảnh"
+    ],
+    "individualNotes": [
+      "Lịch trình riêng cho nhóm của bạn",
+      "Chủ động nhịp độ trong ngày",
+      "Phù hợp chụp ảnh và dừng nghỉ thư thả"
+    ],
+    "route": [
+      [
+        "Bãi biển hoang sơ",
+        "Tắm biển và tận hưởng thiên nhiên nguyên sơ."
+      ],
+      [
+        "Tuy Hòa và tháp Chăm",
+        "Di tích kiến trúc và văn hóa Chăm cổ."
+      ],
+      [
+        "Tháp Nghinh Phong",
+        "Công trình trắng hiện đại, biểu tượng mới của tỉnh."
+      ],
+      [
+        "Hải đăng mũi Điện",
+        "Một trong những điểm cực Đông nổi tiếng của Việt Nam."
+      ],
+      [
+        "Chùa Trầm",
+        "Không gian tâm linh và những câu chuyện địa phương."
+      ],
+      [
+        "Bữa trưa tại nhà hàng",
+        "Món ăn truyền thống và các món canh."
+      ],
+      [
+        "Chùa Thanh Lương",
+        "Điểm dừng yên bình cuối hành trình."
+      ],
+      [
+        "Gành Đá Đĩa",
+        "Các khối đá bazan độc đáo bên biển."
+      ],
+      [
+        "Nhà thờ Mằng Lăng",
+        "Một trong những nhà thờ cổ nổi tiếng của Việt Nam."
+      ]
+    ],
+    "included": [
+      "Bữa trưa ngon",
+      "Toàn bộ vé vào cửa",
+      "Hướng dẫn viên",
+      "Xe minibus thoải mái",
+      "Nhóm quy mô thoải mái",
+      "Nước uống"
+    ],
+    "take": [
+      "Mũ và kem chống nắng",
+      "Bữa sáng mang đi từ tối hôm trước",
+      "Giày thoải mái và ba lô",
+      "Đồ bơi, khăn tắm",
+      "Tinh thần vui vẻ",
+      "VND cho quà lưu niệm"
+    ]
+  },
+  "nhatrang-day": {
+    "title": "City tour Nha Trang ban ngày",
+    "groupNotes": [
+      "Chương trình ngắn gọn, thuận tiện",
+      "Bao gồm bữa trưa, vé, xe đưa đón và nước",
+      "Phù hợp cho lần đầu khám phá Nha Trang"
+    ],
+    "individualNotes": [
+      "Phù hợp cho gia đình hoặc nhóm nhỏ",
+      "Có thể đi với nhịp độ thoải mái",
+      "Không phải di chuyển xa khỏi thành phố"
+    ],
+    "route": [
+      [
+        "Chùa Long Sơn và tượng Phật Trắng",
+        "Ngôi chùa Phật giáo và biểu tượng nổi tiếng của Nha Trang."
+      ],
+      [
+        "Nhà thờ Núi Nha Trang",
+        "Kiến trúc Gothic Pháp đầu thế kỷ XX."
+      ],
+      [
+        "Hòn Chồng",
+        "Các khối đá ven biển và tầm nhìn đẹp ra bờ biển."
+      ],
+      [
+        "Chùa Trúc Lâm Phụng",
+        "Điểm ngắm toàn cảnh trên núi Chín Khúc."
+      ],
+      [
+        "Tháp Bà Po Nagar",
+        "Quần thể đền Chăm lịch sử."
+      ],
+      [
+        "Bãi biển phía Bắc Nha Trang",
+        "Đi dạo dọc một đoạn bờ biển đẹp."
+      ],
+      [
+        "Bữa trưa tại nhà hàng",
+        "Ẩm thực Việt Nam và nghỉ ngơi sau chuyến tham quan."
+      ]
+    ],
+    "included": [
+      "Bữa trưa",
+      "Vé tham quan",
+      "Hướng dẫn viên",
+      "Xe minibus thoải mái",
+      "Nhóm quy mô thoải mái",
+      "Nước uống"
+    ],
+    "take": [
+      "Trang phục kín đáo khi vào chùa",
+      "Mũ và kem chống nắng",
+      "Tinh thần vui vẻ",
+      "VND cho quà lưu niệm"
+    ]
+  },
+  "nhatrang-night": {
+    "title": "City tour Nha Trang buổi tối",
+    "groupNotes": [
+      "Buffet hải sản và chương trình biểu diễn truyền thống",
+      "Bao gồm toàn bộ vé tham quan",
+      "Khung giờ buổi tối thuận tiện"
+    ],
+    "individualNotes": [
+      "Lịch trình buổi tối riêng",
+      "Thuận tiện cho gia đình và cặp đôi",
+      "Có thể tham quan chùa và điểm ngắm cảnh thong thả hơn"
+    ],
+    "route": [
+      [
+        "Chùa Đa Bảo",
+        "Ngôi chùa trên đỉnh đồi với tầm nhìn toàn cảnh."
+      ],
+      [
+        "Hòn Chồng",
+        "Các khối đá ven biển."
+      ],
+      [
+        "Nhà thờ Núi Nha Trang",
+        "Nhà thờ Gothic đầu thế kỷ XX."
+      ],
+      [
+        "Nhà hát Đó",
+        "Kiến trúc lấy cảm hứng từ chiếc đó truyền thống Việt Nam."
+      ],
+      [
+        "Tháp Bà Po Nagar",
+        "Quần thể đền tháp lịch sử."
+      ],
+      [
+        "Chùa Long Sơn và tượng Phật Trắng",
+        "Quần thể Phật giáo nổi tiếng."
+      ],
+      [
+        "Nhà hàng Làng Ngon",
+        "Bữa tối hải sản và chương trình biểu diễn truyền thống."
+      ]
+    ],
+    "included": [
+      "Buffet hải sản và chương trình biểu diễn",
+      "Toàn bộ vé vào cửa",
+      "Hướng dẫn viên",
+      "Xe đưa đón",
+      "Nhóm quy mô thoải mái",
+      "Nước uống"
+    ],
+    "take": [
+      "Trang phục kín đáo khi vào chùa",
+      "Mũ và kem chống nắng",
+      "Tinh thần vui vẻ",
+      "VND cho chi phí nhỏ"
+    ]
+  },
+  "dalat-2days": {
+    "title": "Đà Lạt 2 ngày",
+    "groupNotes": [
+      "Hai chương trình: Tiêu chuẩn và + Cầu kính",
+      "Bao gồm bữa sáng và hai bữa trưa",
+      "Lưu trú tùy theo loại phòng"
+    ],
+    "individualNotes": [
+      "Chương trình riêng 2 ngày",
+      "Phù hợp nếu muốn khám phá Đà Lạt không vội",
+      "Giá cuối cùng có thể phụ thuộc loại phòng"
+    ],
+    "route": [
+      [
+        "Ngày 1: đồn điền cà phê",
+        "Văn hóa cà phê và cung đường đèo núi."
+      ],
+      [
+        "Làng Đất Sét và Crazy House",
+        "Hai điểm sáng tạo độc đáo của Đà Lạt."
+      ],
+      [
+        "Chùa Linh Phước và Đại Phật",
+        "Chùa, cảnh quan và kiến trúc."
+      ],
+      [
+        "Thác Datanla",
+        "Thiên nhiên núi rừng và các hoạt động tại chỗ."
+      ],
+      [
+        "Nhận phòng khách sạn",
+        "Trung tâm Đà Lạt và thời gian tự do buổi tối."
+      ],
+      [
+        "Ngày 2: nông trại, thác và ga cổ",
+        "Động vật, thác Pongour, cáp treo và ga Đà Lạt."
+      ]
+    ],
+    "included": [
+      "Bữa sáng và hai bữa trưa",
+      "Toàn bộ vé vào cửa",
+      "Hướng dẫn viên",
+      "Xe đưa đón",
+      "Lưu trú theo gói đã chọn",
+      "Nước uống"
+    ],
+    "take": [
+      "Trang phục kín đáo khi vào chùa",
+      "Bữa sáng mang đi cho ngày đầu",
+      "Áo khoác",
+      "Áo mưa",
+      "Giày thoải mái",
+      "VND cho phụ phí và quà lưu niệm"
+    ]
+  },
+  "fast-track": {
+    "title": "Fast Track + đưa đón",
+    "groupNotes": [
+      "Dịch vụ này sử dụng hình thức riêng tư",
+      "Phù hợp khi đến sân bay và di chuyển về khách sạn"
+    ],
+    "individualNotes": [
+      "Đón với bảng tên",
+      "Làm thủ tục nhập cảnh không phải xếp hàng",
+      "Xe riêng về khách sạn tại trung tâm Nha Trang"
+    ],
+    "route": [
+      [
+        "Đón tại sân bay",
+        "Nhân viên đón tại khu vực làm thủ tục hải quan."
+      ],
+      [
+        "Làm thủ tục nhanh",
+        "Hỗ trợ qua kiểm soát hộ chiếu."
+      ],
+      [
+        "Đưa về khách sạn",
+        "Xe riêng thoải mái về khách sạn tại trung tâm Nha Trang."
+      ]
+    ],
+    "included": [
+      "Đón với bảng tên",
+      "Làm thủ tục hộ chiếu không xếp hàng",
+      "Xe riêng về khách sạn"
+    ],
+    "take": [
+      "Hộ chiếu",
+      "Thông tin chuyến bay",
+      "Tên khách sạn"
+    ]
+  },
+  "danang-ba-na-hoian": {
+    "title": "Bà Nà Hills, Cầu Vàng và Hội An",
+    "groupNotes": [
+      "Đoàn 14–20 khách",
+      "Cáp treo, công viên và Hội An buổi tối",
+      "Phù hợp cho lần đầu khám phá miền Trung Việt Nam"
+    ],
+    "individualNotes": [
+      "Lịch trình theo nhịp độ của bạn",
+      "Có thể ở lâu hơn tại Cầu Vàng hoặc Hội An",
+      "Thoải mái cho gia đình và nhóm bạn"
+    ],
+    "route": [
+      [
+        "Bà Nà Hills",
+        "Đi cáp treo lên khu du lịch trên núi."
+      ],
+      [
+        "Cầu Vàng",
+        "Dạo trên cây cầu nổi tiếng với đôi bàn tay đá."
+      ],
+      [
+        "Làng Pháp",
+        "Điểm chụp ảnh, kiến trúc và thời gian tự do."
+      ],
+      [
+        "Ngũ Hành Sơn",
+        "Hang động, chùa và điểm ngắm cảnh."
+      ],
+      [
+        "Hội An buổi tối",
+        "Phố đèn lồng, dạo bộ và những con phố đầy không khí."
+      ]
+    ],
+    "included": [
+      "Xe đưa đón theo chương trình",
+      "Vé tham quan theo chương trình",
+      "Hướng dẫn viên",
+      "Nước uống",
+      "Hỗ trợ mua vé"
+    ],
+    "take": [
+      "Giày thoải mái",
+      "Mũ và kem chống nắng",
+      "Áo khoác cho Bà Nà Hills",
+      "VND cho chi tiêu cá nhân",
+      "Sạc điện thoại"
+    ]
+  },
+  "danang-city-sontra": {
+    "title": "Đà Nẵng: Sơn Trà, Ngũ Hành Sơn và các cây cầu",
+    "groupNotes": [
+      "Chương trình buổi tối ngắn",
+      "Các điểm chính của Đà Nẵng",
+      "Phù hợp sau một ngày ở biển"
+    ],
+    "individualNotes": [
+      "Giờ khởi hành linh hoạt",
+      "Có thể thêm nhà hàng hoặc điểm chụp ảnh",
+      "Phù hợp để khám phá thành phố nhẹ nhàng"
+    ],
+    "route": [
+      [
+        "Chùa Linh Ứng",
+        "Tầm nhìn đẹp ra biển và thành phố."
+      ],
+      [
+        "Ngũ Hành Sơn",
+        "Hang động, bậc thang và các khu chùa."
+      ],
+      [
+        "Cầu Rồng",
+        "Biểu tượng Đà Nẵng và ánh đèn buổi tối."
+      ],
+      [
+        "Bờ sông Hàn",
+        "Đi dạo ngắn và chụp ảnh."
+      ]
+    ],
+    "included": [
+      "Xe đưa đón",
+      "Hướng dẫn/đồng hành",
+      "Nước uống",
+      "Hỗ trợ mua vé"
+    ],
+    "take": [
+      "Giày thoải mái",
+      "Trang phục che vai khi vào chùa",
+      "Nước uống",
+      "Điện thoại để chụp ảnh"
+    ]
+  },
+  "phuquoc-4-islands": {
+    "title": "Phú Quốc: 4 đảo và cáp treo",
+    "groupNotes": [
+      "Đoàn theo lịch cố định",
+      "Đảo, bãi biển và cáp treo",
+      "Có thể thêm chuyến đi biển"
+    ],
+    "individualNotes": [
+      "Ca nô/xe riêng theo yêu cầu",
+      "Có thể điều chỉnh nhịp độ và thời gian ở bãi biển",
+      "Thuận tiện cho gia đình có trẻ em"
+    ],
+    "route": [
+      [
+        "Các đảo phía Nam",
+        "Đi biển giữa những hòn đảo đẹp."
+      ],
+      [
+        "Dừng tại bãi biển",
+        "Tắm biển, chụp ảnh và nghỉ ngơi."
+      ],
+      [
+        "Lặn ngắm san hô",
+        "Các điểm đơn giản để khám phá thế giới dưới nước."
+      ],
+      [
+        "Cáp treo Hòn Thơm",
+        "Ngắm biển và đảo từ trên cao."
+      ]
+    ],
+    "included": [
+      "Xe đón từ khách sạn trong khu vực",
+      "Chuyến đi biển",
+      "Nước uống",
+      "Hỗ trợ mua vé",
+      "Hỗ trợ trong chương trình"
+    ],
+    "take": [
+      "Đồ bơi và khăn",
+      "Kem chống nắng",
+      "Mũ",
+      "Quần áo khô",
+      "VND cho phụ phí"
+    ]
+  },
+  "phuquoc-vinwonders-safari": {
+    "title": "VinWonders và Safari Phú Quốc",
+    "groupNotes": [
+      "Vé và xe đưa đón tùy gói đã chọn",
+      "Chương trình cả ngày",
+      "Thuận tiện cho gia đình"
+    ],
+    "individualNotes": [
+      "Xe đưa đón riêng",
+      "Giờ về linh hoạt",
+      "Có thể chọn chỉ công viên hoặc công viên + safari"
+    ],
+    "route": [
+      [
+        "VinWonders",
+        "Các khu chủ đề, thủy cung và trò chơi."
+      ],
+      [
+        "Safari",
+        "Công viên động vật và hoạt động cho gia đình."
+      ],
+      [
+        "Grand World",
+        "Dạo buổi tối ở phía Bắc đảo nếu muốn."
+      ]
+    ],
+    "included": [
+      "Xe đưa đón",
+      "Hỗ trợ mua vé",
+      "Hỗ trợ theo chương trình",
+      "Nước uống"
+    ],
+    "take": [
+      "Giày thoải mái",
+      "Mũ cho trẻ em",
+      "Đồ bơi cho khu công viên nước",
+      "Giấy tờ/bản sao giấy tờ của trẻ"
+    ]
+  },
+  "hanoi-halong-2d": {
+    "title": "Hà Nội và Vịnh Hạ Long",
+    "groupNotes": [
+      "Đoàn theo yêu cầu",
+      "Du thuyền và chương trình tham quan",
+      "Giá phụ thuộc ngày đi và loại cabin"
+    ],
+    "individualNotes": [
+      "Chương trình riêng gồm chuyến bay/xe đưa đón",
+      "Du thuyền Diamond Era Cruise 5★ theo chương trình",
+      "Giá hiện tại phụ thuộc mùa và vé"
+    ],
+    "route": [
+      [
+        "Hà Nội",
+        "Phố cổ, chùa và những điểm chính của thành phố."
+      ],
+      [
+        "Vịnh Hạ Long",
+        "Di chuyển đến bến và lên du thuyền."
+      ],
+      [
+        "Du thuyền",
+        "Bữa trưa, hang động, kayak hoặc thuyền, ngắm hoàng hôn trên tàu."
+      ],
+      [
+        "Trở về",
+        "Xe đưa đón và kết thúc chương trình."
+      ]
+    ],
+    "included": [
+      "Ăn uống theo chương trình",
+      "Vé máy bay/xe đưa đón theo chương trình",
+      "Vé tham quan",
+      "Hướng dẫn viên tại Hà Nội",
+      "Du thuyền 5★"
+    ],
+    "take": [
+      "Hộ chiếu",
+      "Giày thoải mái",
+      "VND cho chi phí nhỏ",
+      "Sạc điện thoại",
+      "Áo khoác nhẹ buổi tối"
+    ]
+  },
+  "hanoi-sapa-3d": {
+    "title": "Hà Nội và Sa Pa",
+    "groupNotes": [
+      "Lịch ghép đoàn theo yêu cầu",
+      "Núi, Fansipan và các bản làng Sa Pa",
+      "Giá phụ thuộc mùa"
+    ],
+    "individualNotes": [
+      "Lịch trình Hà Nội, Sa Pa và Fansipan",
+      "Phù hợp nếu muốn khám phá núi phía Bắc",
+      "Giá hiện tại phụ thuộc vé và mùa"
+    ],
+    "route": [
+      [
+        "Hà Nội",
+        "Chương trình tham quan thủ đô."
+      ],
+      [
+        "Sa Pa",
+        "Di chuyển đến vùng núi và dạo buổi tối."
+      ],
+      [
+        "Bản Cát Cát",
+        "Khám phá đời sống và truyền thống địa phương."
+      ],
+      [
+        "Fansipan",
+        "Cáp treo và nóc nhà Đông Dương."
+      ],
+      [
+        "Thác Bạc",
+        "Điểm thiên nhiên cuối hành trình."
+      ]
+    ],
+    "included": [
+      "Xe đưa đón theo chương trình",
+      "Lưu trú",
+      "Ăn uống theo chương trình",
+      "Vé theo chương trình",
+      "Hướng dẫn/đồng hành"
+    ],
+    "take": [
+      "Hộ chiếu",
+      "Áo khoác hoặc áo gió",
+      "Giày thoải mái",
+      "VND",
+      "Bộ thuốc cá nhân"
+    ]
+  },
+  "hanoi-ninhbinh": {
+    "title": "Ninh Bình: Tràng An và Hang Múa",
+    "groupNotes": [
+      "Khởi hành ghép đoàn từ Hà Nội",
+      "Đi thuyền và điểm ngắm cảnh",
+      "Một ngày nhiều trải nghiệm"
+    ],
+    "individualNotes": [
+      "Xe riêng từ Hà Nội",
+      "Có thể chọn nhịp độ thư thả hơn",
+      "Rất phù hợp cho chụp ảnh và thiên nhiên"
+    ],
+    "route": [
+      [
+        "Tràng An",
+        "Đi thuyền giữa núi đá, sông và hang động."
+      ],
+      [
+        "Nhà hàng ẩm thực địa phương",
+        "Bữa trưa và nghỉ ngơi."
+      ],
+      [
+        "Hang Múa",
+        "Leo lên điểm ngắm cảnh."
+      ],
+      [
+        "Đền/chùa và làng quê",
+        "Điểm dừng văn hóa tùy thời gian chương trình."
+      ]
+    ],
+    "included": [
+      "Xe đưa đón",
+      "Đi thuyền",
+      "Vé tham quan",
+      "Bữa trưa",
+      "Hỗ trợ trong chương trình"
+    ],
+    "take": [
+      "Giày thoải mái",
+      "Mũ",
+      "Nước uống",
+      "VND",
+      "Trang phục phù hợp khi vào chùa"
+    ]
+  },
+  "muine-dunes-jeep": {
+    "title": "Mũi Né: đồi cát, làng chài và Suối Tiên",
+    "groupNotes": [
+      "Lịch ghép đoàn ngắm bình minh",
+      "Đồi cát trắng và đỏ",
+      "Chụp ảnh và đi bộ nhẹ"
+    ],
+    "individualNotes": [
+      "Xe jeep/xe riêng",
+      "Có thể chọn bình minh hoặc hoàng hôn",
+      "Phù hợp cho hành trình chụp ảnh"
+    ],
+    "route": [
+      [
+        "Đồi cát trắng",
+        "Ngắm bình minh và toàn cảnh."
+      ],
+      [
+        "Đồi cát đỏ",
+        "Dừng chụp ảnh trên cát màu."
+      ],
+      [
+        "Làng chài",
+        "Thuyền, cuộc sống địa phương và chợ sáng."
+      ],
+      [
+        "Suối Tiên",
+        "Đi bộ trong dòng suối nông giữa những sườn đất đỏ."
+      ]
+    ],
+    "included": [
+      "Xe đưa đón",
+      "Jeep/xe theo chương trình",
+      "Nước uống",
+      "Hỗ trợ trong chương trình"
+    ],
+    "take": [
+      "Giày thoải mái",
+      "Mũ",
+      "Điện thoại/máy ảnh",
+      "VND cho chi tiêu cá nhân"
+    ]
+  }
+}
