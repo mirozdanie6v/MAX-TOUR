@@ -18,10 +18,11 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - name: Build exact standalone v28
+      - name: Test and build exact standalone v28
         working-directory: standalone-v28
         run: |
           npm install --ignore-scripts --no-audit --no-fund --package-lock=false
+          npm test
           npm run build
       - name: Extract customer-facing Russian strings
         working-directory: standalone-v28
