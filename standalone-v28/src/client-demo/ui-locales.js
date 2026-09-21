@@ -54,7 +54,7 @@ export const UI = {
     infant:'Em bé', infants:'Em bé', chooseSaved:'Chọn từ hồ sơ',
     profileHint:'Lưu thông tin du khách để dùng lại khi đặt tour tiếp theo.',
     noScheduledDepartures:'Chưa có lịch ghép đoàn công khai cho tour này. Bạn vẫn có thể gửi yêu cầu cho ngày mong muốn.',
-    capacity:'Sức chứa', departureFull:'Lịch này đã đầy.', confirm:'Xác nhận'
+    capacity:'Sức chứa', departureFull:'Lịch này đã đầy.', genericConfirm:'Xác nhận'
   },
   en: {
     brand:'Vietnam Travel',
@@ -111,7 +111,7 @@ export const UI = {
     infant:'Infant', infants:'Infants', chooseSaved:'Choose saved traveler',
     profileHint:'Save traveler details for faster future bookings.',
     noScheduledDepartures:'There are no public shared departures for this tour yet. You can still request your preferred date.',
-    capacity:'Capacity', departureFull:'This departure is full.', confirm:'Confirm'
+    capacity:'Capacity', departureFull:'This departure is full.', genericConfirm:'Confirm'
   }
 };
 
