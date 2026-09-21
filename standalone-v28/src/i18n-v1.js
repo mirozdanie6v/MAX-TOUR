@@ -3,7 +3,9 @@
 
   const STORAGE_KEY = 'max-tour-locale-v1';
   const host = String(location.hostname || '').toLowerCase();
+  const pathname = String(location.pathname || '/');
   if (host === 'max-tour-demo.viiversion.com' || host.includes('max-tour-demo')) return;
+  if (/^\/(?:admin|director)(?:\/|$)/.test(pathname)) return;
 
   const locale = localStorage.getItem(STORAGE_KEY) === 'vi' ? 'vi' : 'ru';
   document.documentElement.lang = locale;
