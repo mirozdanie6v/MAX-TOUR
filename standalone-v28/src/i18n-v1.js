@@ -9,6 +9,7 @@
 
   const storedLocale = String(localStorage.getItem(STORAGE_KEY) || 'ru').toLowerCase();
   const locale = ['ru','vi','en'].includes(storedLocale) ? storedLocale : 'ru';
+  const EN_LOCALE = globalThis.MaxTourLocaleData?.en || null;
   document.documentElement.lang = locale;
 
   const VI_TEXT = {
@@ -524,9 +525,6 @@
     'Изменить':'Chỉnh sửa',
     'Удалить':'Xóa',
     'Сохранённые путешественники доступны для повторного выбора в новых заявках.':'Du khách đã lưu có thể được chọn lại trong các đơn mới.',
-    'Иван Петров':'Ivan Petrov',
-    'Анна Петрова':'Anna Petrova',
-    'Марк Петров':'Mark Petrov',
     'Чек и статус':'Biên nhận và trạng thái',
     'biên nhận и статус':'Biên nhận và trạng thái',
   };
@@ -599,6 +597,7 @@
   function translateAtomic(text) {
     const s=String(text == null ? '' : text).trim();
     if (!s) return s;
+    if (locale === 'en' && EN_LOCALE) return EN_LOCALE.translateAtomic(s);
     const numbered=s.match(/^(\d+\.\s*)(.+)$/);
     if (numbered) { const tail=translateAtomic(numbered[2]); if (tail !== numbered[2]) return numbered[1] + tail; }
     if (VI_TEXT[s]) return VI_TEXT[s];
@@ -624,7 +623,7 @@
     const leading = raw.match(/^\s*/)?.[0] || '';
     const trailing = raw.match(/\s*$/)?.[0] || '';
     const trimmed = raw.slice(leading.length, raw.length - trailing.length || undefined);
-    if (!trimmed || locale !== 'vi' || !/[А-Яа-яЁё]/.test(trimmed)) return raw;
+    if (!trimmed || !['vi','en'].includes(locale) || !/[А-Яа-яЁё]/.test(trimmed)) return raw;
     const translated = translateCompositeSafe(trimmed);
     return translated === trimmed ? raw : leading + translated + trailing;
   }
@@ -637,7 +636,7 @@
   }
 
   function translateNode(root) {
-    if (locale !== 'vi' || !root) return;
+    if (!['vi','en'].includes(locale) || !root) return;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
@@ -646,15 +645,16 @@
       if (!/[А-Яа-яЁё]/.test(node.nodeValue || '')) return;
       node.nodeValue = tr(node.nodeValue);
     });
-    const scope = root.querySelectorAll ? [root, ...root.querySelectorAll('[placeholder],[aria-label],[title]')] : [root];
+    const scope = root.querySelectorAll ? [root, ...root.querySelectorAll('[placeholder],[aria-label],[title],[alt]')] : [root];
     scope.forEach(el => {
       if (!(el instanceof Element)) return;
-      translateAttr(el,'placeholder'); translateAttr(el,'aria-label'); translateAttr(el,'title');
+      translateAttr(el,'placeholder'); translateAttr(el,'aria-label'); translateAttr(el,'title'); translateAttr(el,'alt');
     });
   }
 
   function mapSimple(value) {
     const key = String(value == null ? '' : value);
+    if (locale === 'en' && EN_LOCALE) return EN_LOCALE.mapSimple(key);
     if (CITY[key]) return CITY[key];
     if (SIMPLE[key]) return SIMPLE[key];
     if (/^(\d+)\s+сен$/.test(key)) return key.replace(' сен',' Thg 9');
@@ -681,7 +681,8 @@
   }
 
   function patchTour(tour) {
-    const o = VI_TOURS[tour.id];
+    const translations = locale === 'en' ? EN_LOCALE?.tours : VI_TOURS;
+    const o = translations?.[tour.id];
     if (!o) return;
     // Keep technical/filter fields in the original Russian values.
     // Only content shown to the tourist is localized, so catalogue filters
@@ -699,19 +700,15 @@
   }
 
   function patchTours() {
-    if (locale !== 'vi') return;
+    if (!['vi','en'].includes(locale)) return;
+    const translations = locale === 'en' ? EN_LOCALE?.tours : VI_TOURS;
+    if (!translations) return;
     try {
       if (typeof TOURS !== 'undefined' && Array.isArray(TOURS)) TOURS.forEach(patchTour);
       if (typeof demoTrips !== 'undefined' && Array.isArray(demoTrips)) {
         demoTrips.forEach(trip => {
           const id = String(trip.tourId || '');
-          if (id && VI_TOURS[id]) trip.title = VI_TOURS[id].title;
-          else {
-            const match = Object.entries(VI_TOURS).find(([tourId]) => {
-              try { return typeof TOURS !== 'undefined' && TOURS.find(t => t.id === tourId && t.title === trip.title); } catch (_) { return false; }
-            });
-            if (match) trip.title = match[1].title;
-          }
+          if (id && translations[id]) trip.title = translations[id].title;
         });
       }
     } catch (_) {}
@@ -733,18 +730,18 @@
     return q;
   }
 
-  function installViSearchBridge() {
-    if (locale !== 'vi') return;
+  function installSearchBridge() {
+    if (!['vi','en'].includes(locale)) return;
     try {
-      if (typeof filteredTours !== 'function' || filteredTours.__maxTourViBridge) return;
+      if (typeof filteredTours !== 'function' || filteredTours.__maxTourLocaleBridge) return;
       const original = filteredTours;
       const bridged = function() {
         const originalQuery = state?.filters?.query;
-        if (state?.filters) state.filters.query = mapViQuery(originalQuery);
+        if (state?.filters) state.filters.query = locale === 'en' && EN_LOCALE ? EN_LOCALE.mapQuery(originalQuery) : mapViQuery(originalQuery);
         try { return original(); }
         finally { if (state?.filters) state.filters.query = originalQuery; }
       };
-      bridged.__maxTourViBridge = true;
+      bridged.__maxTourLocaleBridge = true;
       filteredTours = bridged;
     } catch (_) {}
   }
@@ -777,14 +774,14 @@
 
   const nativeFetch = window.fetch.bind(window);
   window.fetch = async function(input, init) {
-    if (locale === 'vi') {
+    if (['vi','en'].includes(locale)) {
       try {
         const url = typeof input === 'string' ? input : input && input.url;
         if (url && /\/api\/ai\/chat(?:$|\?)/.test(url) && init && typeof init.body === 'string') {
           const data = JSON.parse(init.body);
-          data.locale = 'vi';
-          data.context = Object.assign({}, data.context || {}, { locale:'vi' });
-          init = Object.assign({}, init, { body:JSON.stringify(data) });
+          data.locale = locale;
+          data.context = Object.assign({}, data.context || {}, { locale });
+          init = Object.assign({}, init, { body:JSON.stringify(data), headers:Object.assign({}, init.headers || {}, {'x-max-tour-locale':locale}) });
         }
       } catch (_) {}
     }
@@ -804,8 +801,8 @@
   }
 
   renderSwitcher();
-  if (locale === 'vi') {
-    installViSearchBridge();
+  if (['vi','en'].includes(locale)) {
+    installSearchBridge();
     patchTours();
     translateNode(document.body);
     const observer = new MutationObserver(records => {
