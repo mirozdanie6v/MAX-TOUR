@@ -322,6 +322,10 @@
     const trimmed = raw.trim();
     if (!trimmed) return raw;
     if (VI_TEXT[trimmed]) return raw.replace(trimmed, VI_TEXT[trimmed]);
+    if (CITY[trimmed]) return raw.replace(trimmed, CITY[trimmed]);
+    if (SIMPLE[trimmed]) return raw.replace(trimmed, SIMPLE[trimmed]);
+    const simple = mapSimple(trimmed);
+    if (simple !== trimmed) return raw.replace(trimmed, simple);
     let m;
     if ((m = trimmed.match(/^(\d+)\s+найдено$/))) return raw.replace(trimmed, m[1] + ' tour');
     if ((m = trimmed.match(/^(\d+)\s+из\s+(\d+)\s+мест$/))) return raw.replace(trimmed, m[1] + '/' + m[2] + ' chỗ');
@@ -388,33 +392,19 @@
   function patchTour(tour) {
     const o = VI_TOURS[tour.id];
     if (!o) return;
+    // Keep technical/filter fields in the original Russian values.
+    // Only content shown to the tourist is localized, so catalogue filters
+    // and booking logic keep using the exact v28 data model.
+    if (!tour.__mtRuTitle) tour.__mtRuTitle = tour.title;
     tour.title = o.title || tour.title;
-    tour.city = mapSimple(tour.city);
-    tour.region = mapSimple(tour.region);
-    tour.duration = mapSimple(tour.duration);
-    tour.time = mapSimple(tour.time);
-    tour.tags = (tour.tags || []).map(mapSimple);
-    tour.activity = mapSimple(tour.activity);
-    tour.audience = (tour.audience || []).map(mapSimple);
-    tour.formatsLabel = mapSimple(tour.formatsLabel);
-    tour.category = mapSimple(tour.category);
-    if (tour.group) {
-      tour.group.infant = mapSimple(tour.group.infant);
-      tour.group.deposit = mapSimple(tour.group.deposit);
-      if (o.groupNotes) tour.group.notes = o.groupNotes.slice();
-      if (Array.isArray(tour.group.departures)) tour.group.departures.forEach(d => {
-        d.date = mapSimple(d.date); d.status = mapSimple(d.status);
-      });
-    }
+    if (tour.group && o.groupNotes) tour.group.notes = o.groupNotes.slice();
     if (tour.individual) {
-      tour.individual.deposit = mapSimple(tour.individual.deposit);
-      tour.individual.tiers = (tour.individual.tiers || []).map(mapSimple);
       if (o.individualNotes) tour.individual.notes = o.individualNotes.slice();
+      tour.individual.tiers = (tour.individual.tiers || []).map(mapSimple);
     }
     if (o.route) tour.route = o.route.map(x => x.slice());
     if (o.included) tour.included = o.included.slice();
     if (o.take) tour.take = o.take.slice();
-    tour.searchText = [tour.title,tour.city,tour.region,tour.duration,tour.category,...(tour.tags||[]),...(tour.audience||[])].join(' ').toLowerCase();
   }
 
   function patchTours() {
@@ -433,6 +423,38 @@
           }
         });
       }
+    } catch (_) {}
+  }
+
+  function mapViQuery(value) {
+    let q = String(value == null ? '' : value).toLowerCase();
+    const aliases = [
+      [/nha\s*trang/g,'нячанг'],[/đà\s*lạt|da\s*lat/g,'далат'],[/đà\s*nẵng|da\s*nang/g,'дананг'],
+      [/phú\s*quốc|phu\s*quoc/g,'фукуок'],[/phú\s*yên|phu\s*yen|tuy\s*hòa|tuy\s*hoa/g,'фуйен'],
+      [/hà\s*nội|ha\s*noi/g,'ханой'],[/hạ\s*long|ha\s*long/g,'халонг'],[/hội\s*an|hoi\s*an/g,'хойан'],
+      [/mũi\s*né|mui\s*ne|phan\s*thiết|phan\s*thiet/g,'муйне'],
+      [/biển|bãi\s*biển/g,'море'],[/đảo/g,'остров'],[/thiên\s*nhiên/g,'природа'],[/núi/g,'горы'],
+      [/thác/g,'водопад'],[/văn\s*hóa/g,'культура'],[/thành\s*phố/g,'город'],[/cao\s*cấp/g,'премиум'],
+      [/gia\s*đình/g,'семья'],[/trẻ\s*em/g,'дети'],[/cáp\s*treo/g,'канатная дорога'],[/du\s*thuyền/g,'круиз'],
+      [/đồi\s*cát/g,'дюны'],[/cầu\s*vàng/g,'золотой мост']
+    ];
+    for (const [pattern, ru] of aliases) q = q.replace(pattern, ru);
+    return q;
+  }
+
+  function installViSearchBridge() {
+    if (locale !== 'vi') return;
+    try {
+      if (typeof filteredTours !== 'function' || filteredTours.__maxTourViBridge) return;
+      const original = filteredTours;
+      const bridged = function() {
+        const originalQuery = state?.filters?.query;
+        if (state?.filters) state.filters.query = mapViQuery(originalQuery);
+        try { return original(); }
+        finally { if (state?.filters) state.filters.query = originalQuery; }
+      };
+      bridged.__maxTourViBridge = true;
+      filteredTours = bridged;
     } catch (_) {}
   }
 
@@ -492,6 +514,7 @@
 
   renderSwitcher();
   if (locale === 'vi') {
+    installViSearchBridge();
     patchTours();
     translateNode(document.body);
     const observer = new MutationObserver(records => {
