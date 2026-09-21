@@ -1,16 +1,6 @@
 (() => {
   'use strict';
 
-  const STORAGE_KEY = 'max-tour-locale-v1';
-  const host = String(location.hostname || '').toLowerCase();
-  const pathname = String(location.pathname || '/');
-  if (host === 'max-tour-demo.viiversion.com' || host.includes('max-tour-demo')) return;
-  if (/^\/(?:admin|director)(?:\/|$)/.test(pathname)) return;
-  if (String(localStorage.getItem(STORAGE_KEY) || '').toLowerCase() !== 'en') return;
-
-  const locale = 'en';
-  document.documentElement.lang = 'en';
-
   const EN_TEXT = {
     'Главная':'Home','Каталог':'Tours','Мои поездки':'My Trips','ИИ-Помощник':'AI Assistant',
     'Ваш лучший отдых':'Your best holiday','во Вьетнаме':'in Vietnam',
