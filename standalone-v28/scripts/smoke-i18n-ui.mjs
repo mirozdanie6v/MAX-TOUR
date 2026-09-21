@@ -3,14 +3,17 @@ import { chromium } from 'playwright';
 const url = process.env.I18N_TEST_URL || 'http://127.0.0.1:4173/';
 const browser = await chromium.launch({ headless:true });
 const failures = [];
-const allowExact = new Set(['Анна Петрова','Иван Петров']);
+const userData = ['Анна Петрова','Иван Петров','Марк Петров'];
 
-const clean = value => String(value || '')
-  .split('\n')
-  .map(line => line.trim())
-  .filter(Boolean)
-  .filter(line => !allowExact.has(line))
-  .join('\n');
+const clean = value => {
+  let text = String(value || '');
+  for (const item of userData) text = text.split(item).join('[USER_NAME]');
+  return text
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean)
+    .join('\n');
+};
 
 async function checkOverflow(page, label) {
   const dims = await page.evaluate(() => ({
@@ -35,10 +38,18 @@ async function inspect(page, locale, label, fn, selector) {
 }
 
 async function runLocale(locale, viewport) {
-  const page = await browser.newPage({ viewport });
-  await page.addInitScript(selected => {
-    localStorage.setItem('max-tour-locale-v1', selected);
-  }, locale);
+  const origin = new URL(url).origin;
+  const context = await browser.newContext({
+    viewport,
+    storageState: {
+      cookies: [],
+      origins: [{
+        origin,
+        localStorage: [{ name:'max-tour-locale-v1', value:locale }]
+      }]
+    }
+  });
+  const page = await context.newPage();
 
   await page.goto(url, { waitUntil:'networkidle' });
   await page.waitForFunction(expected => globalThis.MaxTourI18n?.locale === expected, locale);
@@ -67,7 +78,7 @@ async function runLocale(locale, viewport) {
     await page.waitForFunction(() => globalThis.MaxTourI18n?.locale === 'en');
   }
 
-  await page.close();
+  await context.close();
 }
 
 await runLocale('vi', { width:390, height:844 });
