@@ -319,25 +319,260 @@
     }
   };
 
+
+  const VI_COMPLETE = {
+    'Финиш':'Kết thúc',
+    'Групповой тур':'Tour ghép',
+    'Индивидуальный тур':'Tour riêng',
+    'Выберите собирающийся выезд внизу страницы или создайте новую дату.':'Chọn lịch khởi hành ghép ở bên dưới hoặc tạo ngày mới.',
+    'Маршрут и дата под вашу семью или компанию.':'Lịch trình và ngày đi được điều chỉnh cho gia đình hoặc nhóm của bạn.',
+    'Кому подойдёт':'Phù hợp với ai',
+    'Взрослый':'Người lớn',
+    'Ребёнок':'Trẻ em',
+    'Малыш':'Trẻ nhỏ',
+    'по туру':'theo tour',
+    'Группа':'Nhóm',
+    'Возврат':'Hoàn tiền',
+    'От':'Từ',
+    'Формат':'Hình thức',
+    'своя дата и темп':'ngày và nhịp độ riêng',
+    'по расписанию':'theo lịch',
+    '100%, если группа не набралась':'100% nếu không đủ khách ghép đoàn',
+    'время уточняется':'thời gian đang cập nhật',
+    'по программе':'theo chương trình',
+    'Направления':'Điểm đến',
+    'Далат, Фуйен, обзорные и морские маршруты':'Đà Lạt, Phú Yên, city tour và tour biển',
+    'Ба На Хилл, Золотой мост, Хойан и Мраморные горы':'Bà Nà Hills, Cầu Vàng, Hội An và Ngũ Hành Sơn',
+    'Острова, канатная дорога, VinWonders и семейные программы':'Các đảo, cáp treo, VinWonders và chương trình gia đình',
+    'Халонг, Сапа, Ниньбинь и туры по северу':'Hạ Long, Sa Pa, Ninh Bình và tour miền Bắc',
+    'Личный кабинет':'Tài khoản',
+    'Данные путешественников сохраняются после оформления заявки и будут использоваться для следующих поездок.':'Thông tin du khách được lưu sau khi đặt tour và có thể dùng lại cho các chuyến tiếp theo.',
+    'Телефон':'Điện thoại',
+    'Язык':'Ngôn ngữ',
+    'Русский':'Tiếng Nga',
+    'Согласия':'Chấp thuận',
+    'актуальны':'đang hiệu lực',
+    'Основной путешественник':'Khách chính',
+    'ФИО':'Họ và tên',
+    'После первой заявки здесь появится основной путешественник.':'Sau lần đặt tour đầu tiên, thông tin khách chính sẽ xuất hiện tại đây.',
+    'Попутчики':'Người đi cùng',
+    'Попутчик':'Người đi cùng',
+    'Попутчик · взрослый':'Người đi cùng · người lớn',
+    'Попутчик · ребёнок':'Người đi cùng · trẻ em',
+    'Попутчик · малыш':'Người đi cùng · trẻ nhỏ',
+    'Добавятся автоматически после заполнения ФИО и даты рождения в заявке.':'Sẽ được thêm tự động sau khi điền họ tên và ngày sinh trong đơn đặt tour.',
+    'Соглашения и данные':'Thỏa thuận và dữ liệu',
+    'Согласие на обработку данных для бронирования экскурсии и связи по поездке.':'Đồng ý xử lý dữ liệu để đặt tour và liên hệ về chuyến đi.',
+    'Правила оплаты, переноса и отмены показываются до оплаты в оформлении поездки.':'Quy định thanh toán, đổi ngày và hủy được hiển thị trước khi thanh toán.',
+    'Данные попутчиков можно будет использовать повторно при следующих заявках.':'Thông tin người đi cùng có thể được dùng lại cho các lần đặt tour tiếp theo.',
+    'Фамилия Имя':'Họ và tên',
+    'Дата рождения':'Ngày sinh',
+    'Отсканируйте QR или подтвердите оплату, чтобы увидеть чек в «Мои поездки».':'Quét mã QR hoặc xác nhận thanh toán để xem biên nhận trong “Chuyến đi”.',
+    'Тур':'Tour',
+    'Депозит':'Đặt cọc',
+    'Участники':'Người tham gia',
+    'всего':'tổng cộng',
+    'Оплата выполнена':'Đã thanh toán',
+    'Депозит внесён':'Đã đặt cọc',
+    'Если группа не наберётся, депозит возвращается полностью.':'Nếu không đủ khách ghép đoàn, khoản đặt cọc sẽ được hoàn lại toàn bộ.',
+    'Перенос бесплатный до 17:00 за день до экскурсии. Отмена более чем за 48 часов — бесплатно.':'Đổi ngày miễn phí đến 17:00 ngày trước chuyến đi. Hủy trước hơn 48 giờ được miễn phí.',
+    'Без имени':'Chưa có tên',
+    'дата не указана':'chưa chọn ngày',
+    'по правилам':'theo quy định',
+    'без удержания':'không mất phí',
+    'по дате':'theo ngày',
+    'расчёт при открытии':'tính khi mở',
+    'Стоимость отмены рассчитывается по дате выезда.':'Phí hủy được tính theo ngày khởi hành.',
+    'Стоимость переноса рассчитывается по дате выезда.':'Phí đổi ngày được tính theo ngày khởi hành.',
+    'Условия действия':'Điều kiện',
+    'Понятно':'Đã hiểu',
+    'Отменить поездку?':'Hủy chuyến đi?',
+    'Отменено':'Đã hủy',
+    'Поездка отменена':'Chuyến đi đã hủy',
+    'Статус и расчёт обновлены.':'Trạng thái và số tiền đã được cập nhật.',
+    'Изменение пока не подтверждено. Повторите попытку позже.':'Thay đổi chưa được xác nhận. Vui lòng thử lại sau.',
+    'Новый выезд':'Lịch khởi hành mới',
+    'Новая дата':'Ngày mới',
+    'Перенести поездку':'Đổi ngày chuyến đi',
+    'Перенесено · удержание 30%':'Đã đổi ngày · giữ lại 30%',
+    'Перенесено':'Đã đổi ngày',
+    'Поездка перенесена':'Chuyến đi đã đổi ngày',
+    'Новая дата, время и статус обновлены.':'Ngày, giờ và trạng thái mới đã được cập nhật.',
+    'Дата группового выезда фиксирована':'Ngày khởi hành tour ghép được cố định',
+    'дата не определена':'chưa xác định ngày',
+    'Поездка завершена':'Chuyến đi đã hoàn thành',
+    'сейчас бесплатно':'hiện tại miễn phí',
+    'Удержание 100%':'Giữ lại 100%',
+    'Удержание 30%':'Giữ lại 30%',
+    'Перенос недоступен':'Không thể đổi ngày',
+    'Отмена недоступна':'Không thể hủy',
+    'ОТМЕНА':'HỦY',
+    'ПЕРЕНОС':'ĐỔI NGÀY',
+    'Лист ожидания':'Danh sách chờ',
+    'Дата из AI-консультанта':'Ngày từ trợ lý AI',
+    'Продолжить бронирование':'Tiếp tục đặt tour',
+    'AI-консультант':'Trợ lý AI',
+    'состав не указан':'chưa có số người',
+    'Море и острова':'Biển và đảo',
+    'Хочу море и острова':'Tôi muốn biển và đảo',
+    'Красивые виды':'Cảnh đẹp',
+    'Хочу природу и красивые виды':'Tôi muốn thiên nhiên và cảnh đẹp',
+    'Обзор города':'City tour',
+    'Хочу обзорную экскурсию':'Tôi muốn city tour',
+    'Нас 2 взрослых':'Chúng tôi có 2 người lớn',
+    'С ребёнком':'Có trẻ em',
+    'Сегодня':'Hôm nay',
+    'Завтра':'Ngày mai',
+    'Расскажите, куда и как хотите поехать. Я подберу варианты и доведу до бронирования.':'Hãy cho tôi biết bạn muốn đi đâu và theo hình thức nào. Tôi sẽ chọn phương án phù hợp và hỗ trợ đến bước đặt tour.',
+    'Очистить':'Xóa',
+    'Напишите сообщение...':'Nhập tin nhắn...',
+    'Подбираю…':'Đang tìm…',
+    'Сколько человек едет? Если будут дети, укажите возраст — это влияет на цену.':'Có bao nhiêu người đi? Nếu có trẻ em, hãy cho biết tuổi vì điều này ảnh hưởng đến giá.',
+    'Что вам больше хочется: море и острова, природа и красивые виды или обзор города?':'Bạn muốn biển và đảo, thiên nhiên và cảnh đẹp hay city tour?',
+    'Какой формат удобнее — групповой или индивидуальный? После выбора сразу покажу варианты с ценой и бронированием.':'Bạn muốn tour ghép hay tour riêng? Sau khi chọn, tôi sẽ hiển thị ngay các phương án cùng giá và nút đặt tour.',
+    'Готово — ниже подходящие экскурсии. Выберите вариант и нажмите «Забронировать»: дату и состав группы перенесу в оформление автоматически.':'Xong — bên dưới là các tour phù hợp. Chọn một phương án và nhấn “Đặt tour”; ngày đi và số người sẽ được điền tự động.',
+    'Готово — ниже подходящие экскурсии. Выберите вариант и нажмите «Забронировать».':'Xong — bên dưới là các tour phù hợp. Chọn một phương án và nhấn “Đặt tour”.',
+    'Хочу групповой тур':'Tôi muốn tour ghép',
+    'Хочу индивидуальный тур':'Tôi muốn tour riêng',
+    'На какую дату хотите поехать?':'Bạn muốn đi ngày nào?',
+    'Какой формат удобнее — групповой или индивидуальный?':'Bạn muốn tour ghép hay tour riêng?',
+    'Подешевле':'Giá tốt hơn',
+    'Интереснее программа':'Chương trình hấp dẫn hơn',
+    'Хочу более интересную и насыщенную программу':'Tôi muốn chương trình đa dạng và nhiều trải nghiệm hơn',
+    'продолжаем подбор':'tiếp tục chọn tour',
+    'Где вы сейчас или откуда планируете выезд?':'Bạn đang ở đâu hoặc muốn khởi hành từ đâu?',
+    'Я в Нячанге':'Tôi ở Nha Trang',
+    'Я в Ханое':'Tôi ở Hà Nội',
+    'Я в Дананге':'Tôi ở Đà Nẵng',
+    'Я на Фукуоке':'Tôi ở Phú Quốc',
+    'Хочу обзор Ханоя':'Tôi muốn city tour Hà Nội',
+    'Хочу экскурсию в Далат':'Tôi muốn tour Đà Lạt',
+    'Хочу обзор Нячанга':'Tôi muốn city tour Nha Trang',
+    'Хочу экскурсию в Хойан':'Tôi muốn tour Hội An',
+    'Хочу обзор Дананга':'Tôi muốn city tour Đà Nẵng',
+    'Природа':'Thiên nhiên',
+    'Хорошо, выезд из Ханоя. Могу подобрать Ниньбинь, Халонг, варианты по Ханою или другой маршрут.':'Được, khởi hành từ Hà Nội. Tôi có thể gợi ý Ninh Bình, Hạ Long, các lựa chọn tại Hà Nội hoặc tuyến khác.',
+    'Хорошо, выезд из Нячанга. Могу подобрать острова, Нячанг, Далат, Фуйен и другие доступные маршруты.':'Được, khởi hành từ Nha Trang. Tôi có thể gợi ý tour đảo, Nha Trang, Đà Lạt, Phú Yên và các tuyến khác.',
+    'Хорошо, выезд из Дананга. Могу подобрать Дананг, Хойан и другие доступные варианты.':'Được, khởi hành từ Đà Nẵng. Tôi có thể gợi ý Đà Nẵng, Hội An và các lựa chọn khác.',
+    'Создать групповой выезд на выбранную дату':'Tạo lịch tour ghép cho ngày đã chọn',
+    'Требует подтверждения менеджером перед оплатой':'Cần quản lý xác nhận trước khi thanh toán',
+    'Запросить выезд':'Yêu cầu lịch khởi hành',
+    'Не нашёл точного совпадения. Откройте каталог и уточните город, состав группы или желаемый формат отдыха.':'Chưa tìm thấy phương án khớp hoàn toàn. Hãy mở danh mục và cho biết điểm đến, số người hoặc hình thức mong muốn.',
+    'Основной ·':'Khách chính ·',
+    'Этот путешественник уже выбран в заявке.':'Người này đã được chọn trong đơn đặt tour.',
+    'Заполните ФИО и дату рождения.':'Vui lòng điền họ tên và ngày sinh.',
+    'Такой путешественник уже есть в личном кабинете.':'Người này đã có trong tài khoản.',
+    'Не удалось определить дату выезда.':'Không xác định được ngày khởi hành.',
+    'Своя дата':'Ngày riêng',
+    'по согласованию':'theo thỏa thuận',
+    'Подходит детям':'Phù hợp với trẻ em',
+    'Открыть каталог':'Mở danh mục',
+    'Групповые выезды':'Lịch tour ghép',
+    'Нет загруженных групповых выездов.':'Chưa có lịch tour ghép.',
+    'Отмена из-за погоды':'Hủy do thời tiết',
+    'Нет заявок для изменения.':'Không có đơn nào để thay đổi.',
+    'Отменено из-за погоды':'Đã hủy do thời tiết',
+    'Статус изменён':'Đã thay đổi trạng thái',
+    'по запросу':'theo yêu cầu',
+    'новинка':'mới',
+    'Новый тур':'Tour mới',
+    'Дата и программа по запросу':'Ngày và chương trình theo yêu cầu'
+  };
+  Object.assign(VI_TEXT, VI_COMPLETE);
+
+  const VI_CITY_CASES = {
+    'Нячанга':'Nha Trang','Ханоя':'Hà Nội','Дананга':'Đà Nẵng','Фукуока':'Phú Quốc','Далата':'Đà Lạt',
+    'Фуйена':'Phú Yên','Хойана':'Hội An','Халонга':'Hạ Long','Ниньбиня':'Ninh Bình','Муйне/Фантьета':'Mũi Né / Phan Thiết'
+  };
+
+  function translateDynamicSafe(text) {
+    let m;
+    if ((m = text.match(/^(\d+)\s+найдено$/i))) return m[1] + ' tour';
+    if ((m = text.match(/^(\d+)\s+из\s+(\d+)\s+мест$/i))) return m[1] + '/' + m[2] + ' chỗ';
+    if ((m = text.match(/^Групповой от\s+(.+)$/i))) return 'Tour ghép từ ' + m[1];
+    if ((m = text.match(/^Индивидуальный от\s+(.+)$/i))) return 'Tour riêng từ ' + m[1];
+    if ((m = text.match(/^от\s+(.+)$/i))) return 'từ ' + m[1];
+    if ((m = text.match(/^Открыть каталог:\s*(.+)$/i))) return 'Mở danh mục: ' + translateAtomic(m[1]);
+    if ((m = text.match(/^Открыть\s+(.+)$/i))) return 'Mở ' + translateAtomic(m[1]);
+    if ((m = text.match(/^выезд\s+(.+)$/i))) return 'khởi hành ' + translateAtomic(m[1]);
+    if ((m = text.match(/^есть выезд\s+(.+)$/i))) return 'có lịch ' + translateAtomic(m[1]);
+    if ((m = text.match(/^ближайший выезд\s+(.+)$/i))) return 'lịch gần nhất ' + translateAtomic(m[1]);
+    if ((m = text.match(/^(\d+)\s+взр\.$/i))) return m[1] + ' người lớn';
+    if ((m = text.match(/^(\d+)\s+дет\.$/i))) return m[1] + ' trẻ em';
+    if ((m = text.match(/^(\d+)\s+мал\.$/i))) return m[1] + ' trẻ nhỏ';
+    if ((m = text.match(/^(\d+)\s+взросл(?:ый|ых)$/i))) return m[1] + ' người lớn';
+    if ((m = text.match(/^(\d+)\s+дет(?:ей|и)$/i))) return m[1] + ' trẻ em';
+    if ((m = text.match(/^(\d+)\s+малыш(?:а|ей)?$/i))) return m[1] + ' trẻ nhỏ';
+    if ((m = text.match(/^(\d+)\s+взрослых\s*\+\s*(\d+)\s+детей\s*\+\s*(\d+)\s+малышей$/i))) return m[1] + ' người lớn + ' + m[2] + ' trẻ em + ' + m[3] + ' trẻ nhỏ';
+    if ((m = text.match(/^(\d+)\s+взрослых\s*\+\s*(\d+)\s+реб[её]нок$/i))) return m[1] + ' người lớn + ' + m[2] + ' trẻ em';
+    if ((m = text.match(/^(\d+)\s+взрослых\s*\+\s*реб[её]нок\s+(\d+)\s+лет$/i))) return m[1] + ' người lớn + trẻ ' + m[2] + ' tuổi';
+    if ((m = text.match(/^(\d+)\s+взрослых\s+(?:и|,)\s+реб[её]нок\s+(\d+)\s+лет$/i))) return m[1] + ' người lớn + trẻ ' + m[2] + ' tuổi';
+    if ((m = text.match(/^до\s+(.+)$/i))) return 'đến ' + translateDateTimeSafe(m[1]);
+    if ((m = text.match(/^сейчас\s+(.+)$/i))) return 'hiện tại ' + m[1];
+    if ((m = text.match(/^(\d+)\s+человек(?:а)?\s+—\s+(.+)$/i))) return m[1] + ' người — ' + m[2];
+    if ((m = text.match(/^(\d+)[–-](\d+)\s+человек(?:а)?\s+—\s+(.+)$/i))) return m[1] + '–' + m[2] + ' người — ' + m[3];
+    if ((m = text.match(/^(\d+)\s+мест$/i))) return m[1] + ' chỗ';
+    if ((m = text.match(/^чек\s+(.+)$/i))) return 'biên nhận ' + m[1];
+    if ((m = text.match(/^Дата оплаты:\s*(.+)$/i))) return 'Ngày thanh toán: ' + translateDateTimeSafe(m[1]);
+    if ((m = text.match(/^Открываю бронирование «(.+)»\.\s*Дату и состав группы, которые вы уже назвали, перенесу в оформление\.$/i))) {
+      return 'Đang mở đặt tour “' + translateAtomic(m[1]) + '”. Ngày đi và số người bạn đã cung cấp sẽ được điền tự động.';
+    }
+    if ((m = text.match(/^Отмена сейчас бесплатная\.\s*Деньги удерживать не нужно\.\s*Бесплатная отмена действует до (.+)\.$/i))) {
+      return 'Hiện tại hủy miễn phí và không mất phí. Hủy miễn phí áp dụng đến ' + translateDateTimeSafe(m[1]) + '.';
+    }
+    if ((m = text.match(/^Бесплатный срок отмены был до (.+)\.\s*При отмене сейчас удерживается 30% стоимости экскурсии:\s*(.+)\.$/i))) {
+      return 'Thời hạn hủy miễn phí là đến ' + translateDateTimeSafe(m[1]) + '. Nếu hủy bây giờ sẽ giữ lại 30% giá tour: ' + m[2] + '.';
+    }
+    if ((m = text.match(/^Бесплатный срок отмены был до (.+)\.\s*Сейчас действует удержание 100%:\s*(.+)\.\s*Это правило применяется в день выезда или при неявке\.$/i))) {
+      return 'Thời hạn hủy miễn phí là đến ' + translateDateTimeSafe(m[1]) + '. Hiện áp dụng giữ lại 100%: ' + m[2] + '. Quy định này áp dụng trong ngày khởi hành hoặc khi không đến.';
+    }
+    if ((m = text.match(/^Перенос сейчас бесплатный\.\s*Доплата не нужна\.\s*Бесплатный перенос действует до (.+)\.$/i))) {
+      return 'Hiện tại đổi ngày miễn phí, không cần trả thêm. Đổi ngày miễn phí áp dụng đến ' + translateDateTimeSafe(m[1]) + '.';
+    }
+    if ((m = text.match(/^Бесплатный срок переноса был до (.+)\.\s*При переносе сейчас удерживается 30% стоимости экскурсии:\s*(.+)\.$/i))) {
+      return 'Thời hạn đổi ngày miễn phí là đến ' + translateDateTimeSafe(m[1]) + '. Nếu đổi ngày bây giờ sẽ giữ lại 30% giá tour: ' + m[2] + '.';
+    }
+    return text;
+  }
+
+  function translateDateTimeSafe(text) {
+    let out = String(text);
+    const months = {'янв':'thg 1','фев':'thg 2','мар':'thg 3','апр':'thg 4','май':'thg 5','мая':'thg 5','июн':'thg 6','июл':'thg 7','авг':'thg 8','сен':'thg 9','сент':'thg 9','окт':'thg 10','ноя':'thg 11','дек':'thg 12'};
+    out = out.replace(/(\d{1,2})[–-](\d{1,2})\s+(янв|фев|мар|апр|май|мая|июн|июл|авг|сен|сент|окт|ноя|дек)\b/gi, (_,a,b,mon)=>a+'–'+b+' '+(months[String(mon).toLowerCase()]||mon));
+    out = out.replace(/(\d{1,2})\s+(янв|фев|мар|апр|май|мая|июн|июл|авг|сен|сент|окт|ноя|дек)\b/gi, (_,day,mon)=>day+' '+(months[String(mon).toLowerCase()]||mon));
+    out = out.replace(/\bоколо\b/gi,'khoảng').replace(/\bвторого дня\b/gi,'ngày thứ hai');
+    return out;
+  }
+
+  function translateAtomic(text) {
+    const s=String(text == null ? '' : text).trim();
+    if (!s) return s;
+    if (VI_TEXT[s]) return VI_TEXT[s];
+    if (VI_CITY_CASES[s]) return VI_CITY_CASES[s];
+    if (CITY[s]) return CITY[s];
+    if (SIMPLE[s]) return SIMPLE[s];
+    const mapped=mapSimple(s);
+    if (mapped !== s) return mapped;
+    const dynamic=translateDynamicSafe(s);
+    if (dynamic !== s) return dynamic;
+    const dated=translateDateTimeSafe(s);
+    if (dated !== s) return dated;
+    return s;
+  }
+
+  function translateCompositeSafe(text) {
+    if (!text.includes(' · ')) return translateAtomic(text);
+    return text.split(' · ').map(part=>translateAtomic(part)).join(' · ');
+  }
+
   function tr(value) {
     const raw = String(value == null ? '' : value);
-    const trimmed = raw.trim();
-    if (!trimmed) return raw;
-    if (VI_TEXT[trimmed]) return raw.replace(trimmed, VI_TEXT[trimmed]);
-    if (CITY[trimmed]) return raw.replace(trimmed, CITY[trimmed]);
-    if (SIMPLE[trimmed]) return raw.replace(trimmed, SIMPLE[trimmed]);
-    const simple = mapSimple(trimmed);
-    if (simple !== trimmed) return raw.replace(trimmed, simple);
-    let m;
-    if ((m = trimmed.match(/^(\d+)\s+найдено$/))) return raw.replace(trimmed, m[1] + ' tour');
-    if ((m = trimmed.match(/^(\d+)\s+из\s+(\d+)\s+мест$/))) return raw.replace(trimmed, m[1] + '/' + m[2] + ' chỗ');
-    if ((m = trimmed.match(/^Групповой от\s+(.+)$/))) return raw.replace(trimmed, 'Ghép đoàn từ ' + m[1]);
-    if ((m = trimmed.match(/^Индивидуальный от\s+(.+)$/))) return raw.replace(trimmed, 'Riêng tư từ ' + m[1]);
-    if ((m = trimmed.match(/^от\s+(.+)$/))) return raw.replace(trimmed, 'từ ' + m[1]);
-    if ((m = trimmed.match(/^(\d{1,2})\s+сен$/))) return raw.replace(trimmed, m[1] + ' Thg 9');
-    if (trimmed.includes(' · выезд ')) return raw.replace(trimmed, trimmed.replace(' · выезд ', ' · khởi hành '));
-    if (trimmed === 'до 17:00 накануне') return raw.replace(trimmed, 'trước 17:00 ngày hôm trước');
-    return raw;
+    const leading = raw.match(/^\s*/)?.[0] || '';
+    const trailing = raw.match(/\s*$/)?.[0] || '';
+    const trimmed = raw.slice(leading.length, raw.length - trailing.length || undefined);
+    if (!trimmed || locale !== 'vi' || !/[А-Яа-яЁё]/.test(trimmed)) return raw;
+    const translated = translateCompositeSafe(trimmed);
+    return translated === trimmed ? raw : leading + translated + trailing;
   }
 
   function translateAttr(el, name) {
