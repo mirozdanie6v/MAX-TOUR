@@ -3,8 +3,8 @@
 
   // Bump the client state key so an older conversation created by the previous
   // guided flow cannot reappear after the chat interaction model changes.
-  const ACTIVE_LOCALE = ['vi','en'].includes(String(localStorage.getItem('max-tour-locale-v1') || '').toLowerCase())
-    ? String(localStorage.getItem('max-tour-locale-v1')).toLowerCase() : 'ru';
+  const storedLocale = String(globalThis.localStorage?.getItem?.('max-tour-locale-v1') || '').toLowerCase();
+  const ACTIVE_LOCALE = ['vi','en'].includes(storedLocale) ? storedLocale : 'ru';
   const STORAGE_KEY = 'max-tour-ai-consultant-v4-' + ACTIVE_LOCALE;
   const MAX_MESSAGES = 120;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
