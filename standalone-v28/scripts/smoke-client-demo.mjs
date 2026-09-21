@@ -43,7 +43,7 @@ async function stubApi(page) {
 async function mobileFlow(browser) {
   const page = await browser.newPage({viewport:{width:390,height:844}});
   await stubApi(page);
-  await page.addInitScript(() => localStorage.setItem('viiversion-travel-demo-locale','vi'));
+  await page.addInitScript(() => { if (!localStorage.getItem('viiversion-travel-demo-locale')) localStorage.setItem('viiversion-travel-demo-locale','vi'); });
   await page.goto(base,{waitUntil:'networkidle'});
   assert(await page.locator('html').getAttribute('lang') === 'vi','default locale is not vi');
   await noCyrillic(page,'VI home');
