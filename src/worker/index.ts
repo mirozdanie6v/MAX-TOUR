@@ -71,6 +71,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname;
+    const locale = request.headers.get('X-Max-Tour-Locale') === 'vi' || url.searchParams.get('lang') === 'vi' ? 'vi' : 'ru';
 
     if (!path.startsWith('/api/')) {
       const asset = await env.ASSETS.fetch(request);
@@ -128,19 +129,19 @@ export default {
       else if (path.startsWith('/api/owner/')) staffActor = await requireStaffRole(env, request, 'owner');
       const actorId = staffActor?.telegramUserId ?? 'demo';
 
-      if (path === '/api/destinations' && request.method === 'GET') return finish(json({ items: await getDestinations(env.DB, session.id) }));
+      if (path === '/api/destinations' && request.method === 'GET') return finish(json({ items: await getDestinations(env.DB, session.id, locale) }));
       if (path === '/api/site-catalog' && request.method === 'GET') return finish(json({ catalog: sourceSiteCatalog() }));
       if (path === '/api/tours' && request.method === 'GET') {
-        const all = await getMergedTours(env.DB, session.id);
+        const all = await getMergedTours(env.DB, session.id, locale);
         const publishedOnly = url.searchParams.get('admin') !== '1';
         return finish(json({ items: publishedOnly ? all.filter(t => t.published) : all }));
       }
 
       let m = match(path, /^\/api\/tours\/([^/]+)\/availability$/);
-      if (m && request.method === 'GET') return finish(json({ items: await getAvailability(env.DB, session.id, m[0]), demo: true }));
+      if (m && request.method === 'GET') return finish(json({ items: await getAvailability(env.DB, session.id, m[0], locale), demo: true }));
       m = match(path, /^\/api\/tours\/([^/]+)$/);
       if (m && request.method === 'GET') {
-        const tours = await getMergedTours(env.DB, session.id);
+        const tours = await getMergedTours(env.DB, session.id, locale);
         const tour = tours.find(t => t.id === m![0] || t.slug === m![0]);
         if (!tour) throw new HttpError(404, 'Экскурсия не найдена', 'TOUR_NOT_FOUND');
         return finish(json({ item: tour }));
@@ -153,7 +154,7 @@ export default {
 
       if (path === '/api/booking/quote' && request.method === 'POST') {
         const input = await body(request);
-        const result = await quoteBooking(env, session.id, input);
+        const result = await quoteBooking(env, session.id, input, locale);
         await recordEvent(env, session.id, { eventType: 'quote_created', source: result.draft.source, tourId: result.tour.id });
         return finish(json({ quote: result.quote }));
       }
@@ -161,7 +162,7 @@ export default {
       if (path === '/api/orders' && request.method === 'POST') {
         const input = await body(request);
         const idempotencyKey = requiredIdempotencyKey(request);
-        const result = await quoteBooking(env, session.id, input);
+        const result = await quoteBooking(env, session.id, input, locale);
         const order = await createOrder(env, session.id, result.draft, result.tour, result.quote, idempotencyKey);
         if (!order) throw new HttpError(500, 'Не удалось создать заказ', 'ORDER_CREATE_FAILED');
         const { raw: _raw, ...safe } = order;
