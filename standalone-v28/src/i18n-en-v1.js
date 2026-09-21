@@ -520,7 +520,7 @@
     'Понравилось':'Favorites',
     'добавить':'add',
     'Язык':'Language',
-    'Русский':'Russian',
+    'Русский':'English',
     'Согласия':'Consents',
     'актуальны':'active',
     'receipt и статус':'receipt and status',
