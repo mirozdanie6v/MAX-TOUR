@@ -22,6 +22,7 @@ jobs:
         working-directory: standalone-v28
         run: |
           npm install --ignore-scripts --no-audit --no-fund --package-lock=false
+          node --check src/i18n-v1.js
           npm test
           npm run build
       - name: Extract customer-facing Russian strings
