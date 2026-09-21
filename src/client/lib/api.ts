@@ -9,6 +9,9 @@ async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
   if (init.body && !headers.has('content-type')) headers.set('content-type','application/json');
   const initData = typeof window !== 'undefined' ? String((window as any).Telegram?.WebApp?.initData ?? '') : '';
   if (initData && !headers.has('X-Telegram-Init-Data')) headers.set('X-Telegram-Init-Data', initData);
+  const multilingualHost = typeof window !== 'undefined' && window.location.hostname === 'max-tour.viiversion.com';
+  const locale = multilingualHost && window.localStorage.getItem('max-tour-locale') === 'vi' ? 'vi' : 'ru';
+  if (!headers.has('X-Max-Tour-Locale')) headers.set('X-Max-Tour-Locale', locale);
   const response = await fetch(url,{...init,headers,credentials:'same-origin'});
   const data:any = await response.json().catch(()=>({}));
   if(!response.ok) throw new ApiError(data?.error?.message ?? 'Ошибка API',response.status,data?.error?.code);
