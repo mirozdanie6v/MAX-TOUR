@@ -1,8 +1,8 @@
 (() => {
   'use strict';
 
-  const ACTIVE_LOCALE = ['vi','en'].includes(String(localStorage.getItem('max-tour-locale-v1') || '').toLowerCase())
-    ? String(localStorage.getItem('max-tour-locale-v1')).toLowerCase() : 'ru';
+  const storedLocale = String(globalThis.localStorage?.getItem?.('max-tour-locale-v1') || '').toLowerCase();
+  const ACTIVE_LOCALE = ['vi','en'].includes(storedLocale) ? storedLocale : 'ru';
   const STORAGE_KEY = 'max-tour-ai-consultant-v5-' + ACTIVE_LOCALE;
   const BOOKING_INTENT_KEY = 'max-tour-ai-booking-intent-v1';
   const LOCATION_KEY = 'max-tour-ai-location-v6';
