@@ -1,0 +1,513 @@
+{
+  "dalat-premium": {
+    "title": "Da Lat Premium",
+    "groupNotes": [
+      "Small-group day tour",
+      "Lunch, entrance tickets and cable car included",
+      "Hotel pickup and guided program"
+    ],
+    "individualNotes": [
+      "Choose your date when booking",
+      "Flexible pace and longer stops",
+      "Private option for families or friends"
+    ],
+    "route": [
+      "Coffee plantation",
+      "Mountain pass",
+      "Clay Tunnel",
+      "Crazy House",
+      "Linh Phuoc Pagoda",
+      "Datanla Waterfall",
+      "Cable car"
+    ],
+    "included": [
+      "Lunch",
+      "Entrance tickets and cable car",
+      "Guide",
+      "Comfortable minibus",
+      "Bottled water"
+    ],
+    "take": [
+      "Temple-appropriate clothing",
+      "Light breakfast or snack",
+      "Light jacket",
+      "Rain jacket",
+      "Comfortable shoes",
+      "VND for personal expenses"
+    ]
+  },
+  "dalat-vip": {
+    "title": "Da Lat VIP",
+    "groupNotes": [
+      "Small-group full-day tour",
+      "Lunch, tickets and water included",
+      "A rich itinerary at a comfortable pace"
+    ],
+    "individualNotes": [
+      "Private pace",
+      "More time at the main sights",
+      "Good for families and groups of friends"
+    ],
+    "route": [
+      "Coffee plantation",
+      "Hobbit Village",
+      "Mountain pass",
+      "Clay Tunnel",
+      "Crazy House",
+      "Linh Phuoc Pagoda",
+      "Datanla Waterfall",
+      "Animal farm"
+    ],
+    "included": [
+      "Lunch",
+      "Entrance tickets",
+      "Guide",
+      "Comfortable minibus",
+      "Small group format",
+      "Bottled water"
+    ],
+    "take": [
+      "Hat and sunscreen",
+      "Light breakfast or snack",
+      "Comfortable shoes",
+      "Spare clothes depending on weather",
+      "Good mood",
+      "VND for personal expenses"
+    ]
+  },
+  "fuyen": {
+    "title": "Phu Yen Province",
+    "groupNotes": [
+      "Small-group day tour",
+      "Lunch, tickets, transfers and water included",
+      "Nature and photo stops throughout the day"
+    ],
+    "individualNotes": [
+      "Private itinerary for your group",
+      "Flexible pace",
+      "Ideal for photography and relaxed stops"
+    ],
+    "route": [
+      "Wild beach",
+      "Tuy Hoa and Cham Tower",
+      "Nghinh Phong Tower",
+      "Mui Dien Lighthouse",
+      "Tram Pagoda",
+      "Local restaurant lunch",
+      "Thanh Luong Pagoda",
+      "Ganh Da Dia",
+      "Mang Lang Church"
+    ],
+    "included": [
+      "Lunch",
+      "Entrance tickets",
+      "Guide",
+      "Comfortable minibus",
+      "Small group format",
+      "Bottled water"
+    ],
+    "take": [
+      "Hat and sunscreen",
+      "Light breakfast or snack",
+      "Comfortable shoes and backpack",
+      "Swimwear and towel",
+      "Good mood",
+      "VND for souvenirs"
+    ]
+  },
+  "nhatrang-day": {
+    "title": "Nha Trang Day City Tour",
+    "groupNotes": [
+      "Compact and convenient city program",
+      "Lunch, tickets, transfers and water included",
+      "A good introduction to Nha Trang"
+    ],
+    "individualNotes": [
+      "Ideal for families or small groups",
+      "Relaxed pace",
+      "No long-distance travel outside the city"
+    ],
+    "route": [
+      "Long Son Pagoda and White Buddha",
+      "Nha Trang Cathedral",
+      "Hon Chong",
+      "Truc Lam Phung Pagoda",
+      "Po Nagar Cham Towers",
+      "North Nha Trang beach",
+      "Restaurant lunch"
+    ],
+    "included": [
+      "Lunch",
+      "Entrance tickets",
+      "Guide",
+      "Comfortable minibus",
+      "Small group format",
+      "Bottled water"
+    ],
+    "take": [
+      "Temple-appropriate clothing",
+      "Hat and sunscreen",
+      "Good mood",
+      "VND for souvenirs"
+    ]
+  },
+  "nhatrang-night": {
+    "title": "Nha Trang Evening City Tour",
+    "groupNotes": [
+      "Seafood buffet and cultural show",
+      "Entrance tickets included",
+      "Convenient evening schedule"
+    ],
+    "individualNotes": [
+      "Private evening itinerary",
+      "Good for families and couples",
+      "More time at temples and viewpoints"
+    ],
+    "route": [
+      "Da Bao Pagoda",
+      "Hon Chong",
+      "Nha Trang Cathedral",
+      "Do Theatre",
+      "Po Nagar Cham Towers",
+      "Long Son Pagoda and White Buddha",
+      "Lang Ngon Restaurant"
+    ],
+    "included": [
+      "Seafood buffet and cultural show",
+      "Entrance tickets",
+      "Guide",
+      "Transfers",
+      "Small group format",
+      "Bottled water"
+    ],
+    "take": [
+      "Temple-appropriate clothing",
+      "Hat and sunscreen",
+      "Good mood",
+      "VND for personal expenses"
+    ]
+  },
+  "dalat-2days": {
+    "title": "Da Lat 2 Days",
+    "groupNotes": [
+      "Two program options",
+      "Breakfast and two lunches included",
+      "Accommodation depends on room category"
+    ],
+    "individualNotes": [
+      "Private two-day program",
+      "A relaxed way to explore Da Lat",
+      "Final price may depend on room category"
+    ],
+    "route": [
+      "Day 1: coffee plantation",
+      "Clay Tunnel and Crazy House",
+      "Linh Phuoc Pagoda and Big Buddha",
+      "Datanla Waterfall",
+      "Hotel check-in",
+      "Day 2: farm, waterfall and old railway station"
+    ],
+    "included": [
+      "Breakfast and two lunches",
+      "Entrance tickets",
+      "Guide",
+      "Transfers",
+      "Accommodation according to selected package",
+      "Bottled water"
+    ],
+    "take": [
+      "Temple-appropriate clothing",
+      "Breakfast/snack for day one",
+      "Light jacket",
+      "Rain jacket",
+      "Comfortable shoes",
+      "VND for extras and souvenirs"
+    ]
+  },
+  "fast-track": {
+    "title": "Airport Fast Track + Transfer",
+    "groupNotes": [
+      "Private service",
+      "Designed for airport arrival and hotel transfer"
+    ],
+    "individualNotes": [
+      "Meet-and-greet with name sign",
+      "Priority immigration assistance",
+      "Private transfer to your hotel"
+    ],
+    "route": [
+      "Airport meet-and-greet",
+      "Fast-track formalities",
+      "Private hotel transfer"
+    ],
+    "included": [
+      "Meet-and-greet",
+      "Fast-track immigration assistance",
+      "Private transfer"
+    ],
+    "take": [
+      "Passport",
+      "Flight details",
+      "Hotel name"
+    ]
+  },
+  "danang-ba-na-hoian": {
+    "title": "Ba Na Hills, Golden Bridge & Hoi An",
+    "groupNotes": [
+      "Small-group day program",
+      "Cable car, theme park and evening Hoi An",
+      "A strong first introduction to Central Vietnam"
+    ],
+    "individualNotes": [
+      "Travel at your own pace",
+      "More time at Golden Bridge or Hoi An",
+      "Comfortable for families and friends"
+    ],
+    "route": [
+      "Ba Na Hills",
+      "Golden Bridge",
+      "French Village",
+      "Marble Mountains",
+      "Hoi An in the evening"
+    ],
+    "included": [
+      "Transfers",
+      "Program entrance tickets",
+      "Guide",
+      "Bottled water",
+      "Ticket assistance"
+    ],
+    "take": [
+      "Comfortable shoes",
+      "Hat and sunscreen",
+      "Light jacket for Ba Na Hills",
+      "VND for personal expenses",
+      "Phone charger"
+    ]
+  },
+  "danang-city-sontra": {
+    "title": "Da Nang: Son Tra, Marble Mountains & Bridges",
+    "groupNotes": [
+      "Compact evening program",
+      "Da Nang highlights",
+      "Easy add-on after a beach day"
+    ],
+    "individualNotes": [
+      "Flexible departure time",
+      "Option to add a restaurant or photo stop",
+      "A relaxed city experience"
+    ],
+    "route": [
+      "Linh Ung Pagoda",
+      "Marble Mountains",
+      "Dragon Bridge",
+      "Han River waterfront"
+    ],
+    "included": [
+      "Transfers",
+      "Guide/host",
+      "Bottled water",
+      "Ticket assistance"
+    ],
+    "take": [
+      "Comfortable shoes",
+      "Temple-appropriate clothing",
+      "Water",
+      "Phone or camera"
+    ]
+  },
+  "phuquoc-4-islands": {
+    "title": "Phu Quoc: 4 Islands & Cable Car",
+    "groupNotes": [
+      "Scheduled group departure",
+      "Islands, beaches and cable car",
+      "Boat program included according to package"
+    ],
+    "individualNotes": [
+      "Private speedboat/vehicle on request",
+      "Flexible beach time",
+      "Convenient for families with children"
+    ],
+    "route": [
+      "Southern islands",
+      "Beach stop",
+      "Snorkeling",
+      "Hon Thom cable car"
+    ],
+    "included": [
+      "Hotel-area pickup",
+      "Boat trip",
+      "Bottled water",
+      "Ticket assistance",
+      "Program support"
+    ],
+    "take": [
+      "Swimwear and towel",
+      "Sunscreen",
+      "Hat",
+      "Dry clothes",
+      "VND for optional extras"
+    ]
+  },
+  "phuquoc-vinwonders-safari": {
+    "title": "VinWonders & Safari Phu Quoc",
+    "groupNotes": [
+      "Tickets and transfers according to package",
+      "Full-day program",
+      "Family-friendly"
+    ],
+    "individualNotes": [
+      "Private transfer",
+      "Flexible return time",
+      "Choose park only or park + safari"
+    ],
+    "route": [
+      "VinWonders",
+      "Safari",
+      "Grand World"
+    ],
+    "included": [
+      "Transfers",
+      "Ticket assistance",
+      "Program support",
+      "Bottled water"
+    ],
+    "take": [
+      "Comfortable shoes",
+      "Hat for children",
+      "Swimwear for the water park",
+      "Child ID/document copy if required"
+    ]
+  },
+  "hanoi-halong-2d": {
+    "title": "Hanoi & Ha Long Bay",
+    "groupNotes": [
+      "Departure on request",
+      "Cruise and sightseeing program",
+      "Price depends on travel date and cabin category"
+    ],
+    "individualNotes": [
+      "Private program with flight/transfer options",
+      "5-star cruise according to selected package",
+      "Seasonal pricing applies"
+    ],
+    "route": [
+      "Hanoi",
+      "Ha Long Bay",
+      "Cruise",
+      "Return"
+    ],
+    "included": [
+      "Meals according to program",
+      "Flights/transfers according to package",
+      "Entrance tickets",
+      "Guide in Hanoi",
+      "5-star cruise according to package"
+    ],
+    "take": [
+      "Passport",
+      "Comfortable shoes",
+      "VND for personal expenses",
+      "Phone charger",
+      "Light evening jacket"
+    ]
+  },
+  "hanoi-sapa-3d": {
+    "title": "Hanoi & Sa Pa",
+    "groupNotes": [
+      "Shared departures on request",
+      "Mountains, Fansipan and Sa Pa villages",
+      "Seasonal pricing applies"
+    ],
+    "individualNotes": [
+      "Hanoi, Sa Pa and Fansipan itinerary",
+      "Ideal for exploring Northern Vietnam",
+      "Price depends on tickets and season"
+    ],
+    "route": [
+      "Hanoi",
+      "Sa Pa",
+      "Cat Cat Village",
+      "Fansipan",
+      "Silver Waterfall"
+    ],
+    "included": [
+      "Transfers according to program",
+      "Accommodation",
+      "Meals according to program",
+      "Program tickets",
+      "Guide/host"
+    ],
+    "take": [
+      "Passport",
+      "Jacket or windbreaker",
+      "Comfortable shoes",
+      "VND",
+      "Personal medication"
+    ]
+  },
+  "hanoi-ninhbinh": {
+    "title": "Ninh Binh: Trang An & Mua Cave",
+    "groupNotes": [
+      "Shared departure from Hanoi",
+      "Boat trip and panoramic viewpoints",
+      "A full and varied day"
+    ],
+    "individualNotes": [
+      "Private vehicle from Hanoi",
+      "More relaxed pace available",
+      "Excellent for nature and photography"
+    ],
+    "route": [
+      "Trang An",
+      "Local cuisine restaurant",
+      "Mua Cave",
+      "Temples and countryside"
+    ],
+    "included": [
+      "Transfers",
+      "Boat trip",
+      "Entrance tickets",
+      "Lunch",
+      "Program support"
+    ],
+    "take": [
+      "Comfortable shoes",
+      "Hat",
+      "Water",
+      "VND",
+      "Temple-appropriate clothing"
+    ]
+  },
+  "muine-dunes-jeep": {
+    "title": "Mui Ne: Sand Dunes, Fishing Village & Fairy Stream",
+    "groupNotes": [
+      "Shared sunrise departure",
+      "White and red sand dunes",
+      "Photo stops and light walking"
+    ],
+    "individualNotes": [
+      "Private jeep/vehicle",
+      "Choose sunrise or sunset",
+      "Ideal for a photography-focused trip"
+    ],
+    "route": [
+      "White Sand Dunes",
+      "Red Sand Dunes",
+      "Fishing Village",
+      "Fairy Stream"
+    ],
+    "included": [
+      "Transfers",
+      "Jeep/vehicle according to program",
+      "Bottled water",
+      "Program support"
+    ],
+    "take": [
+      "Comfortable shoes",
+      "Hat",
+      "Phone/camera",
+      "VND for personal expenses"
+    ]
+  }
+}
