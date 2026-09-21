@@ -73,6 +73,14 @@ const AI_RULES_VI = [
   'Nếu chưa có phương án chính xác trong danh mục, hãy hỏi thêm điểm đến, ngày, số người, thời lượng, khách sạn/đưa đón và ngân sách.',
 ];
 
+const AI_RULES_EN = [
+  'Cancellation more than 48 hours before departure is free; until 17:00 on the previous day 30% is retained, later 100%.',
+  'Rescheduling is free until 17:00 on the previous day; later a 30% charge may apply.',
+  'A 30% deposit or full payment is available; the exact amount is shown during booking.',
+  'Ask for the age of each child; party composition affects the price.',
+  'If there is no exact catalogue match, ask for destination, date, party size, duration, hotel/transfer and budget.',
+];
+
 const AI_TOUR_TITLES_VI = {
   'dalat-premium':'Đà Lạt “Premium”',
   'dalat-vip':'Đà Lạt “VIP”',
@@ -91,17 +99,35 @@ const AI_TOUR_TITLES_VI = {
   'muine-dunes-jeep':'Mũi Né: đồi cát, làng chài và Suối Tiên',
 };
 
+const AI_TOUR_TITLES_EN = {
+  'dalat-premium':'Da Lat Premium',
+  'dalat-vip':'Da Lat VIP',
+  'fuyen':'Phu Yen Province',
+  'nhatrang-day':'Nha Trang Day City Tour',
+  'nhatrang-night':'Nha Trang Evening City Tour',
+  'dalat-2days':'Da Lat 2 Days',
+  'fast-track':'Airport Fast Track + Transfer',
+  'danang-ba-na-hoian':'Ba Na Hills, Golden Bridge & Hoi An',
+  'danang-city-sontra':'Da Nang: Son Tra, Marble Mountains & Bridges',
+  'phuquoc-4-islands':'Phu Quoc: 4 Islands & Cable Car',
+  'phuquoc-vinwonders-safari':'VinWonders & Safari Phu Quoc',
+  'hanoi-halong-2d':'Hanoi & Ha Long Bay',
+  'hanoi-sapa-3d':'Hanoi & Sa Pa',
+  'hanoi-ninhbinh':'Ninh Binh: Trang An & Mua Cave',
+  'muine-dunes-jeep':'Mui Ne: Sand Dunes, Fishing Village & Fairy Stream',
+};
+
 function requestedAiLocale(request, body) {
   const raw = String(body?.locale || body?.context?.locale || request?.headers?.get?.('x-max-tour-locale') || '').toLowerCase();
-  return raw === 'vi' ? 'vi' : 'ru';
+  if (raw === 'en') return 'en';
+  if (raw === 'vi') return 'vi';
+  return 'ru';
 }
 
 function localizedAiCatalog(catalog, locale) {
-  if (locale !== 'vi') return catalog;
-  return catalog.map(item => ({
-    ...item,
-    title: AI_TOUR_TITLES_VI[item.id] || item.title,
-  }));
+  if (locale === 'vi') return catalog.map(item => ({ ...item, title: AI_TOUR_TITLES_VI[item.id] || item.title }));
+  if (locale === 'en') return catalog.map(item => ({ ...item, title: AI_TOUR_TITLES_EN[item.id] || item.title }));
+  return catalog;
 }
 
 function rublesFromUsd(value, rate) {
@@ -222,7 +248,7 @@ function unsafeAiCopy(value) {
 }
 
 function aiFallbackReply(message, catalog = [], locale = 'ru') {
-  const q = String(message || '').toLocaleLowerCase(locale === 'vi' ? 'vi-VN' : 'ru-RU');
+  const q = String(message || '').toLocaleLowerCase(locale === 'vi' ? 'vi-VN' : locale === 'en' ? 'en-US' : 'ru-RU');
   if (locale === 'vi') {
     if (/hủy|huy|đổi\s*ngày|doi\s*ngay|hoàn\s*tiền|hoan\s*tien/.test(q)) {
       return 'Hủy trước hơn 48 giờ được miễn phí. Đến 17:00 ngày hôm trước giữ lại 30%; muộn hơn giữ lại 100%. Nếu bạn cho tôi ngày khởi hành, tôi sẽ giải thích chính xác hơn.';
@@ -240,6 +266,16 @@ function aiFallbackReply(message, catalog = [], locale = 'ru') {
       return 'Lịch trình và các dịch vụ bao gồm được ghi trong thẻ tour. Hãy cho tôi biết điểm đến hoặc tên tour, tôi sẽ giải thích cụ thể.';
     }
     return 'Tôi có thể giúp bạn chọn tour phù hợp. Hãy cho tôi biết điểm đến, ngày dự kiến và số người đi.';
+  }
+  if (locale === 'en') {
+    if (/cancel|refund|reschedul|change\s*date/.test(q)) return 'Cancellation is free more than 48 hours before departure. Until 17:00 on the previous day, 30% is retained; later, 100%. Tell me your departure date and I can explain the rule more precisely.';
+    if (/pay|deposit|30\s*%|full\s*payment/.test(q)) return 'You can pay a 30% deposit or the full amount. The exact total is shown during booking.';
+    if (/transfer|airport|pickup|hotel/.test(q)) return 'A transfer can be added to the trip. Tell me your hotel or pickup point and I will take it into account.';
+    if (/child|children|kid|baby|infant/.test(q)) return 'Please tell me the age of each child so I can account for the party correctly.';
+    if (/included|itinerary|route|program/.test(q)) return 'The itinerary and included services are shown in each tour card. Tell me the destination or tour name and I can explain it.';
+    const matches = catalog.filter(item => `${item.title} ${item.city} ${(item.tags || []).join(' ')}`.toLowerCase().split(/\s+/).some(token => token.length > 3 && q.includes(token)));
+    if (matches.length) return `I can suggest “${matches[0].title}”. Tell me your preferred date and party size.`;
+    return 'I can help you choose a tour. Tell me the destination, preferred date and how many people are travelling.';
   }
   if (/отмен|перенос|возврат/.test(q)) return AI_RULES[0] + ' Если назовёте дату выезда, подскажу точнее.';
   if (/оплат|депозит|предоплат|30\s*%|сто процент/.test(q)) return AI_RULES[2];
@@ -274,7 +310,7 @@ async function generateAiReply(request, env, body) {
       date: consultationText(body.context.date, 100),
       preferences: Array.isArray(body.context.preferences) ? body.context.preferences.slice(0, 8).map(item => consultationText(item, 50)) : [],
     } : {},
-    rules: locale === 'vi' ? AI_RULES_VI : AI_RULES,
+    rules: locale === 'vi' ? AI_RULES_VI : locale === 'en' ? AI_RULES_EN : AI_RULES,
     catalogue: catalog,
     liveDepartures,
   };
@@ -282,23 +318,28 @@ async function generateAiReply(request, env, body) {
   if (!message || !env.AI) return { reply: fallback, source: 'catalog-fallback', usdRubRate };
 
   const system = locale === 'vi' ? [
-    'Bạn là trợ lý AI thân thiện của ứng dụng du lịch MAX TOUR.',
+    'Bạn là trợ lý AI thân thiện của ứng dụng du lịch.',
     'Chỉ trả lời bằng tiếng Việt, ngắn gọn và tự nhiên như trò chuyện thông thường: 1–4 câu ngắn.',
     'Chỉ sử dụng dữ kiện trong VERIFIED_CONTEXT. Không được tự tạo giá, ngày, địa điểm, lịch trình hoặc tình trạng chỗ.',
     'Nếu thiếu thông tin, chỉ hỏi một câu rõ ràng để bổ sung dữ liệu cần thiết.',
-    'Không nhắc đến hệ thống nội bộ, CRM, cơ sở dữ liệu, API, quá trình phát triển, mô hình AI hoặc việc chuyển yêu cầu cho nhân viên.',
-    'Chỉ nêu số tiền bằng đô la Mỹ ($) như trong danh mục. Không dùng ký hiệu rúp (₽).',
-    'Không hứa thanh toán hoặc xác nhận trước khi người dùng mở thẻ tour và hoàn tất bước đặt tour.',
-    'Tên tour có thể được diễn đạt bằng tiếng Việt nhưng phải giữ nguyên ý nghĩa và dữ kiện của danh mục.',
+    'Không nhắc đến hệ thống nội bộ, CRM, cơ sở dữ liệu, API, quá trình phát triển hoặc mô hình AI.',
+    'Chỉ nêu số tiền bằng đô la Mỹ ($) như trong danh mục.',
+    `VERIFIED_CONTEXT=${JSON.stringify(safeContext)}`,
+  ].join('\n') : locale === 'en' ? [
+    'You are a friendly AI assistant for a travel booking application.',
+    'Reply only in English, naturally and concisely in 1–4 short sentences.',
+    'Use only facts from VERIFIED_CONTEXT. Never invent prices, dates, places, itinerary details or availability.',
+    'If information is missing, ask one clear follow-up question.',
+    'Do not mention internal systems, CRM, databases, APIs, development or the AI model.',
+    'Use US dollars ($) exactly as shown in the catalogue.',
     `VERIFIED_CONTEXT=${JSON.stringify(safeContext)}`,
   ].join('\n') : [
-    'Ты доброжелательный AI-консультант туристического приложения MAX TOUR.',
+    'Ты доброжелательный AI-консультант туристического приложения.',
     'Отвечай только на русском, коротко и естественно, как в обычном чате: 1–4 коротких предложения.',
     'Используй только факты из VERIFIED_CONTEXT. Не придумывай цены, даты, места, состав программы или наличие.',
     'Если не хватает данных, задай один понятный уточняющий вопрос.',
-    'Не упоминай внутренние системы, CRM, базы, API, разработку, модель, технические детали или передачу обращения сотруднику.',
-    'Называй суммы только в долларах ($), как указано в каталоге. Не используй знак рубля (₽).',
-    'Не обещай оплату или подтверждение, пока пользователь не открыл карточку и не оформил поездку.',
+    'Не упоминай внутренние системы, CRM, базы, API, разработку, модель или технические детали.',
+    'Называй суммы только в долларах ($), как указано в каталоге.',
     `VERIFIED_CONTEXT=${JSON.stringify(safeContext)}`,
   ].join('\n');
   const messages = [
@@ -520,6 +561,7 @@ async function bootstrap(env, sid) {
 
 async function api(request, env, url) {
   if (url.pathname === '/api/health') return json({ ok:true, app:'max-tour-v28-standalone', database:'D1', env:env.APP_ENV || 'demo' });
+  if (env.CLIENT_ONLY === 'true' && url.pathname.startsWith('/api/admin')) return json({ ok:false, error:'not_found' }, { status:404 });
   const adminResponse = await handleAdminApi(request, env, url);
   if (adminResponse) return adminResponse;
   const session = await ensureSession(request, env);
@@ -594,6 +636,7 @@ export default {
     const url = new URL(request.url);
     try {
       if (url.pathname.startsWith('/api/')) return await api(request, env, url);
+      if (env.CLIENT_ONLY === 'true' && /^\/(?:admin|director)(?:\/|$)/.test(url.pathname)) return new Response('Not Found', {status:404});
       if (url.pathname === '/admin') return Response.redirect(new URL('/admin/', url), 308);
       const asset = await env.ASSETS.fetch(request);
       return url.pathname.startsWith('/admin/') ? secureAdminAsset(asset) : asset;
