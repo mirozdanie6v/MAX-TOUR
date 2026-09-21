@@ -76,7 +76,7 @@ export interface Destination {
 export interface AvailabilityDate {
   date: string;
   status: 'available' | 'low' | 'request';
-  label: 'доступно' | 'мало мест' | 'по запросу';
+  label: string;
   dataStatus: 'demoAvailability';
 }
 
