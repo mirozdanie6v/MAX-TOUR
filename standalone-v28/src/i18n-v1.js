@@ -477,6 +477,52 @@
     'новинка':'mới',
     'Новый тур':'Tour mới',
     'Дата и программа по запросу':'Ngày và chương trình theo yêu cầu'
+    'Остров Орхидей и Остров Обезьян':'Đảo Hoa Lan và Đảo Khỉ',
+    'Остров Хон Там':'Đảo Hòn Tằm',
+    'ВЫЕЗД':'KHỞI HÀNH',
+    'ВОЗВРАЩЕНИЕ':'TRỞ VỀ',
+    'групповой от':'tour ghép từ',
+    'индивидуальный':'tour riêng',
+    'групповой':'tour ghép',
+    'утро 1-го дня':'sáng ngày 1',
+    'вечер 2-го дня':'tối ngày 2',
+    'вечер 3-го дня':'tối ngày 3',
+    'Любая':'Bất kỳ',
+    'Полдня':'Nửa ngày',
+    'Вечер':'Buổi tối',
+    'Несколько дней':'Nhiều ngày',
+    'Любой тип':'Tất cả loại',
+    'Фото тура':'Ảnh tour',
+    'Погода и форс-мажор':'Thời tiết và bất khả kháng',
+    'Кто едет':'Người tham gia',
+    'основной тариф':'giá tiêu chuẩn',
+    'детская цена по туру':'giá trẻ em theo tour',
+    'если применимо':'nếu áp dụng',
+    'Данные участников':'Thông tin người tham gia',
+    'ФИО и дата рождения обязательны для каждого участника. Первый взрослый — основной путешественник, остальные сохраняются как попутчики.':'Họ tên và ngày sinh là bắt buộc với mỗi người tham gia. Người lớn đầu tiên là khách chính, những người còn lại được lưu làm người đi cùng.',
+    'взрослый':'người lớn',
+    'ребёнок':'trẻ em',
+    'ребенок':'trẻ em',
+    'СЕЙЧАС':'THANH TOÁN NGAY',
+    'ОСТАТОК':'CÒN LẠI',
+    'ВНЕСЕНО':'ĐÃ THANH TOÁN',
+    'Депозит 30%':'Đặt cọc 30%',
+    'СБП':'SBP',
+    'QR / ссылка':'QR / liên kết',
+    'карта / QR':'thẻ / QR',
+    'Другой способ':'Phương thức khác',
+    'подберём вариант':'chúng tôi sẽ hỗ trợ',
+    'Понравилось':'Yêu thích',
+    'Данные путешественников сохраняются после оформления заявки и доступны для быстрого выбора при следующем бронировании.':'Thông tin du khách được lưu sau khi đặt tour và có thể chọn nhanh cho lần đặt tiếp theo.',
+    'добавить':'thêm',
+    'Изменить':'Chỉnh sửa',
+    'Удалить':'Xóa',
+    'Сохранённые путешественники доступны для повторного выбора в новых заявках.':'Du khách đã lưu có thể được chọn lại trong các đơn mới.',
+    'Иван Петров':'Ivan Petrov',
+    'Анна Петрова':'Anna Petrova',
+    'Марк Петров':'Mark Petrov',
+    'Чек и статус':'Biên nhận và trạng thái',
+    'biên nhận и статус':'Biên nhận và trạng thái',
   };
   Object.assign(VI_TEXT, VI_COMPLETE);
 
@@ -540,13 +586,15 @@
     const months = {'янв':'thg 1','фев':'thg 2','мар':'thg 3','апр':'thg 4','май':'thg 5','мая':'thg 5','июн':'thg 6','июл':'thg 7','авг':'thg 8','сен':'thg 9','сент':'thg 9','окт':'thg 10','ноя':'thg 11','дек':'thg 12'};
     out = out.replace(/(\d{1,2})[–-](\d{1,2})\s+(янв|фев|мар|апр|май|мая|июн|июл|авг|сен|сент|окт|ноя|дек)\b/gi, (_,a,b,mon)=>a+'–'+b+' '+(months[String(mon).toLowerCase()]||mon));
     out = out.replace(/(\d{1,2})\s+(янв|фев|мар|апр|май|мая|июн|июл|авг|сен|сент|окт|ноя|дек)\b/gi, (_,day,mon)=>day+' '+(months[String(mon).toLowerCase()]||mon));
-    out = out.replace(/\bоколо\b/gi,'khoảng').replace(/\bвторого дня\b/gi,'ngày thứ hai');
+    out = out.replace(/около/gi,'khoảng').replace(/второго дня/gi,'ngày thứ hai');
     return out;
   }
 
   function translateAtomic(text) {
     const s=String(text == null ? '' : text).trim();
     if (!s) return s;
+    const numbered=s.match(/^(\d+\.\s*)(.+)$/);
+    if (numbered) { const tail=translateAtomic(numbered[2]); if (tail !== numbered[2]) return numbered[1] + tail; }
     if (VI_TEXT[s]) return VI_TEXT[s];
     if (VI_CITY_CASES[s]) return VI_CITY_CASES[s];
     if (CITY[s]) return CITY[s];
