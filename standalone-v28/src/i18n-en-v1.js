@@ -464,6 +464,13 @@
   Object.assign(EN_TEXT, {
     'Остров Орхидей и Остров Обезьян':'Orchid Island & Monkey Island',
     'Остров Хон Там':'Hon Tam Island',
+    'Выезд':'Departure',
+    'Возвращение':'Return',
+    'Взрослый':'Adult',
+    'Ребёнок':'Child',
+    'Депозит':'Deposit',
+    'групповой':'group',
+    'вечер 3-го дня':'evening of day 3',
     'ВЫЕЗД':'DEPARTURE',
     'ФИНИШ':'FINISH',
     'ВОЗВРАЩЕНИЕ':'RETURN',
