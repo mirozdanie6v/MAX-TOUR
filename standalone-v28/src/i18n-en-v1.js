@@ -2,7 +2,7 @@
   'use strict';
 
   const EN_TEXT = {
-    'Главная':'Home','Каталог':'Tours','Мои поездки':'My Trips','ИИ-Помощник':'AI Assistant',
+    'Вы':'You','Главная':'Home','Каталог':'Tours','Мои поездки':'My Trips','ИИ-Помощник':'AI Assistant',
     'Ваш лучший отдых':'Your best holiday','во Вьетнаме':'in Vietnam',
     'Ваш лучший отдых во Вьетнаме':'Your best holiday in Vietnam',
     'Более 150 экскурсий по всему Вьетнаму, Fast Track в аэропортах, трансферы, индивидуальные программы и авторские путешествия по Юго-Восточной Азии.':'150+ tours across Vietnam, airport Fast Track, transfers, private programs and signature journeys across Southeast Asia.',
