@@ -120,7 +120,7 @@ export async function getMergedTours(db: D1Database, sessionId: string, locale: 
 
   const promos = await db.prepare('SELECT tour_id, enabled, label, value, discount_type, discount_value FROM demo_promotions WHERE session_id=?').bind(sessionId).all<{ tour_id: string; enabled: number; label: string; value: string; discount_type: 'none'|'percent_bps'|'fixed_minor'; discount_value: number }>();
   const promoMap = new Map((promos.results ?? []).map(r => [r.tour_id, r] as const));
-  const withPromos = merged.map(t => {
+  const withPromos: Tour[] = merged.map(t => {
     const p = promoMap.get(t.id);
     return p ? {
       ...t,
@@ -130,7 +130,7 @@ export async function getMergedTours(db: D1Database, sessionId: string, locale: 
         value: p.value,
         discountType: p.discount_type,
         discountValue: Number(p.discount_value ?? 0),
-        dataStatus: 'demoPromo',
+        dataStatus: 'demoPromo' as const,
       }
     } : t;
   });
