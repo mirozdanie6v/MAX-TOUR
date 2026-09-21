@@ -1,4 +1,4 @@
-import type { AvailabilityDate, Destination, OrderSummary, Tour } from '../../shared/types';
+import type { AvailabilityDate, Destination, Locale, OrderSummary, Tour } from '../../shared/types';
 
 export interface Env {
   DB: D1Database;
@@ -52,12 +52,61 @@ export function mapTour(row: TourRow): Tour {
   };
 }
 
+type TourTranslationRow = {
+  tour_id: string;
+  title: string;
+  direction: string;
+  category: string;
+  pickup: string | null;
+  back: string | null;
+  description: string;
+  program_json: string;
+  included_json: string;
+  extra_costs_json: string;
+  what_to_take_json: string;
+  badges_json: string;
+  pricing_text_json: string;
+};
+
+async function localizeTours(db: D1Database, tours: Tour[], locale: Locale): Promise<Tour[]> {
+  if (locale === 'ru' || tours.length === 0) return tours;
+  const result = await db.prepare('SELECT * FROM tour_translations WHERE locale=?').bind(locale).all<TourTranslationRow>();
+  const translations = new Map((result.results ?? []).map(row => [row.tour_id, row] as const));
+  return tours.map(tour => {
+    const row = translations.get(tour.id);
+    if (!row) return tour;
+    const pricingText = json<{ note?: string; childLabels?: string[] }>(row.pricing_text_json, {});
+    return {
+      ...tour,
+      title: row.title,
+      direction: row.direction,
+      category: row.category,
+      pickup: row.pickup ?? undefined,
+      back: row.back ?? undefined,
+      description: row.description,
+      program: json(row.program_json, tour.program),
+      included: json(row.included_json, tour.included),
+      extraCosts: json(row.extra_costs_json, tour.extraCosts),
+      whatToTake: json(row.what_to_take_json, tour.whatToTake),
+      badges: json(row.badges_json, tour.badges),
+      pricingRules: {
+        ...tour.pricingRules,
+        ...(pricingText.note ? { note: pricingText.note } : {}),
+        childRules: tour.pricingRules.childRules.map((rule, index) => ({
+          ...rule,
+          label: pricingText.childLabels?.[index] ?? rule.label,
+        })),
+      },
+    };
+  });
+}
+
 export async function getBaseTours(db: D1Database): Promise<Tour[]> {
   const result = await db.prepare('SELECT * FROM tours ORDER BY rowid').all<TourRow>();
   return (result.results ?? []).map(mapTour);
 }
 
-export async function getMergedTours(db: D1Database, sessionId: string): Promise<Tour[]> {
+export async function getMergedTours(db: D1Database, sessionId: string, locale: Locale = 'ru'): Promise<Tour[]> {
   const base = await getBaseTours(db);
   const overrides = await db.prepare('SELECT tour_id, override_json FROM demo_tour_overrides WHERE session_id=?').bind(sessionId).all<{ tour_id: string; override_json: string }>();
   const overrideMap = new Map<string, Partial<Tour>>((overrides.results ?? []).map(r => [r.tour_id, json<Partial<Tour>>(r.override_json, {})] as [string, Partial<Tour>]));
@@ -71,7 +120,7 @@ export async function getMergedTours(db: D1Database, sessionId: string): Promise
 
   const promos = await db.prepare('SELECT tour_id, enabled, label, value, discount_type, discount_value FROM demo_promotions WHERE session_id=?').bind(sessionId).all<{ tour_id: string; enabled: number; label: string; value: string; discount_type: 'none'|'percent_bps'|'fixed_minor'; discount_value: number }>();
   const promoMap = new Map((promos.results ?? []).map(r => [r.tour_id, r] as const));
-  return merged.map(t => {
+  const withPromos = merged.map(t => {
     const p = promoMap.get(t.id);
     return p ? {
       ...t,
@@ -85,22 +134,36 @@ export async function getMergedTours(db: D1Database, sessionId: string): Promise
       }
     } : t;
   });
+  return localizeTours(db, withPromos, locale);
 }
 
-export async function getTourByIdOrSlug(db: D1Database, sessionId: string, idOrSlug: string): Promise<Tour | null> {
-  const tours = await getMergedTours(db, sessionId);
+export async function getTourByIdOrSlug(db: D1Database, sessionId: string, idOrSlug: string, locale: Locale = 'ru'): Promise<Tour | null> {
+  const tours = await getMergedTours(db, sessionId, locale);
   return tours.find(t => t.id === idOrSlug || t.slug === idOrSlug) ?? null;
 }
 
-export async function getDestinations(db: D1Database, sessionId: string): Promise<Destination[]> {
+export async function getDestinations(db: D1Database, sessionId: string, locale: Locale = 'ru'): Promise<Destination[]> {
   const base = await db.prepare('SELECT id, name, data_status FROM destinations ORDER BY rowid').all<{ id: string; name: string; data_status: Destination['dataStatus'] }>();
   const demo = await db.prepare('SELECT id, name, data_status FROM demo_directions WHERE session_id=? ORDER BY created_at').bind(sessionId).all<{ id: string; name: string; data_status: Destination['dataStatus'] }>();
-  return [...(base.results ?? []), ...(demo.results ?? [])].map(r => ({ id: r.id, name: r.name, dataStatus: r.data_status }));
+  const translations = locale === 'ru'
+    ? new Map<string, string>()
+    : new Map((await db.prepare('SELECT destination_id,name FROM destination_translations WHERE locale=?').bind(locale).all<{destination_id:string;name:string}>()).results?.map(row => [row.destination_id, row.name] as const) ?? []);
+  return [...(base.results ?? []), ...(demo.results ?? [])].map(r => ({
+    id: r.id,
+    name: translations.get(r.id) ?? r.name,
+    dataStatus: r.data_status,
+  }));
 }
 
-export async function getAvailability(db: D1Database, sessionId: string, tourId: string): Promise<AvailabilityDate[]> {
+export async function getAvailability(db: D1Database, sessionId: string, tourId: string, locale: Locale = 'ru'): Promise<AvailabilityDate[]> {
   const result = await db.prepare('SELECT date,status,label,data_status FROM demo_availability WHERE session_id=? AND tour_id=? ORDER BY date').bind(sessionId, tourId).all<{date:string;status:AvailabilityDate['status'];label:AvailabilityDate['label'];data_status:'demoAvailability'}>();
-  return (result.results ?? []).map(r => ({ date:r.date, status:r.status, label:r.label, dataStatus:'demoAvailability' }));
+  const viLabels: Record<AvailabilityDate['status'], string> = { available: 'còn chỗ', low: 'sắp hết chỗ', request: 'theo yêu cầu' };
+  return (result.results ?? []).map(r => ({
+    date:r.date,
+    status:r.status,
+    label:(locale === 'vi' ? viLabels[r.status] : r.label) as AvailabilityDate['label'],
+    dataStatus:'demoAvailability'
+  }));
 }
 
 export function mapOrderRow(row: any): OrderSummary {
