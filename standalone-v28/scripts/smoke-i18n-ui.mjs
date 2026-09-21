@@ -3,17 +3,12 @@ import { chromium } from 'playwright';
 const url = process.env.I18N_TEST_URL || 'http://127.0.0.1:4173/';
 const browser = await chromium.launch({ headless:true });
 const failures = [];
-const userData = ['Анна Петрова','Иван Петров','Марк Петров'];
 
-const clean = value => {
-  let text = String(value || '');
-  for (const item of userData) text = text.split(item).join('[USER_NAME]');
-  return text
-    .split('\n')
-    .map(line => line.trim())
-    .filter(Boolean)
-    .join('\n');
-};
+const clean = value => String(value || '')
+  .split('\n')
+  .map(line => line.trim())
+  .filter(Boolean)
+  .join('\n');
 
 async function checkOverflow(page, label) {
   const dims = await page.evaluate(() => ({
@@ -50,6 +45,16 @@ async function runLocale(locale, viewport) {
     }
   });
   const page = await context.newPage();
+  await page.route('**/api/ai/chat', async route => {
+    const body = JSON.parse(route.request().postData() || '{}');
+    if (body.locale !== locale || body.context?.locale !== locale) {
+      failures.push({ locale, label:'ai-request-locale', bodyLocale:body.locale, contextLocale:body.context?.locale });
+    }
+    const reply = locale === 'vi'
+      ? 'Tôi có thể giúp bạn chọn tour phù hợp.'
+      : 'I can help you choose a suitable tour.';
+    await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ ok:true, reply, source:'smoke' }) });
+  });
 
   await page.goto(url, { waitUntil:'networkidle' });
   await page.waitForFunction(expected => globalThis.MaxTourI18n?.locale === expected, locale);
@@ -66,6 +71,11 @@ async function runLocale(locale, viewport) {
   await inspect(page, locale, 'trips-profile', () => { state.tripTab='profile'; showScreen('trips'); }, '#tripsScreen');
   await inspect(page, locale, 'trips-booked', () => { state.tripTab='booked'; renderTrips(); }, '#tripsScreen');
   await inspect(page, locale, 'ai', () => { showScreen('ai'); }, '#aiScreen');
+  const aiBox = page.locator('#aiScreen textarea[name="message"]');
+  await aiBox.fill(locale === 'vi' ? 'Tôi muốn đi biển' : 'I want a sea tour');
+  await aiBox.press('Enter');
+  await page.waitForTimeout(500);
+  await inspect(page, locale, 'ai-reply', null, '#aiScreen');
 
   if (locale === 'en') {
     await page.locator('.mt-language-switcher button[data-locale="vi"]').click();
