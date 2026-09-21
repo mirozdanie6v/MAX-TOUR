@@ -1,3 +1,4 @@
+export type Locale = 'ru' | 'vi';
 export type DataStatus = 'verifiedSite' | 'demoInput' | 'userCreatedDemo' | 'demoAvailability' | 'demoPromo' | 'demoOverride';
 export type BookingFormat = 'group' | 'private';
 export type SourceChannel = 'Telegram' | 'Сайт' | 'Реклама' | 'Другие каналы';
