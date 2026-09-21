@@ -173,8 +173,8 @@ function departuresFor(tour) {
   const unique=new Map();
   combined.forEach(x=>unique.set(x.id,x));
   return [...unique.values()]
-    .filter(x=>x.status!=='cancelled' && (!x.date || x.date>=todayIso()))
-    .sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999') || a.time.localeCompare(b.time));
+    .filter(x=>x.status!=='cancelled' && x.date && x.date>=todayIso())
+    .sort((a,b)=>a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
 }
 function departureStatusText(dep) {
   if(dep.status==='full') return t('waitlist');
@@ -404,7 +404,7 @@ function policyFor(trip,kind) {
   const cancelFree=new Date(departure.getTime()-48*3600000);
   const prev=new Date(departure.getTime()-24*3600000);
   const dayBefore17=new Date(prev.toISOString().slice(0,10)+'T17:00:00'+TZ_OFFSET);
-  const rate=kind==='cancel' ? (now<cancelFree?0:now<dayBefore17?.getTime?.()?0.3:1) : (now<dayBefore17?0:0.3);
+  const rate=kind==='cancel' ? (now<cancelFree?0:now<dayBefore17?0.3:1) : (now<dayBefore17?0:0.3);
   const retained=Math.round(total*rate);
   return {rate,total,paid,retained,refund:Math.max(0,paid-retained),fee:retained};
 }
