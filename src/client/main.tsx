@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, useLocation } from 'react-router-dom';
 import { PremiumApp } from './PremiumApp';
 import { UnifiedAdminTourPage } from './UnifiedAdminTourPage';
+import { LocaleProvider, useI18n } from './i18n';
 import './styles/premium.css';
 import './styles/commerce-v6.css';
 import './styles/v6.css';
@@ -24,36 +25,21 @@ try {
   window.Telegram?.WebApp?.expand?.();
 } catch {}
 
-function LiveDemoV28() {
-  const path = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-  const src = `https://max-tour-demo.viiversion.com${path}`;
-  return (
-    <iframe
-      title="MAX TOUR — Live Prototype v28"
-      src={src}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        width: '100%',
-        height: '100dvh',
-        border: 0,
-        margin: 0,
-        padding: 0,
-        background: '#ffffff',
-      }}
-      allow="clipboard-write; fullscreen"
-    />
-  );
-}
-
 function DemoRouterRoot() {
   const location = useLocation();
   const isUnifiedTourEditor = /^\/admin\/tours\/[^/]+\/?$/.test(location.pathname);
   return isUnifiedTourEditor ? <UnifiedAdminTourPage /> : <PremiumApp />;
 }
 
+function LocalizedRouterRoot() {
+  const { locale } = useI18n();
+  return <DemoRouterRoot key={locale} />;
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  isProduction
-    ? <LiveDemoV28 />
-    : <React.StrictMode><BrowserRouter><DemoRouterRoot /></BrowserRouter></React.StrictMode>
+  <React.StrictMode>
+    <LocaleProvider enabled={isProduction}>
+      <BrowserRouter><LocalizedRouterRoot /></BrowserRouter>
+    </LocaleProvider>
+  </React.StrictMode>
 );
