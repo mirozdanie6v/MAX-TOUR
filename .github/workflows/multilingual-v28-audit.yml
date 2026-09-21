@@ -29,4 +29,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: max-tour-v28-i18n-audit
-          path: standalone-v28/i18n-audit.json
+          path: |
+            standalone-v28/i18n-audit.json
+            standalone-v28/dist/catalog.v28.json
