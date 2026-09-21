@@ -65,6 +65,45 @@ const AI_RULES = [
   'Если точного варианта в каталоге нет, нужно спокойно собрать недостающие пожелания: направление, даты, состав группы, длительность, отель/трансфер и бюджет.',
 ];
 
+const AI_RULES_VI = [
+  'Hủy trước giờ khởi hành hơn 48 giờ: miễn phí; đến 17:00 ngày hôm trước giữ lại 30%, muộn hơn giữ lại 100%.',
+  'Đổi ngày miễn phí đến 17:00 ngày hôm trước; sau thời điểm đó có thể giữ lại 30%.',
+  'Có thể đặt cọc 30% hoặc thanh toán toàn bộ; số tiền chính xác hiển thị khi đặt tour.',
+  'Cần tuổi của từng trẻ em; trẻ nhỏ dưới 3 tuổi được tính riêng và số người ảnh hưởng đến giá.',
+  'Nếu chưa có phương án chính xác trong danh mục, hãy hỏi thêm điểm đến, ngày, số người, thời lượng, khách sạn/đưa đón và ngân sách.',
+];
+
+const AI_TOUR_TITLES_VI = {
+  'dalat-premium':'Đà Lạt “Premium”',
+  'dalat-vip':'Đà Lạt “VIP”',
+  'fuyen':'Tour Phú Yên',
+  'nhatrang-day':'City tour Nha Trang ban ngày',
+  'nhatrang-night':'City tour Nha Trang buổi tối',
+  'dalat-2days':'Tour Đà Lạt 2 ngày',
+  'fast-track':'Fast Track + đưa đón',
+  'danang-ba-na-hoian':'Bà Nà Hills, Cầu Vàng và Hội An',
+  'danang-city-sontra':'Đà Nẵng: Sơn Trà, Ngũ Hành Sơn và các cây cầu',
+  'phuquoc-4-islands':'Phú Quốc: 4 đảo và cáp treo',
+  'phuquoc-vinwonders-safari':'VinWonders và Safari Phú Quốc',
+  'hanoi-halong-2d':'Hà Nội và Vịnh Hạ Long',
+  'hanoi-sapa-3d':'Hà Nội và Sa Pa',
+  'hanoi-ninhbinh':'Ninh Bình: Tràng An và Hang Múa',
+  'muine-dunes-jeep':'Mũi Né: đồi cát, làng chài và Suối Tiên',
+};
+
+function requestedAiLocale(request, body) {
+  const raw = String(body?.locale || body?.context?.locale || request?.headers?.get?.('x-max-tour-locale') || '').toLowerCase();
+  return raw === 'vi' ? 'vi' : 'ru';
+}
+
+function localizedAiCatalog(catalog, locale) {
+  if (locale !== 'vi') return catalog;
+  return catalog.map(item => ({
+    ...item,
+    title: AI_TOUR_TITLES_VI[item.id] || item.title,
+  }));
+}
+
 function rublesFromUsd(value, rate) {
   const usd = Number(value) || 0;
   return Math.max(0, Math.round(usd * rate / 10) * 10);
@@ -182,8 +221,26 @@ function unsafeAiCopy(value) {
   return /\b(?:CRM|D1|API|Cloudflare|Workers? AI|база данных|техническ|менеджер|админ|передам|передать|интеграц)/iu.test(String(value || ''));
 }
 
-function aiFallbackReply(message, catalog = []) {
-  const q = String(message || '').toLocaleLowerCase('ru-RU');
+function aiFallbackReply(message, catalog = [], locale = 'ru') {
+  const q = String(message || '').toLocaleLowerCase(locale === 'vi' ? 'vi-VN' : 'ru-RU');
+  if (locale === 'vi') {
+    if (/hủy|huy|đổi\s*ngày|doi\s*ngay|hoàn\s*tiền|hoan\s*tien/.test(q)) {
+      return 'Hủy trước hơn 48 giờ được miễn phí. Đến 17:00 ngày hôm trước giữ lại 30%; muộn hơn giữ lại 100%. Nếu bạn cho tôi ngày khởi hành, tôi sẽ giải thích chính xác hơn.';
+    }
+    if (/thanh\s*toán|thanh\s*toan|đặt\s*cọc|dat\s*coc|30\s*%/.test(q)) {
+      return 'Bạn có thể đặt cọc 30% hoặc thanh toán 100%. Số tiền chính xác sẽ hiển thị ở bước đặt tour.';
+    }
+    if (/đưa\s*đón|dua\s*don|sân\s*bay|san\s*bay|khách\s*sạn|khach\s*san/.test(q)) {
+      return 'Có thể thêm dịch vụ đưa đón. Hãy cho tôi biết khách sạn hoặc điểm đón để tôi tính vào phương án phù hợp.';
+    }
+    if (/trẻ|tre|bé|be|em\s*bé|em\s*be/.test(q)) {
+      return 'Hãy cho tôi biết tuổi của từng trẻ em và trẻ nhỏ để tôi tính đúng số người và giá.';
+    }
+    if (/bao\s*gồm|bao\s*gom|lịch\s*trình|lich\s*trinh|chương\s*trình|chuong\s*trinh/.test(q)) {
+      return 'Lịch trình và các dịch vụ bao gồm được ghi trong thẻ tour. Hãy cho tôi biết điểm đến hoặc tên tour, tôi sẽ giải thích cụ thể.';
+    }
+    return 'Tôi có thể giúp bạn chọn tour phù hợp. Hãy cho tôi biết điểm đến, ngày dự kiến và số người đi.';
+  }
   if (/отмен|перенос|возврат/.test(q)) return AI_RULES[0] + ' Если назовёте дату выезда, подскажу точнее.';
   if (/оплат|депозит|предоплат|30\s*%|сто процент/.test(q)) return AI_RULES[2];
   if (/трансфер|аэропорт|встреч/.test(q)) return 'Трансфер можно добавить к поездке — напишите отель или точку встречи, чтобы я учёл это при подборе.';
@@ -203,9 +260,11 @@ function aiResponseText(result) {
 }
 
 async function generateAiReply(request, env, body) {
+  const locale = requestedAiLocale(request, body);
   const message = aiText(body?.message, 900);
   const usdRubRate = await currentUsdRubRate(env);
-  const catalog = await loadAiCatalog(request, env, usdRubRate);
+  const rawCatalog = await loadAiCatalog(request, env, usdRubRate);
+  const catalog = localizedAiCatalog(rawCatalog, locale);
   const liveDepartures = env.DB ? await loadAiDepartures(env) : [];
   const safeContext = {
     selected: body?.context && typeof body.context === 'object' ? {
@@ -215,14 +274,24 @@ async function generateAiReply(request, env, body) {
       date: consultationText(body.context.date, 100),
       preferences: Array.isArray(body.context.preferences) ? body.context.preferences.slice(0, 8).map(item => consultationText(item, 50)) : [],
     } : {},
-    rules: AI_RULES,
+    rules: locale === 'vi' ? AI_RULES_VI : AI_RULES,
     catalogue: catalog,
     liveDepartures,
   };
-  const fallback = aiFallbackReply(message, catalog);
+  const fallback = aiFallbackReply(message, catalog, locale);
   if (!message || !env.AI) return { reply: fallback, source: 'catalog-fallback', usdRubRate };
 
-  const system = [
+  const system = locale === 'vi' ? [
+    'Bạn là trợ lý AI thân thiện của ứng dụng du lịch MAX TOUR.',
+    'Chỉ trả lời bằng tiếng Việt, ngắn gọn và tự nhiên như trò chuyện thông thường: 1–4 câu ngắn.',
+    'Chỉ sử dụng dữ kiện trong VERIFIED_CONTEXT. Không được tự tạo giá, ngày, địa điểm, lịch trình hoặc tình trạng chỗ.',
+    'Nếu thiếu thông tin, chỉ hỏi một câu rõ ràng để bổ sung dữ liệu cần thiết.',
+    'Không nhắc đến hệ thống nội bộ, CRM, cơ sở dữ liệu, API, quá trình phát triển, mô hình AI hoặc việc chuyển yêu cầu cho nhân viên.',
+    'Chỉ nêu số tiền bằng đô la Mỹ ($) như trong danh mục. Không dùng ký hiệu rúp (₽).',
+    'Không hứa thanh toán hoặc xác nhận trước khi người dùng mở thẻ tour và hoàn tất bước đặt tour.',
+    'Tên tour có thể được diễn đạt bằng tiếng Việt nhưng phải giữ nguyên ý nghĩa và dữ kiện của danh mục.',
+    `VERIFIED_CONTEXT=${JSON.stringify(safeContext)}`,
+  ].join('\n') : [
     'Ты доброжелательный AI-консультант туристического приложения MAX TOUR.',
     'Отвечай только на русском, коротко и естественно, как в обычном чате: 1–4 коротких предложения.',
     'Используй только факты из VERIFIED_CONTEXT. Не придумывай цены, даты, места, состав программы или наличие.',
