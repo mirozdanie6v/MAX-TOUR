@@ -146,7 +146,10 @@ function withViiversionAnalytics(html) {
 function cleanCustomerCopy(html) {
   return html
     .replace(/demo-экскурсий/g, 'экскурсий')
-    .replace(/MT-DEMO-/g, 'MT-');
+    .replace(/MT-DEMO-/g, 'MT-')
+    .replaceAll('Иван Петров', 'Nguyen Van An')
+    .replaceAll('Анна Петрова', 'Tran Thi Mai')
+    .replaceAll('Марк Петров', 'Nguyen Minh Khoa');
 }
 
 await rm(dist, { recursive: true, force: true });
