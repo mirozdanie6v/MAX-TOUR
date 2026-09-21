@@ -13,7 +13,7 @@
   document.documentElement.lang = locale;
 
   const VI_TEXT = {
-    'Главная':'Trang chủ','Каталог':'Tour','Мои поездки':'Chuyến đi','ИИ-Помощник':'Trợ lý AI',
+    'Вы':'Bạn','Главная':'Trang chủ','Каталог':'Tour','Мои поездки':'Chuyến đi','ИИ-Помощник':'Trợ lý AI',
     'Ваш лучший отдых':'Kỳ nghỉ tuyệt vời nhất','во Вьетнаме':'tại Việt Nam',
     'Ваш лучший отдых во Вьетнаме':'Kỳ nghỉ tuyệt vời nhất tại Việt Nam',
     'Более 150 экскурсий по всему Вьетнаму, Fast Track в аэропортах, трансферы, индивидуальные программы и авторские путешествия по Юго-Восточной Азии.':'Hơn 150 tour khắp Việt Nam, Fast Track tại sân bay, xe đưa đón, chương trình riêng và hành trình đặc biệt khắp Đông Nam Á.',
