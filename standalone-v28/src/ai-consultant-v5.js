@@ -51,11 +51,11 @@
   function parseDate(text) {
     const q = lower(text);
     const today = vietnamTodayIso();
-    if (/(?:^|\s)сегодня(?:\s|$|[,.!?])/.test(q)) return { value:today, flexible:false };
-    if (/завтра/.test(q)) return { value:addIsoDays(today, 1), flexible:false };
-    if (/выходн/.test(q)) return { value:'Ближайшие выходные', flexible:true };
-    if (/в течение (?:ближайшей )?недел|через неделю|на неделе/.test(q)) return { value:'В течение ближайшей недели', flexible:true };
-    if (/дата гибк|неважно когда|дат[ау].*нет|по датам гибк/.test(q)) return { value:'Дата гибкая', flexible:true };
+    if (/(?:^|\s)(?:сегодня|hôm\s*nay|hom\s*nay)(?:\s|$|[,.!?])/.test(q)) return { value:today, flexible:false };
+    if (/завтра|ngày\s*mai|ngay\s*mai/.test(q)) return { value:addIsoDays(today, 1), flexible:false };
+    if (/выходн|cuối\s*tuần|cuoi\s*tuan/.test(q)) return { value:'Ближайшие выходные', flexible:true };
+    if (/в течение (?:ближайшей )?недел|через неделю|на неделе|trong\s*tuần\s*tới|tuan\s*toi|tuần\s*tới/.test(q)) return { value:'В течение ближайшей недели', flexible:true };
+    if (/дата гибк|неважно когда|дат[ау].*нет|по датам гибк|ngày\s*linh\s*hoạt|ngay\s*linh\s*hoat|không\s*quan\s*trọng\s*ngày|linh\s*hoạt\s*ngày/.test(q)) return { value:'Дата гибкая', flexible:true };
 
     const numeric = q.match(/(?:^|[^\d])(\d{1,2})[./-](\d{1,2})(?:[./-](\d{2,4}))?(?:[^\d]|$)/);
     if (numeric) return { ...buildIso(numeric[1], numeric[2], numeric[3]), flexible:false };
@@ -70,15 +70,15 @@
 
   function destinationAlias(text) {
     const q = lower(text);
-    if (/нячанг|на-?чанг/.test(q)) return 'Нячанг';
-    if (/дананг|да-?нанг/.test(q)) return 'Дананг';
-    if (/фукуок|фу-?куок/.test(q)) return 'Фукуок';
-    if (/ханой/.test(q)) return 'Ханой';
-    if (/муйн|фантьет/.test(q)) return 'Муйне/Фантьет';
-    if (/далат/.test(q)) return 'Далат';
-    if (/фуйен|фу[йи]ен|туй\s*хоа/.test(q)) return 'Фуйен';
-    if (/хойан|хой\s*ан/.test(q)) return 'Хойан';
-    if (/халонг|ха\s*лонг/.test(q)) return 'Халонг';
+    if (/нячанг|на-?чанг|nha\s*trang/.test(q)) return 'Нячанг';
+    if (/дананг|да-?нанг|đà\s*nẵng|da\s*nang/.test(q)) return 'Дананг';
+    if (/фукуок|фу-?куок|phú\s*quốc|phu\s*quoc/.test(q)) return 'Фукуок';
+    if (/ханой|hà\s*nội|ha\s*noi/.test(q)) return 'Ханой';
+    if (/муйн|фантьет|mũi\s*né|mui\s*ne|phan\s*thiết|phan\s*thiet/.test(q)) return 'Муйне/Фантьет';
+    if (/далат|đà\s*lạt|da\s*lat/.test(q)) return 'Далат';
+    if (/фуйен|фу[йи]ен|туй\s*хоа|phú\s*yên|phu\s*yen|tuy\s*hòa|tuy\s*hoa/.test(q)) return 'Фуйен';
+    if (/хойан|хой\s*ан|hội\s*an|hoi\s*an/.test(q)) return 'Хойан';
+    if (/халонг|ха\s*лонг|hạ\s*long|ha\s*long/.test(q)) return 'Халонг';
     return '';
   }
 
@@ -103,14 +103,18 @@
 
   function parseParty(text, current) {
     const q = lower(text).replace(/ё/g,'е');
-    const explicitAdults = countBefore(q, 'взросл|совершеннолет|родител');
-    const explicitChildren = countBefore(q, 'дет(?:ей|и)?|ребен(?:ок|ка)?');
-    const explicitInfants = countBefore(q, 'малыш|младен|груднич');
+    const viAdults = Number((q.match(/(\d+)\s*(?:người\s*lớn|nguoi\s*lon|người\s*trưởng\s*thành)/) || [])[1] || 0);
+    const viChildren = Number((q.match(/(\d+)\s*(?:trẻ\s*em|tre\s*em|trẻ|bé|be)(?!\s*sơ\s*sinh)/) || [])[1] || 0);
+    const viInfants = Number((q.match(/(\d+)\s*(?:em\s*bé|em\s*be|trẻ\s*sơ\s*sinh|tre\s*so\s*sinh|bé\s*nhỏ|be\s*nho)/) || [])[1] || 0);
+    const explicitAdults = countBefore(q, 'взросл|совершеннолет|родител') || viAdults;
+    const explicitChildren = countBefore(q, 'дет(?:ей|и)?|ребен(?:ок|ка)?') || viChildren;
+    const explicitInfants = countBefore(q, 'малыш|младен|груднич') || viInfants;
     const totalMatch = q.match(new RegExp(`(?:нас|едем|поедем|всего|семья(?: из)?|группа(?: из)?|на|для)\\s*(\\d+|${Object.keys(PARTY_WORDS).join('|')})`, 'i'));
-    const total = totalMatch ? numberWord(totalMatch[1]) : 0;
-    const ages = [...q.matchAll(/(\d{1,2})\s*(?:лет|года|год)/g)].map(item => Number(item[1])).filter(age => age >= 3 && age <= 17).slice(0, 12);
-    const hasChild = /дет|ребен/.test(q);
-    const hasNoChildren = /без\s+дет|дет(?:ей|и)?\s+нет/.test(q);
+    const viTotalMatch = q.match(/(?:chúng\s*tôi|chung\s*toi|gia\s*đình|gia\s*dinh|tổng\s*cộng|tong\s*cong|nhóm|nhom)\s*(?:có\s*)?(\d+)\s*(?:người|nguoi)?/);
+    const total = totalMatch ? numberWord(totalMatch[1]) : Number(viTotalMatch?.[1] || 0);
+    const ages = [...q.matchAll(/(\d{1,2})\s*(?:лет|года|год|tuổi|tuoi)/g)].map(item => Number(item[1])).filter(age => age >= 3 && age <= 17).slice(0, 12);
+    const hasChild = /дет|ребен|trẻ\s*em|tre\s*em|\bbé\b|\bbe\b/.test(q);
+    const hasNoChildren = /без\s+дет|дет(?:ей|и)?\s+нет|không\s*có\s*trẻ|khong\s*co\s*tre/.test(q);
     let children = hasNoChildren ? [] : (hasChild ? (ages.length ? ages : Array.from({ length:explicitChildren || 1 }, () => 8)) : current.children);
     let infants = explicitInfants || current.infants;
     let adults = explicitAdults || current.adults;
@@ -151,9 +155,9 @@
   function parseMessage(text) {
     const q = lower(text), s = state.slots;
     const destination = destinationAlias(q); if (destination) s.destination = destination;
-    if (/индив|своей компанией|без группы|частн/.test(q)) s.tripType = 'individual';
-    if (/групп|присоедин|сборн/.test(q)) s.tripType = 'group';
-    if (/сравн|не знаю.*формат|любой формат/.test(q)) s.tripType = 'compare';
+    if (/индив|своей компанией|без группы|частн|tour\s*riêng|riêng\s*tư|riêng|cá\s*nhân|ca\s*nhan|private/.test(q)) s.tripType = 'individual';
+    if (/групп|присоедин|сборн|tour\s*ghép|tour\s*ghep|ghép|ghep|đoàn|doan/.test(q)) s.tripType = 'group';
+    if (/сравн|не знаю.*формат|любой формат|so\s*sánh|so\s*sanh|chưa\s*biết.*(?:hình\s*thức|loại)|bất\s*kỳ|bat\s*ky/.test(q)) s.tripType = 'compare';
     const party = parseParty(text, s); Object.assign(s, party);
     const parsedDate = parseDate(text);
     if (parsedDate) {
@@ -161,20 +165,20 @@
       else { s.dateError = ''; s.date = parsedDate.value; s.dateFlexible = Boolean(parsedDate.flexible); }
     }
     const prefs = new Set(s.preferences || []);
-    if (/море|пляж|остров|сноркл|купани/.test(q)) prefs.add('море');
-    if (/красив|природ|горы|водопад|фото|вид/.test(q)) prefs.add('природа');
-    if (/город|храм|культур|истори|музе/.test(q)) prefs.add('город и культура');
-    if (/легк|лёгк|спокойн|без долг/.test(q)) prefs.add('лёгкая программа');
-    if (/подешев|дешев|бюджет|эконом|не\s+переплач|минимальн.{0,16}цен|цен[ау].{0,16}важн/.test(q)) {
+    if (/море|пляж|остров|сноркл|купани|biển|bien|bãi\s*biển|bai\s*bien|đảo|dao|lặn|lan|tắm\s*biển/.test(q)) prefs.add('море');
+    if (/красив|природ|горы|водопад|фото|вид|thiên\s*nhiên|thien\s*nhien|núi|nui|thác|thac|chụp\s*ảnh|chup\s*anh|cảnh\s*đẹp|canh\s*dep/.test(q)) prefs.add('природа');
+    if (/город|храм|культур|истори|музе|thành\s*phố|thanh\s*pho|chùa|chua|văn\s*hóa|van\s*hoa|lịch\s*sử|lich\s*su|bảo\s*tàng|bao\s*tang/.test(q)) prefs.add('город и культура');
+    if (/легк|лёгк|спокойн|без долг|nhẹ|nhe|thoải\s*mái|thoai\s*mai|không\s*đi\s*nhiều|khong\s*di\s*nhieu/.test(q)) prefs.add('лёгкая программа');
+    if (/подешев|дешев|бюджет|эконом|не\s+переплач|минимальн.{0,16}цен|цен[ау].{0,16}важн|rẻ|re|tiết\s*kiệm|tiet\s*kiem|ngân\s*sách|ngan\s*sach|giá\s*tốt|gia\s*tot/.test(q)) {
       prefs.delete('комфорт / премиум');
       prefs.delete('насыщенная программа');
       prefs.add('выгодная цена');
     }
-    if (/интересн.{0,16}программ|насыщенн|максимум.{0,20}(?:посмотр|увид)|ярк.{0,16}программ/.test(q)) {
+    if (/интересн.{0,16}программ|насыщенн|максимум.{0,20}(?:посмотр|увид)|ярк.{0,16}программ|nhiều\s*điểm|nhieu\s*diem|đa\s*dạng|da\s*dang|nhiều\s*trải\s*nghiệm|nhieu\s*trai\s*nghiem/.test(q)) {
       prefs.delete('выгодная цена');
       prefs.add('насыщенная программа');
     }
-    if (/vip|вип|премиум|комфорт/.test(q)) {
+    if (/vip|вип|премиум|комфорт|cao\s*cấp|cao\s*cap|sang\s*trọng|sang\s*trong/.test(q)) {
       prefs.delete('выгодная цена');
       prefs.add('комфорт / премиум');
     }
@@ -183,9 +187,9 @@
   }
 
   function isDiscoveryIntent(text) {
-    return /подбер|подобра|покаж|посовет|вариант|экскурс|тур\b|куда.*съезд|куда.*поех|хочу.*(?:остров|море|природ|экскурс)/i.test(String(text || ''));
+    return /подбер|подобра|покаж|посовет|вариант|экскурс|тур\b|куда.*съезд|куда.*поех|хочу.*(?:остров|море|природ|экскурс)|gợi\s*ý|goi\s*y|đề\s*xuất|de\s*xuat|chọn|chon|tour\b|tham\s*quan|đi\s*đâu|di\s*dau|muốn.*(?:biển|đảo|thiên\s*nhiên)/i.test(String(text || ''));
   }
-  function isBookingIntent(text) { return /хочу.*заброни|заброниру|оформ|бер[еу]м|выбираю|этот вариант|поехали/i.test(String(text || '')); }
+  function isBookingIntent(text) { return /хочу.*заброни|заброниру|оформ|бер[еу]м|выбираю|этот вариант|поехали|muốn\s*đặt|muon\s*dat|đặt\s*tour|dat\s*tour|đặt\s*chỗ|dat\s*cho|chọn\s*tour\s*này|chon\s*tour\s*nay|lấy\s*tour\s*này|lay\s*tour\s*nay/i.test(String(text || '')); }
 
   function money(value) {
     const match = String(value || '').match(/\$\s*([\d,.]+)/);
