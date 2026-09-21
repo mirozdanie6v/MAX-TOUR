@@ -112,7 +112,7 @@ const analyticsTracker = '<script defer src="https://dashboard.viiversion.com/tr
 const productionEmbedCss = '<link rel="stylesheet" href="/production-embed-polish.css">';
 const i18nCss = '<link rel="stylesheet" href="/i18n-v1.css">';
 const productionEmbedJs = '<script defer src="/production-embed-polish.js"></script>';
-const i18nJs = '<script defer src="/i18n-v1.js"></script>\n<script defer src="/i18n-en-v1.js"></script>';
+const i18nJs = '<script defer src="/i18n-en-v1.js"></script>\n<script defer src="/i18n-v1.js"></script>';
 
 function withViiversionAnalytics(html) {
   let result = html;
