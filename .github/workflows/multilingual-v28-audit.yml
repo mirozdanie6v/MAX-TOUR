@@ -32,3 +32,4 @@ jobs:
           path: |
             standalone-v28/i18n-audit.json
             standalone-v28/dist/catalog.v28.json
+            standalone-v28/dist/index.html
