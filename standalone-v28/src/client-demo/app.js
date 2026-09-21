@@ -135,7 +135,7 @@ function card(tour) {
 
 function homeScreen() {
   const featured = [...state.tours].sort((a,b)=>Number(b.popular)-Number(a.popular)).slice(0,6);
-  return `<section class="hero">
+  return `<section class="hero" style="--hero-image:url('${esc(state.tours[0]?.image || state.tours[0]?.fallbackImage || '')}')">
     <div class="hero-content">
       <div class="eyebrow">${esc(t('heroEyebrow'))}</div>
       <h1>${esc(t('heroTitle'))}</h1>
