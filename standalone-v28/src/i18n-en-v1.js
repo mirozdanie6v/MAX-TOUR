@@ -471,6 +471,21 @@
     return s;
   }
 
+  globalThis.MaxTourLocaleData = globalThis.MaxTourLocaleData || {};
+  globalThis.MaxTourLocaleData.en = Object.freeze({
+    text: EN_TEXT,
+    city: CITY,
+    cityCases: CITY_CASES,
+    simple: SIMPLE,
+    tours: EN_TOURS,
+    translateDateTime: translateDateTimeSafe,
+    translateDynamic: translateDynamicSafe,
+    translateAtomic,
+    mapSimple,
+    mapQuery: mapEnQuery
+  });
+  return;
+
   function translateCompositeSafe(text) {
     if (!text.includes(' · ')) return translateAtomic(text);
     return text.split(' · ').map(part=>translateAtomic(part)).join(' · ');
