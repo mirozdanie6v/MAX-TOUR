@@ -546,87 +546,6 @@
     'Внесено':'Paid'
   });
 
-  globalThis.MaxTourLocaleData = globalThis.MaxTourLocaleData || {};
-  globalThis.MaxTourLocaleData.en = Object.freeze({
-    text: EN_TEXT,
-    city: CITY,
-    cityCases: CITY_CASES,
-    simple: SIMPLE,
-    tours: EN_TOURS,
-    translateDateTime: translateDateTimeSafe,
-    translateDynamic: translateDynamicSafe,
-    translateAtomic,
-    mapSimple,
-    mapQuery: mapEnQuery
-  });
-  return;
-
-  function translateCompositeSafe(text) {
-    if (!text.includes(' · ')) return translateAtomic(text);
-    return text.split(' · ').map(part=>translateAtomic(part)).join(' · ');
-  }
-
-  function tr(value) {
-    const raw=String(value == null ? '' : value);
-    const leading=raw.match(/^\s*/)?.[0]||'';
-    const trailing=raw.match(/\s*$/)?.[0]||'';
-    const trimmed=raw.slice(leading.length, raw.length-trailing.length || undefined);
-    if(!trimmed || !/[А-Яа-яЁё]/.test(trimmed)) return raw;
-    const translated=translateCompositeSafe(trimmed);
-    return translated===trimmed ? raw : leading+translated+trailing;
-  }
-
-  function translateAttr(el,name) {
-    const value=el.getAttribute(name);
-    if(!value) return;
-    const next=tr(value);
-    if(next!==value) el.setAttribute(name,next);
-  }
-
-  function translateNode(root) {
-    if(!root) return;
-    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
-    const nodes=[];
-    while(walker.nextNode()) nodes.push(walker.currentNode);
-    nodes.forEach(node=>{
-      if(node.parentElement && /^(SCRIPT|STYLE|NOSCRIPT)$/i.test(node.parentElement.tagName)) return;
-      if(!/[А-Яа-яЁё]/.test(node.nodeValue||'')) return;
-      node.nodeValue=tr(node.nodeValue);
-    });
-    const scope=root.querySelectorAll ? [root,...root.querySelectorAll('[placeholder],[aria-label],[title],[alt]')] : [root];
-    scope.forEach(el=>{
-      if(!(el instanceof Element)) return;
-      translateAttr(el,'placeholder'); translateAttr(el,'aria-label'); translateAttr(el,'title'); translateAttr(el,'alt');
-    });
-  }
-
-  function patchTour(tour) {
-    const o=EN_TOURS[tour.id];
-    if(!o) return;
-    if(!tour.__mtRuTitle) tour.__mtRuTitle=tour.title;
-    tour.title=o.title||tour.title;
-    if(tour.group && o.groupNotes) tour.group.notes=o.groupNotes.slice();
-    if(tour.individual) {
-      if(o.individualNotes) tour.individual.notes=o.individualNotes.slice();
-      tour.individual.tiers=(tour.individual.tiers||[]).map(mapSimple);
-    }
-    if(o.route) tour.route=o.route.map(x=>x.slice());
-    if(o.included) tour.included=o.included.slice();
-    if(o.take) tour.take=o.take.slice();
-  }
-
-  function patchTours() {
-    try {
-      if(typeof TOURS!=='undefined' && Array.isArray(TOURS)) TOURS.forEach(patchTour);
-      if(typeof demoTrips!=='undefined' && Array.isArray(demoTrips)) {
-        demoTrips.forEach(trip=>{
-          const id=String(trip.tourId||'');
-          if(id && EN_TOURS[id]) trip.title=EN_TOURS[id].title;
-        });
-      }
-    } catch(_) {}
-  }
-
   function mapEnQuery(value) {
     let q=String(value==null?'':value).toLowerCase();
     const aliases=[
@@ -642,93 +561,18 @@
     return q;
   }
 
-  function installSearchBridge() {
-    try {
-      if(typeof filteredTours!=='function' || filteredTours.__maxTourEnBridge) return;
-      const original=filteredTours;
-      const bridged=function(){
-        const originalQuery=state?.filters?.query;
-        if(state?.filters) state.filters.query=mapEnQuery(originalQuery);
-        try{return original();}
-        finally{if(state?.filters) state.filters.query=originalQuery;}
-      };
-      bridged.__maxTourEnBridge=true;
-      filteredTours=bridged;
-    } catch(_) {}
-  }
-
-  function ensureSwitcher() {
-    let wrap=document.querySelector('.mt-language-switcher');
-    const top=document.querySelector('.top-actions')||document.querySelector('.brandrow');
-    if(!top) return;
-    if(!wrap) {
-      wrap=document.createElement('div');
-      wrap.className='mt-language-switcher';
-      wrap.setAttribute('aria-label','Language');
-      top.prepend(wrap);
-    }
-    if(!wrap.querySelector('button[data-locale="en"]')) {
-      wrap.innerHTML='<button type="button" data-locale="ru">RU</button><button type="button" data-locale="vi">VI</button><button type="button" data-locale="en">EN</button>';
-      wrap.onclick=event=>{
-        const button=event.target.closest('button[data-locale]');
-        if(!button) return;
-        const next=['ru','vi','en'].includes(button.dataset.locale)?button.dataset.locale:'ru';
-        if(next===locale) return;
-        localStorage.setItem(STORAGE_KEY,next);
-        location.reload();
-      };
-    }
-    wrap.querySelectorAll('button').forEach(btn=>{
-      const active=btn.dataset.locale===locale;
-      btn.classList.toggle('active',active);
-      btn.setAttribute('aria-pressed',active?'true':'false');
-    });
-  }
-
-  const previousFetch=window.fetch.bind(window);
-  window.fetch=async function(input,init){
-    try {
-      const url=typeof input==='string'?input:input&&input.url;
-      if(url && /\/api\/ai\/chat(?:$|\?)/.test(url) && init && typeof init.body==='string') {
-        const data=JSON.parse(init.body);
-        data.locale='en';
-        data.context=Object.assign({},data.context||{},{locale:'en'});
-        init=Object.assign({},init,{body:JSON.stringify(data),headers:Object.assign({},init.headers||{}, {'x-max-tour-locale':'en'})});
-      }
-    } catch(_) {}
-    return previousFetch(input,init);
-  };
-
-  function refreshCurrentScreen() {
-    patchTours();
-    try {
-      if(typeof state!=='undefined' && state && typeof showScreen==='function') showScreen(state.screen||'home');
-      else if(typeof renderHome==='function') renderHome();
-    } catch(_) {}
-    translateNode(document.body);
-    ensureSwitcher();
-  }
-
-  installSearchBridge();
-  patchTours();
-  translateNode(document.body);
-  ensureSwitcher();
-
-  const observer=new MutationObserver(records=>{
-    patchTours();
-    records.forEach(record=>record.addedNodes.forEach(node=>{
-      if(node.nodeType===Node.ELEMENT_NODE) translateNode(node);
-      else if(node.nodeType===Node.TEXT_NODE && /[А-Яа-яЁё]/.test(node.nodeValue||'')) node.nodeValue=tr(node.nodeValue);
-    }));
-    ensureSwitcher();
+  globalThis.MaxTourLocaleData = globalThis.MaxTourLocaleData || {};
+  globalThis.MaxTourLocaleData.en = Object.freeze({
+    text: EN_TEXT,
+    city: CITY,
+    cityCases: CITY_CASES,
+    simple: SIMPLE,
+    tours: EN_TOURS,
+    translateDateTime: translateDateTimeSafe,
+    translateDynamic: translateDynamicSafe,
+    translateAtomic,
+    mapSimple,
+    mapQuery: mapEnQuery
   });
-  observer.observe(document.body,{childList:true,subtree:true});
-  [80,250,700,1500].forEach(ms=>setTimeout(refreshCurrentScreen,ms));
 
-  globalThis.MaxTourI18n={
-    locale:'en',
-    setLocale(next){localStorage.setItem(STORAGE_KEY,['ru','vi','en'].includes(next)?next:'ru');location.reload();},
-    t:tr,
-    patchTours
-  };
 })();
