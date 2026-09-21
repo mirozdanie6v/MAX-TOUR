@@ -1,6 +1,6 @@
 import { calculateQuote } from '../../shared/pricing';
 import { bookingDraftSchema } from '../../shared/schemas';
-import type { BookingDraft, Quote, Tour } from '../../shared/types';
+import type { BookingDraft, Locale, Quote, Tour } from '../../shared/types';
 import { getAvailability, getTourByIdOrSlug } from '../db/repository';
 import type { Env } from '../db/repository';
 
@@ -27,11 +27,11 @@ async function validateAvailability(env: Env, sessionId: string, tour: Tour, dra
   }
 }
 
-export async function quoteBooking(env: Env, sessionId: string, input: unknown): Promise<{ draft: BookingDraft; tour: Tour; quote: Quote }> {
+export async function quoteBooking(env: Env, sessionId: string, input: unknown, locale: Locale = 'ru'): Promise<{ draft: BookingDraft; tour: Tour; quote: Quote }> {
   const parsed = bookingDraftSchema.safeParse(input);
   if (!parsed.success) throw new HttpError(400, 'Проверьте данные бронирования', 'VALIDATION_ERROR');
   const draft = parsed.data as BookingDraft;
-  const tour = await getTourByIdOrSlug(env.DB, sessionId, draft.tourId);
+  const tour = await getTourByIdOrSlug(env.DB, sessionId, draft.tourId, locale);
   if (!tour || !tour.published) throw new HttpError(404, 'Экскурсия не найдена', 'TOUR_NOT_FOUND');
   validateTourRequiredFields(tour, draft);
   await validateAvailability(env, sessionId, tour, draft);
