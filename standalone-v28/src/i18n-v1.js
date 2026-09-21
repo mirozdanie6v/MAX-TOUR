@@ -7,7 +7,8 @@
   if (host === 'max-tour-demo.viiversion.com' || host.includes('max-tour-demo')) return;
   if (/^\/(?:admin|director)(?:\/|$)/.test(pathname)) return;
 
-  const locale = localStorage.getItem(STORAGE_KEY) === 'vi' ? 'vi' : 'ru';
+  const storedLocale = String(localStorage.getItem(STORAGE_KEY) || 'ru').toLowerCase();
+  const locale = ['ru','vi','en'].includes(storedLocale) ? storedLocale : 'ru';
   document.documentElement.lang = locale;
 
   const VI_TEXT = {
@@ -756,12 +757,12 @@
       wrap = document.createElement('div');
       wrap.className = 'mt-language-switcher';
       wrap.setAttribute('aria-label','Language');
-      wrap.innerHTML = '<button type="button" data-locale="ru">RU</button><button type="button" data-locale="vi">VI</button>';
+      wrap.innerHTML = '<button type="button" data-locale="ru">RU</button><button type="button" data-locale="vi">VI</button><button type="button" data-locale="en">EN</button>';
       top.prepend(wrap);
       wrap.addEventListener('click', event => {
         const button = event.target.closest('button[data-locale]');
         if (!button) return;
-        const next = button.dataset.locale === 'vi' ? 'vi' : 'ru';
+        const next = ['ru','vi','en'].includes(button.dataset.locale) ? button.dataset.locale : 'ru';
         if (next === locale) return;
         localStorage.setItem(STORAGE_KEY, next);
         location.reload();
@@ -821,7 +822,7 @@
 
   globalThis.MaxTourI18n = {
     locale,
-    setLocale(next) { localStorage.setItem(STORAGE_KEY, next === 'vi' ? 'vi' : 'ru'); location.reload(); },
+    setLocale(next) { localStorage.setItem(STORAGE_KEY, ['ru','vi','en'].includes(next) ? next : 'ru'); location.reload(); },
     t: tr,
     patchTours
   };
