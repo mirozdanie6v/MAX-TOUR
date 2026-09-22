@@ -548,6 +548,12 @@
     'ХАЛОНГ':'HẠ LONG',
     'САПА':'SA PA',
     'ФАНСИПАН':'FANSIPAN',
+    'Острова Нячанга':'Các đảo Nha Trang',
+    'Ба На Хилл':'Bà Nà Hills',
+    'Хойан':'Hội An',
+    'Халонг':'Hạ Long',
+    'Сапа':'Sa Pa',
+    'Фансипан':'Fansipan',
   };
   Object.assign(VI_TEXT, VI_COMPLETE);
 
