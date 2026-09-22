@@ -373,8 +373,8 @@
   function translateDateTimeSafe(text) {
     let out = String(text);
     const months = {'янв':'Jan','фев':'Feb','мар':'Mar','апр':'Apr','май':'May','мая':'May','июн':'Jun','июл':'Jul','авг':'Aug','сен':'Sep','сент':'Sep','окт':'Oct','ноя':'Nov','дек':'Dec'};
-    out = out.replace(/(\d{1,2})[–-](\d{1,2})\s+(янв|фев|мар|апр|май|мая|июн|июл|авг|сен|сент|окт|ноя|дек)\b/gi, (_,a,b,mon)=>a+'–'+b+' '+(months[String(mon).toLowerCase()]||mon));
-    out = out.replace(/(\d{1,2})\s+(янв|фев|мар|апр|май|мая|июн|июл|авг|сен|сент|окт|ноя|дек)\b/gi, (_,day,mon)=>day+' '+(months[String(mon).toLowerCase()]||mon));
+    out = out.replace(/(\d{1,2})[–-](\d{1,2})\s+(янв|фев|мар|апр|май|мая|июн|июл|авг|сен|сент|окт|ноя|дек)(?=$|\s|[·,.)])/gi, (_,a,b,mon)=>a+'–'+b+' '+(months[String(mon).toLowerCase()]||mon));
+    out = out.replace(/(\d{1,2})\s+(янв|фев|мар|апр|май|мая|июн|июл|авг|сен|сент|окт|ноя|дек)(?=$|\s|[·,.)])/gi, (_,day,mon)=>day+' '+(months[String(mon).toLowerCase()]||mon));
     out = out.replace(/около/gi,'about').replace(/второго дня/gi,'on day two');
     return out;
   }
@@ -577,7 +577,16 @@
     'Обед':'Lunch',
     'Все входные билеты':'All entrance tickets',
     'Входные билеты':'Entrance tickets',
-    'Вода':'Water'
+    'Вода':'Water',
+    'ОСТРОВА НЯЧАНГА':'NHA TRANG ISLANDS',
+    'Вариант с буфетом — $55':'Buffet option — $55',
+    'пляж':'beach',
+    'не групповой формат':'not a group format',
+    'БА НА ХИЛЛ':'BA NA HILLS',
+    'ХОЙАН':'HOI AN',
+    'ХАЛОНГ':'HA LONG',
+    'САПА':'SA PA',
+    'ФАНСИПАН':'FANSIPAN'
   });
 
   globalThis.MaxTourLocaleData = globalThis.MaxTourLocaleData || {};
