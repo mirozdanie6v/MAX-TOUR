@@ -39,28 +39,40 @@
 
   if (typeof document === 'undefined') return;
 
-  function submitQuickLocation(button) {
-    const value = String(button?.dataset?.locationV6Value || '').trim();
+  function submitQuickValue(button, value) {
+    value = String(value || '').trim();
     if (!value) return false;
 
-    const root = button.closest('#ai,[data-screen="ai"]') || button.closest('.ai-consultant-shell')?.parentElement;
+    const root = button.closest('#aiScreen,#ai,[data-screen="ai"]') || button.closest('.ai-consultant-shell')?.parentElement;
     const form = root?.querySelector?.('[data-ai-form="chat"]');
     const textarea = form?.querySelector?.('textarea[name="message"]');
-    if (!form || !textarea) return false;
+    if (!form || !textarea || textarea.disabled) return false;
 
     textarea.value = value;
     try { globalThis.MaxTourAI?._locationTest?.inspectInput?.(value); } catch (_) {}
 
     textarea.dispatchEvent(new Event('input', { bubbles:true }));
+    textarea.dispatchEvent(new Event('change', { bubbles:true }));
     if (typeof form.requestSubmit === 'function') form.requestSubmit();
     else form.dispatchEvent(new Event('submit', { bubbles:true, cancelable:true }));
     return true;
   }
 
+  function submitQuickLocation(button) {
+    return submitQuickValue(button, button?.dataset?.locationV6Value);
+  }
+
+  function submitQuickReply(button) {
+    return submitQuickValue(button, button?.dataset?.value);
+  }
+
   document.addEventListener('click', event => {
-    const button = event.target?.closest?.('[data-location-v6-value]');
+    const button = event.target?.closest?.('#aiScreen [data-location-v6-value], #aiScreen [data-ai-action="quick"]');
     if (!button) return;
-    if (!submitQuickLocation(button)) return;
+    const submitted = button.matches('[data-location-v6-value]')
+      ? submitQuickLocation(button)
+      : submitQuickReply(button);
+    if (!submitted) return;
 
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -68,6 +80,8 @@
 
   globalThis.MaxTourAIFirstScreenQuickV19 = {
     submitQuickLocation,
+    submitQuickReply,
+    submitQuickValue,
   };
 })();
 
