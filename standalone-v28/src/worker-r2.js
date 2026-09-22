@@ -1,4 +1,5 @@
 import profileWorker from './worker-profile.js';
+import baseWorker from './worker.js';
 import { compactTourForAi, findTourForQuestion } from './ai-faq-knowledge.js';
 import { selectionFastPath } from './worker-selection-v14.js';
 import { orchestrateAiRequest } from './ai-orchestrator-v23.js';
@@ -24,6 +25,15 @@ const ADMIN_SHARED_ASSETS = new Set([
 const ADMIN_TOURIST_ROLE_PATTERN = /\s*<a href="\/" aria-label="Открыть кабинет туриста"><span class="role-long">Турист<\/span><span class="role-short">Турист<\/span><\/a>/i;
 const AVAILABILITY_INTENT = /(?:есть|мест[ао]?|свобод|наличи|заброни)/i;
 const ORIGIN_CUE = /(?:^|\s)(?:я|мы|сейчас|нахожусь|находимся|живу|живем|живём|из|выезд(?:\s+из)?|старт(?:\s+из)?)(?:\s|$|[^а-яё])/i;
+async function requestedLocale(request, url) {
+  if (url.pathname !== '/api/ai/chat' || request.method !== 'POST') return 'ru';
+  const header = String(request.headers.get('x-max-tour-locale') || '').toLowerCase();
+  if (header === 'vi' || header === 'en') return header;
+  const body = await request.clone().json().catch(() => null);
+  const raw = String(body?.locale || body?.context?.locale || '').toLowerCase();
+  return raw === 'vi' || raw === 'en' ? raw : 'ru';
+}
+
 const MONTHS = [
   ['янв', 1], ['фев', 2], ['мар', 3], ['апр', 4], ['ма[йя]', 5], ['июн', 6],
   ['июл', 7], ['авг', 8], ['сен', 9], ['окт', 10], ['ноя', 11], ['дек', 12],
@@ -268,12 +278,18 @@ export const _availabilityTest = { vietnamTodayIso, addIsoDays, departureIso, re
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    const locale = await requestedLocale(request, url);
     const adminHostResponse = routeAdminHost(url);
     if (adminHostResponse) return adminHostResponse;
     const mediaAdminResponse = await handleAdminTourMediaApi(request, env, url);
     if (mediaAdminResponse) return mediaAdminResponse;
     if (url.pathname.startsWith('/tour-media/')) {
       return serveTourMedia(request, env, url.pathname);
+    }
+    // VI/EN use the locale-aware AI core directly. All fast-path/orchestrator
+    // layers below were written for Russian and may emit Russian fallback copy.
+    if (url.pathname === '/api/ai/chat' && request.method === 'POST' && locale !== 'ru') {
+      return baseWorker.fetch(request, env, ctx);
     }
     const orchestrated = await orchestrateAiRequest(request, env, url);
     if (orchestrated) return orchestrated;
