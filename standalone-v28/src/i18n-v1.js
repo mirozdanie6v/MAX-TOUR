@@ -7,9 +7,12 @@
   if (host === 'max-tour-demo.viiversion.com' || host.includes('max-tour-demo')) return;
   if (/^\/(?:admin|director)(?:\/|$)/.test(pathname)) return;
 
+  const SUPPORTED_LOCALES = ['ru','vi','en','ko'];
   const storedLocale = String(localStorage.getItem(STORAGE_KEY) || 'ru').toLowerCase();
-  const locale = ['ru','vi','en'].includes(storedLocale) ? storedLocale : 'ru';
+  const locale = SUPPORTED_LOCALES.includes(storedLocale) ? storedLocale : 'ru';
   const EN_LOCALE = globalThis.MaxTourLocaleData?.en || null;
+  const KO_LOCALE = globalThis.MaxTourLocaleData?.ko || null;
+  const EXTERNAL_LOCALE = locale === 'en' ? EN_LOCALE : locale === 'ko' ? KO_LOCALE : null;
   document.documentElement.lang = locale;
 
   const VI_TEXT = {
@@ -597,7 +600,7 @@
   function translateAtomic(text) {
     const s=String(text == null ? '' : text).trim();
     if (!s) return s;
-    if (locale === 'en' && EN_LOCALE) return EN_LOCALE.translateAtomic(s);
+    if (EXTERNAL_LOCALE) return EXTERNAL_LOCALE.translateAtomic(s);
     const numbered=s.match(/^(\d+\.\s*)(.+)$/);
     if (numbered) { const tail=translateAtomic(numbered[2]); if (tail !== numbered[2]) return numbered[1] + tail; }
     if (VI_TEXT[s]) return VI_TEXT[s];
@@ -623,7 +626,7 @@
     const leading = raw.match(/^\s*/)?.[0] || '';
     const trailing = raw.match(/\s*$/)?.[0] || '';
     const trimmed = raw.slice(leading.length, raw.length - trailing.length || undefined);
-    if (!trimmed || !['vi','en'].includes(locale) || !/[А-Яа-яЁё]/.test(trimmed)) return raw;
+    if (!trimmed || !['vi','en','ko'].includes(locale) || !/[А-Яа-яЁё]/.test(trimmed)) return raw;
     const translated = translateCompositeSafe(trimmed);
     return translated === trimmed ? raw : leading + translated + trailing;
   }
@@ -636,7 +639,7 @@
   }
 
   function translateNode(root) {
-    if (!['vi','en'].includes(locale) || !root) return;
+    if (!['vi','en','ko'].includes(locale) || !root) return;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
@@ -654,7 +657,7 @@
 
   function mapSimple(value) {
     const key = String(value == null ? '' : value);
-    if (locale === 'en' && EN_LOCALE) return EN_LOCALE.mapSimple(key);
+    if (EXTERNAL_LOCALE) return EXTERNAL_LOCALE.mapSimple(key);
     if (CITY[key]) return CITY[key];
     if (SIMPLE[key]) return SIMPLE[key];
     if (/^(\d+)\s+сен$/.test(key)) return key.replace(' сен',' Thg 9');
@@ -681,7 +684,7 @@
   }
 
   function patchTour(tour) {
-    const translations = locale === 'en' ? EN_LOCALE?.tours : VI_TOURS;
+    const translations = EXTERNAL_LOCALE?.tours || VI_TOURS;
     const o = translations?.[tour.id];
     if (!o) return;
     // Keep technical/filter fields in the original Russian values.
@@ -700,8 +703,8 @@
   }
 
   function patchTours() {
-    if (!['vi','en'].includes(locale)) return;
-    const translations = locale === 'en' ? EN_LOCALE?.tours : VI_TOURS;
+    if (!['vi','en','ko'].includes(locale)) return;
+    const translations = EXTERNAL_LOCALE?.tours || VI_TOURS;
     if (!translations) return;
     try {
       if (typeof TOURS !== 'undefined' && Array.isArray(TOURS)) TOURS.forEach(patchTour);
@@ -731,13 +734,13 @@
   }
 
   function installSearchBridge() {
-    if (!['vi','en'].includes(locale)) return;
+    if (!['vi','en','ko'].includes(locale)) return;
     try {
       if (typeof filteredTours !== 'function' || filteredTours.__maxTourLocaleBridge) return;
       const original = filteredTours;
       const bridged = function() {
         const originalQuery = state?.filters?.query;
-        if (state?.filters) state.filters.query = locale === 'en' && EN_LOCALE ? EN_LOCALE.mapQuery(originalQuery) : mapViQuery(originalQuery);
+        if (state?.filters) state.filters.query = EXTERNAL_LOCALE ? EXTERNAL_LOCALE.mapQuery(originalQuery) : mapViQuery(originalQuery);
         try { return original(); }
         finally { if (state?.filters) state.filters.query = originalQuery; }
       };
@@ -754,12 +757,12 @@
       wrap = document.createElement('div');
       wrap.className = 'mt-language-switcher';
       wrap.setAttribute('aria-label','Language');
-      wrap.innerHTML = '<button type="button" data-locale="ru">RU</button><button type="button" data-locale="vi">VI</button><button type="button" data-locale="en">EN</button>';
+      wrap.innerHTML = '<button type="button" data-locale="ru">RU</button><button type="button" data-locale="vi">VI</button><button type="button" data-locale="en">EN</button><button type="button" data-locale="ko" title="한국어">KO</button>';
       top.prepend(wrap);
       wrap.addEventListener('click', event => {
         const button = event.target.closest('button[data-locale]');
         if (!button) return;
-        const next = ['ru','vi','en'].includes(button.dataset.locale) ? button.dataset.locale : 'ru';
+        const next = SUPPORTED_LOCALES.includes(button.dataset.locale) ? button.dataset.locale : 'ru';
         if (next === locale) return;
         localStorage.setItem(STORAGE_KEY, next);
         location.reload();
@@ -774,7 +777,7 @@
 
   const nativeFetch = window.fetch.bind(window);
   window.fetch = async function(input, init) {
-    if (['vi','en'].includes(locale)) {
+    if (['vi','en','ko'].includes(locale)) {
       try {
         const url = typeof input === 'string' ? input : input && input.url;
         if (url && /\/api\/ai\/chat(?:$|\?)/.test(url) && init && typeof init.body === 'string') {
@@ -801,7 +804,7 @@
   }
 
   renderSwitcher();
-  if (['vi','en'].includes(locale)) {
+  if (['vi','en','ko'].includes(locale)) {
     installSearchBridge();
     patchTours();
     translateNode(document.body);
@@ -819,7 +822,7 @@
 
   globalThis.MaxTourI18n = {
     locale,
-    setLocale(next) { localStorage.setItem(STORAGE_KEY, ['ru','vi','en'].includes(next) ? next : 'ru'); location.reload(); },
+    setLocale(next) { localStorage.setItem(STORAGE_KEY, SUPPORTED_LOCALES.includes(next) ? next : 'ru'); location.reload(); },
     t: tr,
     patchTours
   };
