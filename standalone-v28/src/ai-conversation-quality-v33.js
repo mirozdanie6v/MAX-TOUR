@@ -352,6 +352,8 @@ export async function guardConversationResponse(request, env, url, response) {
 const browserSource = String.raw`(() => {
   'use strict';
   if (typeof document === 'undefined' || globalThis.__MAX_TOUR_CONVERSATION_V33__) return;
+  const __locale = String(globalThis.localStorage?.getItem?.('max-tour-locale-v1') || 'ru').toLowerCase();
+  if (__locale === 'vi' || __locale === 'en') return;
   globalThis.__MAX_TOUR_CONVERSATION_V33__ = true;
 
   const SERVER_KEY = 'max-tour-ai-server-state-v33';
