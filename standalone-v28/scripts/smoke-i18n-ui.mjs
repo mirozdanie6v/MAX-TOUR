@@ -75,7 +75,7 @@ async function runLocale(locale, viewport) {
   await inspect(page, locale, 'trips-booked', () => { state.tripTab='booked'; renderTrips(); }, '#tripsScreen');
   await inspect(page, locale, 'ai', () => { showScreen('ai'); }, '#aiScreen');
   const aiBox = page.locator('#aiScreen textarea[name="message"]');
-  await aiBox.fill(locale === 'vi' ? 'ha noi' : 'hanoi');
+  await aiBox.fill('hello');
   await aiBox.press('Enter');
   await page.waitForTimeout(liveAi ? 4500 : 500);
   await inspect(page, locale, 'ai-reply', null, '#aiScreen');
