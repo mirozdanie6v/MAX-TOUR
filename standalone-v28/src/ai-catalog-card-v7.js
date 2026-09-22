@@ -389,7 +389,9 @@
     const options = stageOptions();
     let box = below.querySelector('.ai-quick-replies');
     if (!options.length) {
-      box?.remove();
+      // Preserve native v5 first-screen quick replies. This layer may only
+      // remove the stage-specific box that it created itself.
+      if (box?.dataset?.salesFlowV23 === '1') box.remove();
       return;
     }
     if (!box) {
