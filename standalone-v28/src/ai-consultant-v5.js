@@ -337,14 +337,49 @@
   function nextQuestion() {
     const s = state.slots;
     if (!state.recommendations.length) {
-      if (!s.destination && !s.preferences.length) return 'Что вам интереснее: море и острова, природа, город или что-то премиальное?';
-      if (!peopleCount()) return 'Сколько человек едет?';
-      if (!s.date) return 'На какую дату планируете поездку?';
-      return 'Покажу подходящие варианты.';
+      if (!s.destination && !s.preferences.length) return localeText(
+        'Что вам интереснее: море и острова, природа, город или что-то премиальное?',
+        'Bạn thích điều gì hơn: biển và đảo, thiên nhiên, thành phố hay trải nghiệm cao cấp?',
+        'What interests you most: sea and islands, nature, city sightseeing, or something premium?',
+        '바다와 섬, 자연, 시티투어, 프리미엄 중 어떤 여행이 가장 관심 있으신가요?'
+      );
+      if (!peopleCount()) return localeText(
+        'Сколько человек едет?',
+        'Có bao nhiêu người đi?',
+        'How many people are travelling?',
+        '몇 분이 여행하시나요?'
+      );
+      if (!s.date) return localeText(
+        'На какую дату планируете поездку?',
+        'Bạn dự định đi vào ngày nào?',
+        'What date are you planning to travel?',
+        '언제 여행하실 예정인가요?'
+      );
+      return localeText(
+        'Покажу подходящие варианты.',
+        'Tôi sẽ hiển thị các phương án phù hợp.',
+        'I will show you suitable options.',
+        '알맞은 옵션을 보여드릴게요.'
+      );
     }
-    if (!peopleCount()) return 'Я уже подобрал варианты. Сколько человек едет?';
-    if (!s.date) return 'Варианты уже подобраны. На какую дату хотите поехать?';
-    return 'Выберите вариант ниже — я сразу помогу перейти к бронированию.';
+    if (!peopleCount()) return localeText(
+      'Я уже подобрал варианты. Сколько человек едет?',
+      'Tôi đã chọn được một số phương án. Có bao nhiêu người đi?',
+      'I have already found some options. How many people are travelling?',
+      '적합한 옵션을 찾았습니다. 몇 분이 여행하시나요?'
+    );
+    if (!s.date) return localeText(
+      'Варианты уже подобраны. На какую дату хотите поехать?',
+      'Các phương án đã sẵn sàng. Bạn muốn đi vào ngày nào?',
+      'The options are ready. What date would you like to travel?',
+      '옵션을 찾았습니다. 언제 여행하고 싶으신가요?'
+    );
+    return localeText(
+      'Выберите вариант ниже — я сразу помогу перейти к бронированию.',
+      'Chọn một phương án bên dưới — tôi sẽ giúp bạn chuyển ngay sang bước đặt tour.',
+      'Choose an option below and I will take you straight to booking.',
+      '아래 옵션을 선택하면 바로 예약 단계로 도와드릴게요.'
+    );
   }
 
   async function requestAiReply(text) {
