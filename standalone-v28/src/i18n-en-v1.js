@@ -568,6 +568,18 @@
     return q;
   }
 
+  Object.assign(EN_TEXT, {
+    'Бутылка воды':'Bottle of water',
+    'Русскоязычный гид':'Russian-speaking guide',
+    'Русскоговорящий гид':'Russian-speaking guide',
+    'Трансфер — микроавтобус и лодка':'Transfer — minibus and boat',
+    'Трансфер — микроавтобус и катер':'Transfer — minibus and speedboat',
+    'Обед':'Lunch',
+    'Все входные билеты':'All entrance tickets',
+    'Входные билеты':'Entrance tickets',
+    'Вода':'Water'
+  });
+
   globalThis.MaxTourLocaleData = globalThis.MaxTourLocaleData || {};
   globalThis.MaxTourLocaleData.en = Object.freeze({
     text: EN_TEXT,
