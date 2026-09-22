@@ -355,7 +355,8 @@ async function generateAiReply(request, env, body) {
   try {
     const result = await env.AI.run(env.AI_MODEL || DEFAULT_AI_MODEL, { messages });
     const reply = replaceRubleAmounts(aiText(aiResponseText(result), 1800).replace(/^```[\s\S]*?```$/g, '').trim(), usdRubRate);
-    if (!reply || unsafeAiCopy(reply)) return { reply: fallback, source: 'catalog-fallback', usdRubRate };
+    const wrongLocale = locale !== 'ru' && /[А-Яа-яЁё]/u.test(reply);
+    if (!reply || wrongLocale || unsafeAiCopy(reply)) return { reply: fallback, source: wrongLocale ? 'locale-fallback' : 'catalog-fallback', usdRubRate };
     return { reply, source: 'cloudflare-workers-ai', usdRubRate };
   } catch (error) {
     console.warn('Workers AI reply unavailable', error?.message || error);
