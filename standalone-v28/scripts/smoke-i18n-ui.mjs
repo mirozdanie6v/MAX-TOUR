@@ -54,7 +54,9 @@ async function runLocale(locale, viewport) {
       }
       const reply = locale === 'vi'
         ? 'Tôi có thể giúp bạn chọn tour phù hợp.'
-        : 'I can help you choose a suitable tour.';
+        : locale === 'ko'
+          ? '적합한 투어를 선택하도록 도와드릴게요.'
+          : 'I can help you choose a suitable tour.';
       await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ ok:true, reply, source:'smoke' }) });
     });
   }
@@ -64,7 +66,7 @@ async function runLocale(locale, viewport) {
   await page.waitForTimeout(650);
 
   const buttons = await page.locator('.mt-language-switcher button').evaluateAll(nodes => nodes.map(n => n.dataset.locale));
-  if (buttons.join(',') !== 'ru,vi,en') failures.push({ locale, label:'switcher', buttons });
+  if (buttons.join(',') !== 'ru,vi,en,ko') failures.push({ locale, label:'switcher', buttons });
 
   await inspect(page, locale, 'home', () => { showScreen('home'); }, '#homeScreen');
   await inspect(page, locale, 'catalog', () => { showScreen('catalog'); }, '#catalogScreen');
@@ -96,7 +98,9 @@ async function runLocale(locale, viewport) {
 
 await runLocale('vi', { width:390, height:844 });
 await runLocale('en', { width:390, height:844 });
+await runLocale('ko', { width:390, height:844 });
 await runLocale('en', { width:1440, height:900 });
+await runLocale('ko', { width:1440, height:900 });
 
 await browser.close();
 
@@ -104,4 +108,4 @@ if (failures.length) {
   console.error(JSON.stringify(failures, null, 2));
   process.exit(1);
 }
-console.log('MAX TOUR existing v28 customer UI passed VI/EN smoke with RU/VI/EN switcher and no horizontal overflow.');
+console.log('MAX TOUR existing v28 customer UI passed VI/EN/KO smoke with RU/VI/EN/KO horizontal switcher and no horizontal overflow.');
