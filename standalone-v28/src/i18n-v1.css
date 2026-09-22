@@ -1,6 +1,9 @@
 .mt-language-switcher{
-  display:flex;
+  display:inline-flex !important;
+  flex-direction:row !important;
+  flex-wrap:nowrap !important;
   align-items:center;
+  justify-content:center;
   gap:3px;
   padding:3px;
   margin-right:6px;
@@ -10,6 +13,10 @@
   box-shadow:0 5px 16px rgba(104,55,25,.08);
   backdrop-filter:blur(12px);
   -webkit-backdrop-filter:blur(12px);
+  width:max-content !important;
+  min-width:max-content !important;
+  white-space:nowrap;
+  overflow:visible !important;
 }
 .mt-language-switcher button{
   width:34px;
@@ -30,4 +37,10 @@
 @media(max-width:390px){
   .mt-language-switcher{margin-right:2px}
   .mt-language-switcher button{width:31px;height:27px;font-size:9px}
+}
+
+.top-actions .mt-language-switcher,
+.brandrow .mt-language-switcher{
+  flex:0 0 auto !important;
+  align-self:center !important;
 }
