@@ -205,7 +205,9 @@
     const set = setForQuestion(question);
     let box = root.querySelector('.ai-quick-replies');
     if (!set) {
-      if (box && (/\?\s*$/u.test(question) || !/\?/.test(question))) box.remove();
+      // Do not remove the native v5 first-screen quick replies.
+      // This compatibility layer may only remove a quick-reply box it created itself.
+      if (box?.dataset?.aiQuickV18) box.remove();
       return;
     }
     if (!box) {
