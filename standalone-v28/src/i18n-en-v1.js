@@ -21,7 +21,7 @@
     'от':'from','до':'to','С детьми':'With children','Показывать только семейные экскурсии':'Show family-friendly tours only',
     'Сбросить':'Reset','Поиск по экскурсиям':'Search tours','Поиск: Далат, море, Ханой...':'Search: Da Lat, sea, Hanoi...',
     'По выбранному фильтру пока нет загруженных экскурсий. Измените параметры или сбросьте фильтр.':'No tours match the selected filters yet. Change the filters or reset them.',
-    'Морские':'Sea & islands','Природа и горы':'Nature & mountains','Культура':'Culture','Fast Track + трансфер':'Fast Track + transfer','Другое':'Other',
+    'Море и острова':'Sea and islands','Морские':'Sea & islands','Природа и горы':'Nature & mountains','Культура':'Culture','Fast Track + трансфер':'Fast Track + transfer','Другое':'Other',
     'Маршрут':'Itinerary','Включено':'Included','Что взять':'What to bring','Собирающиеся выезды':'Scheduled group departures',
     'На этот тур пока нет собирающихся групп.':'There are no scheduled groups for this tour yet.','Присоединиться':'Join','Создать свою группу':'Create your own group',
     'Групповой':'Group','Индивидуальный':'Private','Индивидуально':'Private','Группа':'Group',
