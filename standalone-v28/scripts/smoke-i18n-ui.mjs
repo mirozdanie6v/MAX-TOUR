@@ -95,7 +95,57 @@ async function runLocale(locale, viewport) {
   await inspect(page, locale, 'booking', () => { startBooking('individual'); }, '#bookingScreen');
   await inspect(page, locale, 'trips-profile', () => { state.tripTab='profile'; showScreen('trips'); }, '#tripsScreen');
   await inspect(page, locale, 'trips-booked', () => { state.tripTab='booked'; renderTrips(); }, '#tripsScreen');
-  await inspect(page, locale, 'ai', () => { showScreen('ai'); }, '#aiScreen');
+  await page.evaluate(() => {
+    try {
+      for (const key of Object.keys(sessionStorage)) {
+        if (key.startsWith('max-tour-ai-consultant-') || key.startsWith('max-tour-ai-location-') || key.startsWith('max-tour-ai-origin-')) {
+          sessionStorage.removeItem(key);
+        }
+      }
+    } catch (_) {}
+    showScreen('ai');
+    globalThis.MaxTourAI?.mount?.(document.getElementById('aiScreen'));
+  });
+  await inspect(page, locale, 'ai', null, '#aiScreen');
+
+  const quickButton = page.locator('#aiScreen .ai-quick-replies button[data-ai-action="quick"]').first();
+  const quickCount = await quickButton.count();
+  if (!quickCount) {
+    failures.push({ locale, label:'ai-first-quick-missing' });
+  } else {
+    const beforeUser = await page.locator('#aiScreen .ai-msg.user').count();
+    try {
+      await quickButton.click({ timeout:5000 });
+      await page.waitForTimeout(liveAi ? 4500 : 700);
+    } catch (error) {
+      const diag = await quickButton.evaluate(btn => {
+        const rect = btn.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        const top = document.elementFromPoint(x, y);
+        const root = document.getElementById('aiScreen');
+        return {
+          html:btn.outerHTML,
+          pointerEvents:getComputedStyle(btn).pointerEvents,
+          rect:{left:rect.left,top:rect.top,width:rect.width,height:rect.height},
+          topElement:top?.outerHTML?.slice(0,500) || '',
+          rootOnClick:typeof root?.onclick,
+        };
+      }).catch(()=>({}));
+      failures.push({ locale, label:'ai-first-quick-click-error', error:String(error), diag });
+    }
+    const afterUser = await page.locator('#aiScreen .ai-msg.user').count();
+    if (afterUser <= beforeUser) failures.push({ locale, label:'ai-first-quick-no-effect', beforeUser, afterUser });
+  }
+
+  await page.evaluate(() => {
+    try {
+      for (const key of Object.keys(sessionStorage)) {
+        if (key.startsWith('max-tour-ai-consultant-')) sessionStorage.removeItem(key);
+      }
+    } catch (_) {}
+    globalThis.MaxTourAI?.mount?.(document.getElementById('aiScreen'));
+  });
   const aiBox = page.locator('#aiScreen textarea[name="message"]');
   await aiBox.fill('hello');
   await aiBox.press('Enter');
