@@ -97,7 +97,7 @@ const browserSource = String.raw`(() => {
   'use strict';
   if (typeof document === 'undefined' || globalThis.__MAX_TOUR_PARTY_CONTEXT_V32__) return;
   const __locale = String(globalThis.localStorage?.getItem?.('max-tour-locale-v1') || 'ru').toLowerCase();
-  if (__locale === 'vi' || __locale === 'en') return;
+  if (__locale === 'vi' || __locale === 'en' || __locale === 'ko') return;
   globalThis.__MAX_TOUR_PARTY_CONTEXT_V32__ = true;
 
   const clean = value => String(value ?? '').replace(/\\s+/g, ' ').trim();
