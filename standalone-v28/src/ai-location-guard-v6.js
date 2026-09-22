@@ -1,5 +1,7 @@
 (() => {
   'use strict';
+  const activeLocale = String(globalThis.localStorage?.getItem?.('max-tour-locale-v1') || 'ru').toLowerCase();
+  if (activeLocale === 'vi' || activeLocale === 'en') return;
 
   const KEY = 'max-tour-ai-location-v6';
   const CARD_SELECTOR = '.ai-catalog-card-v7[data-tour-id],.ai-sales-card[data-tour-id]';
