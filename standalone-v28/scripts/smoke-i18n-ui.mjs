@@ -67,6 +67,19 @@ async function runLocale(locale, viewport) {
 
   const buttons = await page.locator('.mt-language-switcher button').evaluateAll(nodes => nodes.map(n => n.dataset.locale));
   if (buttons.join(',') !== 'ru,vi,en,ko') failures.push({ locale, label:'switcher', buttons });
+  const switcherLayout = await page.locator('.mt-language-switcher').evaluate(el => {
+    const rects = [...el.querySelectorAll('button')].map(btn => btn.getBoundingClientRect());
+    const style = getComputedStyle(el);
+    return {
+      display: style.display,
+      flexDirection: style.flexDirection,
+      flexWrap: style.flexWrap,
+      rows: new Set(rects.map(rect => Math.round(rect.top))).size,
+    };
+  });
+  if (switcherLayout.flexDirection !== 'row' || switcherLayout.flexWrap !== 'nowrap' || switcherLayout.rows !== 1) {
+    failures.push({ locale, label:'switcher-horizontal', switcherLayout });
+  }
 
   await inspect(page, locale, 'home', () => { showScreen('home'); }, '#homeScreen');
   await inspect(page, locale, 'catalog', () => { showScreen('catalog'); }, '#catalogScreen');
