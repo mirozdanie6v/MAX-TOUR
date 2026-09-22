@@ -61,7 +61,7 @@ async function runLocale(locale, viewport) {
     });
   }
 
-  await page.goto(url, { waitUntil:'networkidle' });
+  await page.goto(url, { waitUntil:'domcontentloaded', timeout:45000 });
   await page.waitForFunction(expected => globalThis.MaxTourI18n?.locale === expected, locale);
   await page.waitForTimeout(650);
 
@@ -98,11 +98,11 @@ async function runLocale(locale, viewport) {
   if (locale === 'en') {
     await page.locator('.mt-language-switcher button[data-locale="vi"]').click();
     await page.waitForFunction(() => localStorage.getItem('max-tour-locale-v1') === 'vi');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForFunction(() => globalThis.MaxTourI18n?.locale === 'vi');
     await page.locator('.mt-language-switcher button[data-locale="en"]').click();
     await page.waitForFunction(() => localStorage.getItem('max-tour-locale-v1') === 'en');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForFunction(() => globalThis.MaxTourI18n?.locale === 'en');
   }
 
