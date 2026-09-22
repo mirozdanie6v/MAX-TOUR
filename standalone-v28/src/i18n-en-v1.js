@@ -586,7 +586,13 @@
     'ХОЙАН':'HOI AN',
     'ХАЛОНГ':'HA LONG',
     'САПА':'SA PA',
-    'ФАНСИПАН':'FANSIPAN'
+    'ФАНСИПАН':'FANSIPAN',
+    'Острова Нячанга':'Nha Trang Islands',
+    'Ба На Хилл':'Ba Na Hills',
+    'Хойан':'Hoi An',
+    'Халонг':'Ha Long',
+    'Сапа':'Sa Pa',
+    'Фансипан':'Fansipan'
   });
 
   globalThis.MaxTourLocaleData = globalThis.MaxTourLocaleData || {};
