@@ -539,6 +539,15 @@
     'Все входные билеты':'Toàn bộ vé vào cửa',
     'Входные билеты':'Vé vào cửa',
     'Вода':'Nước uống',
+    'ОСТРОВА НЯЧАНГА':'CÁC ĐẢO NHA TRANG',
+    'Вариант с буфетом — $55':'Gói buffet — $55',
+    'пляж':'bãi biển',
+    'не групповой формат':'không phải tour ghép',
+    'БА НА ХИЛЛ':'BÀ NÀ HILLS',
+    'ХОЙАН':'HỘI AN',
+    'ХАЛОНГ':'HẠ LONG',
+    'САПА':'SA PA',
+    'ФАНСИПАН':'FANSIPAN',
   };
   Object.assign(VI_TEXT, VI_COMPLETE);
 
@@ -600,8 +609,8 @@
   function translateDateTimeSafe(text) {
     let out = String(text);
     const months = {'янв':'thg 1','фев':'thg 2','мар':'thg 3','апр':'thg 4','май':'thg 5','мая':'thg 5','июн':'thg 6','июл':'thg 7','авг':'thg 8','сен':'thg 9','сент':'thg 9','окт':'thg 10','ноя':'thg 11','дек':'thg 12'};
-    out = out.replace(/(\d{1,2})[–-](\d{1,2})\s+(янв|фев|мар|апр|май|мая|июн|июл|авг|сен|сент|окт|ноя|дек)\b/gi, (_,a,b,mon)=>a+'–'+b+' '+(months[String(mon).toLowerCase()]||mon));
-    out = out.replace(/(\d{1,2})\s+(янв|фев|мар|апр|май|мая|июн|июл|авг|сен|сент|окт|ноя|дек)\b/gi, (_,day,mon)=>day+' '+(months[String(mon).toLowerCase()]||mon));
+    out = out.replace(/(\d{1,2})[–-](\d{1,2})\s+(янв|фев|мар|апр|май|мая|июн|июл|авг|сен|сент|окт|ноя|дек)(?=$|\s|[·,.)])/gi, (_,a,b,mon)=>a+'–'+b+' '+(months[String(mon).toLowerCase()]||mon));
+    out = out.replace(/(\d{1,2})\s+(янв|фев|мар|апр|май|мая|июн|июл|авг|сен|сент|окт|ноя|дек)(?=$|\s|[·,.)])/gi, (_,day,mon)=>day+' '+(months[String(mon).toLowerCase()]||mon));
     out = out.replace(/около/gi,'khoảng').replace(/второго дня/gi,'ngày thứ hai');
     return out;
   }
