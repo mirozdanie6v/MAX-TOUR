@@ -4,13 +4,13 @@
   // Bump the client state key so an older conversation created by the previous
   // guided flow cannot reappear after the chat interaction model changes.
   const storedLocale = String(globalThis.localStorage?.getItem?.('max-tour-locale-v1') || '').toLowerCase();
-  const ACTIVE_LOCALE = ['vi','en'].includes(storedLocale) ? storedLocale : 'ru';
+  const ACTIVE_LOCALE = ['vi','en','ko'].includes(storedLocale) ? storedLocale : 'ru';
   const STORAGE_KEY = 'max-tour-ai-consultant-v4-' + ACTIVE_LOCALE;
   const MAX_MESSAGES = 120;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
-  const lower = value => String(value || '').toLocaleLowerCase(ACTIVE_LOCALE === 'vi' ? 'vi-VN' : ACTIVE_LOCALE === 'en' ? 'en-US' : 'ru-RU');
+  const lower = value => String(value || '').toLocaleLowerCase(ACTIVE_LOCALE === 'vi' ? 'vi-VN' : ACTIVE_LOCALE === 'en' ? 'en-US' : ACTIVE_LOCALE === 'ko' ? 'ko-KR' : 'ru-RU');
   const clean = (value, max = 500) => String(value ?? '').trim().slice(0, max);
-  const localeText = (ru, vi, en) => ACTIVE_LOCALE === 'vi' ? vi : ACTIVE_LOCALE === 'en' ? en : ru;
+  const localeText = (ru, vi, en, ko) => ACTIVE_LOCALE === 'vi' ? vi : ACTIVE_LOCALE === 'en' ? en : ACTIVE_LOCALE === 'ko' ? ko : ru;
   const tours = () => {
     try { return Array.isArray(TOURS) ? TOURS : []; } catch (_) { return []; }
   };
@@ -25,7 +25,8 @@
     slots: freshSlots(), messages: [{ role:'bot', text:localeText(
       'Задавайте вопрос — я помогу с поездкой.',
       'Hãy đặt câu hỏi — tôi sẽ giúp bạn với chuyến đi.',
-      'Ask a question — I will help you with your trip.'
+      'Ask a question — I will help you with your trip.',
+      '궁금한 점을 물어보세요. 여행을 도와드릴게요.'
     ) }],
     recommendations: [], handoff: null, handoffHidden: false, showContact: false,
   });
