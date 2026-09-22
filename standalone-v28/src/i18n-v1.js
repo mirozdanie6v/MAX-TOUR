@@ -530,6 +530,15 @@
     'Сохранённые путешественники доступны для повторного выбора в новых заявках.':'Du khách đã lưu có thể được chọn lại trong các đơn mới.',
     'Чек и статус':'Biên nhận và trạng thái',
     'biên nhận и статус':'Biên nhận và trạng thái',
+    'Бутылка воды':'Một chai nước',
+    'Русскоязычный гид':'Hướng dẫn viên nói tiếng Nga',
+    'Русскоговорящий гид':'Hướng dẫn viên nói tiếng Nga',
+    'Трансфер — микроавтобус и лодка':'Đưa đón — xe minibus và thuyền',
+    'Трансфер — микроавтобус и катер':'Đưa đón — xe minibus và ca nô',
+    'Обед':'Bữa trưa',
+    'Все входные билеты':'Toàn bộ vé vào cửa',
+    'Входные билеты':'Vé vào cửa',
+    'Вода':'Nước uống',
   };
   Object.assign(VI_TEXT, VI_COMPLETE);
 
