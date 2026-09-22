@@ -18,10 +18,10 @@ import {
 async function requestLocale(request, url) {
   if (url.pathname !== '/api/ai/chat' || request.method !== 'POST') return 'ru';
   const header = String(request.headers.get('x-max-tour-locale') || '').toLowerCase();
-  if (header === 'vi' || header === 'en') return header;
+  if (header === 'vi' || header === 'en' || header === 'ko') return header;
   const body = await request.clone().json().catch(() => null);
   const raw = String(body?.locale || body?.context?.locale || '').toLowerCase();
-  return raw === 'vi' || raw === 'en' ? raw : 'ru';
+  return raw === 'vi' || raw === 'en' || raw === 'ko' ? raw : 'ru';
 }
 
 export default {
