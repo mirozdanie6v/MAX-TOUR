@@ -81,6 +81,14 @@ const AI_RULES_EN = [
   'If there is no exact catalogue match, ask for destination, date, party size, duration, hotel/transfer and budget.',
 ];
 
+const AI_RULES_KO = [
+  '출발 48시간 전까지는 무료 취소가 가능하며, 전날 17:00까지는 30%, 그 이후에는 100%가 공제됩니다.',
+  '일정 변경은 전날 17:00까지 무료이며, 이후에는 30% 수수료가 적용될 수 있습니다.',
+  '30% 보증금 또는 전액 결제가 가능하며 정확한 금액은 예약 단계에서 표시됩니다.',
+  '어린이마다 나이를 확인해야 하며 인원 구성에 따라 가격이 달라질 수 있습니다.',
+  '정확히 일치하는 투어가 없으면 목적지, 날짜, 인원, 일정 길이, 호텔/픽업, 예산을 확인합니다.',
+];
+
 const AI_TOUR_TITLES_VI = {
   'dalat-premium':'Đà Lạt “Premium”',
   'dalat-vip':'Đà Lạt “VIP”',
@@ -117,8 +125,27 @@ const AI_TOUR_TITLES_EN = {
   'muine-dunes-jeep':'Mui Ne: Sand Dunes, Fishing Village & Fairy Stream',
 };
 
+const AI_TOUR_TITLES_KO = {
+  'dalat-premium':'달랏 “프리미엄”',
+  'dalat-vip':'달랏 “VIP”',
+  'fuyen':'푸옌',
+  'nhatrang-day':'나트랑 주간 시티투어',
+  'nhatrang-night':'나트랑 야간 시티투어',
+  'dalat-2days':'달랏 1박 2일',
+  'fast-track':'공항 패스트트랙 + 픽업',
+  'danang-ba-na-hoian':'바나힐, 골든브리지 & 호이안',
+  'danang-city-sontra':'다낭: 선짜, 오행산 & 다리',
+  'phuquoc-4-islands':'푸꾸옥 4섬 & 케이블카',
+  'phuquoc-vinwonders-safari':'푸꾸옥 빈원더스 & 사파리',
+  'hanoi-halong-2d':'하노이 & 하롱베이',
+  'hanoi-sapa-3d':'하노이 & 사파',
+  'hanoi-ninhbinh':'닌빈: 짱안 & 무아 동굴',
+  'muine-dunes-jeep':'무이네: 모래언덕, 어촌 & 요정의 샘',
+};
+
 function requestedAiLocale(request, body) {
   const raw = String(body?.locale || body?.context?.locale || request?.headers?.get?.('x-max-tour-locale') || '').toLowerCase();
+  if (raw === 'ko') return 'ko';
   if (raw === 'en') return 'en';
   if (raw === 'vi') return 'vi';
   return 'ru';
@@ -127,6 +154,7 @@ function requestedAiLocale(request, body) {
 function localizedAiCatalog(catalog, locale) {
   if (locale === 'vi') return catalog.map(item => ({ ...item, title: AI_TOUR_TITLES_VI[item.id] || item.title }));
   if (locale === 'en') return catalog.map(item => ({ ...item, title: AI_TOUR_TITLES_EN[item.id] || item.title }));
+  if (locale === 'ko') return catalog.map(item => ({ ...item, title: AI_TOUR_TITLES_KO[item.id] || item.title }));
   return catalog;
 }
 
@@ -248,7 +276,7 @@ function unsafeAiCopy(value) {
 }
 
 function aiFallbackReply(message, catalog = [], locale = 'ru') {
-  const q = String(message || '').toLocaleLowerCase(locale === 'vi' ? 'vi-VN' : locale === 'en' ? 'en-US' : 'ru-RU');
+  const q = String(message || '').toLocaleLowerCase(locale === 'vi' ? 'vi-VN' : locale === 'en' ? 'en-US' : locale === 'ko' ? 'ko-KR' : 'ru-RU');
   if (locale === 'vi') {
     if (/hủy|huy|đổi\s*ngày|doi\s*ngay|hoàn\s*tiền|hoan\s*tien/.test(q)) {
       return 'Hủy trước hơn 48 giờ được miễn phí. Đến 17:00 ngày hôm trước giữ lại 30%; muộn hơn giữ lại 100%. Nếu bạn cho tôi ngày khởi hành, tôi sẽ giải thích chính xác hơn.';
@@ -276,6 +304,16 @@ function aiFallbackReply(message, catalog = [], locale = 'ru') {
     const matches = catalog.filter(item => `${item.title} ${item.city} ${(item.tags || []).join(' ')}`.toLowerCase().split(/\s+/).some(token => token.length > 3 && q.includes(token)));
     if (matches.length) return `I can suggest “${matches[0].title}”. Tell me your preferred date and party size.`;
     return 'I can help you choose a tour. Tell me the destination, preferred date and how many people are travelling.';
+  }
+  if (locale === 'ko') {
+    if (/취소|환불|일정\s*변경|날짜\s*변경/.test(q)) return '출발 48시간 전까지는 무료 취소가 가능합니다. 전날 17:00까지는 30%, 그 이후에는 100%가 공제됩니다. 출발 날짜를 알려주시면 더 정확히 안내해 드릴게요.';
+    if (/결제|보증금|예약금|30\s*%|전액/.test(q)) return '30% 보증금 또는 전액 결제가 가능합니다. 정확한 금액은 예약 단계에서 표시됩니다.';
+    if (/픽업|공항|호텔|이동/.test(q)) return '픽업·샌딩을 추가할 수 있습니다. 호텔이나 출발 지점을 알려주시면 일정에 반영해 드릴게요.';
+    if (/어린이|아이|아기|유아/.test(q)) return '각 어린이와 유아의 나이를 알려주세요. 인원 구성에 맞춰 정확하게 안내해 드릴게요.';
+    if (/포함|일정|코스|프로그램/.test(q)) return '각 투어 카드에서 일정과 포함 사항을 확인할 수 있습니다. 목적지나 투어 이름을 알려주시면 자세히 설명해 드릴게요.';
+    const matches = catalog.filter(item => `${item.title} ${item.city} ${(item.tags || []).join(' ')}`.toLocaleLowerCase('ko-KR').split(/\s+/).some(token => token.length > 1 && q.includes(token)));
+    if (matches.length) return `“${matches[0].title}”을 추천드릴 수 있어요. 원하는 날짜와 인원을 알려주세요.`;
+    return '알맞은 투어를 찾아드릴게요. 목적지, 원하는 날짜와 여행 인원을 알려주세요.';
   }
   if (/отмен|перенос|возврат/.test(q)) return AI_RULES[0] + ' Если назовёте дату выезда, подскажу точнее.';
   if (/оплат|депозит|предоплат|30\s*%|сто процент/.test(q)) return AI_RULES[2];
@@ -310,7 +348,7 @@ async function generateAiReply(request, env, body) {
       date: consultationText(body.context.date, 100),
       preferences: Array.isArray(body.context.preferences) ? body.context.preferences.slice(0, 8).map(item => consultationText(item, 50)) : [],
     } : {},
-    rules: locale === 'vi' ? AI_RULES_VI : locale === 'en' ? AI_RULES_EN : AI_RULES,
+    rules: locale === 'vi' ? AI_RULES_VI : locale === 'en' ? AI_RULES_EN : locale === 'ko' ? AI_RULES_KO : AI_RULES,
     catalogue: catalog,
     liveDepartures,
   };
@@ -336,6 +374,16 @@ async function generateAiReply(request, env, body) {
     'Use US dollars ($) exactly as shown in the catalogue. Do not use the ruble symbol (₽).',
     'Do not promise payment or confirmation before the user opens the tour card and completes booking.',
     'Tour names may be phrased naturally in English while preserving the exact catalogue meaning and facts.',
+    `VERIFIED_CONTEXT=${JSON.stringify(safeContext)}`,
+  ].join('\n') : locale === 'ko' ? [
+    '당신은 MAX TOUR 앱의 친절한 AI 여행 도우미입니다.',
+    '반드시 한국어로만 자연스럽고 간결하게 1–4개의 짧은 문장으로 답하세요.',
+    'VERIFIED_CONTEXT에 있는 정보만 사용하세요. 가격, 날짜, 장소, 일정, 좌석 상황을 임의로 만들지 마세요.',
+    '정보가 부족하면 필요한 내용을 한 가지 명확한 질문으로 확인하세요.',
+    '내부 시스템, CRM, 데이터베이스, API, 개발 과정, AI 모델 또는 직원 전달에 대해 언급하지 마세요.',
+    '가격은 카탈로그에 표시된 미국 달러($)만 사용하세요. 루블 기호(₽)를 사용하지 마세요.',
+    '사용자가 투어 카드를 열고 예약을 완료하기 전에는 결제나 확정을 약속하지 마세요.',
+    '투어 이름은 카탈로그의 의미와 사실을 유지하면서 자연스러운 한국어로 표현할 수 있습니다.',
     `VERIFIED_CONTEXT=${JSON.stringify(safeContext)}`,
   ].join('\n') : [
     'Ты доброжелательный AI-консультант туристического приложения MAX TOUR.',
