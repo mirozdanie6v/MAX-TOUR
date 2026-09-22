@@ -768,6 +768,12 @@
         location.reload();
       });
     }
+    wrap.style.setProperty('display','inline-flex','important');
+    wrap.style.setProperty('flex-direction','row','important');
+    wrap.style.setProperty('flex-wrap','nowrap','important');
+    wrap.style.setProperty('width','max-content','important');
+    wrap.style.setProperty('min-width','max-content','important');
+    wrap.style.setProperty('white-space','nowrap','important');
     wrap.querySelectorAll('button').forEach(btn => {
       const active = btn.dataset.locale === locale;
       btn.classList.toggle('active',active);
