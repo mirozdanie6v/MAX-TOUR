@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 
 const url = process.env.I18N_TEST_URL || 'http://127.0.0.1:4173/';
 const browser = await chromium.launch({ headless:true });
+const liveAi = process.env.I18N_LIVE_AI === '1';
 const failures = [];
 
 const clean = value => String(value || '')
@@ -45,16 +46,18 @@ async function runLocale(locale, viewport) {
     }
   });
   const page = await context.newPage();
-  await page.route('**/api/ai/chat', async route => {
-    const body = JSON.parse(route.request().postData() || '{}');
-    if (body.locale !== locale || body.context?.locale !== locale) {
-      failures.push({ locale, label:'ai-request-locale', bodyLocale:body.locale, contextLocale:body.context?.locale });
-    }
-    const reply = locale === 'vi'
-      ? 'Tôi có thể giúp bạn chọn tour phù hợp.'
-      : 'I can help you choose a suitable tour.';
-    await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ ok:true, reply, source:'smoke' }) });
-  });
+  if (!liveAi) {
+    await page.route('**/api/ai/chat', async route => {
+      const body = JSON.parse(route.request().postData() || '{}');
+      if (body.locale !== locale || body.context?.locale !== locale) {
+        failures.push({ locale, label:'ai-request-locale', bodyLocale:body.locale, contextLocale:body.context?.locale });
+      }
+      const reply = locale === 'vi'
+        ? 'Tôi có thể giúp bạn chọn tour phù hợp.'
+        : 'I can help you choose a suitable tour.';
+      await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ ok:true, reply, source:'smoke' }) });
+    });
+  }
 
   await page.goto(url, { waitUntil:'networkidle' });
   await page.waitForFunction(expected => globalThis.MaxTourI18n?.locale === expected, locale);
@@ -72,9 +75,9 @@ async function runLocale(locale, viewport) {
   await inspect(page, locale, 'trips-booked', () => { state.tripTab='booked'; renderTrips(); }, '#tripsScreen');
   await inspect(page, locale, 'ai', () => { showScreen('ai'); }, '#aiScreen');
   const aiBox = page.locator('#aiScreen textarea[name="message"]');
-  await aiBox.fill(locale === 'vi' ? 'Tôi muốn đi biển' : 'I want a sea tour');
+  await aiBox.fill(locale === 'vi' ? 'ha noi' : 'hanoi');
   await aiBox.press('Enter');
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(liveAi ? 4500 : 500);
   await inspect(page, locale, 'ai-reply', null, '#aiScreen');
 
   if (locale === 'en') {
