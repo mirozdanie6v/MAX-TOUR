@@ -85,6 +85,13 @@ async function runLocale(locale, viewport) {
   await inspect(page, locale, 'catalog', () => { showScreen('catalog'); }, '#catalogScreen');
   await inspect(page, locale, 'tour-group', () => { openTour('dalat-premium'); setFormat('group'); }, '#tourScreen');
   await inspect(page, locale, 'tour-individual', () => { setFormat('individual'); }, '#tourScreen');
+
+  const tourIds = await page.evaluate(() => Array.isArray(TOURS) ? TOURS.map(t => String(t.id || '')).filter(Boolean) : []);
+  for (const tourId of tourIds) {
+    await page.evaluate(id => { openTour(id); setFormat('group'); }, tourId);
+    await page.waitForTimeout(80);
+    await inspect(page, locale, 'tour-all-' + tourId, null, '#tourScreen');
+  }
   await inspect(page, locale, 'booking', () => { startBooking('individual'); }, '#bookingScreen');
   await inspect(page, locale, 'trips-profile', () => { state.tripTab='profile'; showScreen('trips'); }, '#tripsScreen');
   await inspect(page, locale, 'trips-booked', () => { state.tripTab='booked'; renderTrips(); }, '#tripsScreen');
