@@ -2,16 +2,16 @@
   'use strict';
 
   const storedLocale = String(globalThis.localStorage?.getItem?.('max-tour-locale-v1') || '').toLowerCase();
-  const ACTIVE_LOCALE = ['vi','en'].includes(storedLocale) ? storedLocale : 'ru';
+  const ACTIVE_LOCALE = ['vi','en','ko'].includes(storedLocale) ? storedLocale : 'ru';
   const STORAGE_KEY = 'max-tour-ai-consultant-v5-' + ACTIVE_LOCALE;
   const BOOKING_INTENT_KEY = 'max-tour-ai-booking-intent-v1';
   const LOCATION_KEY = 'max-tour-ai-location-v6';
   const TIME_ZONE = 'Asia/Ho_Chi_Minh';
   const MAX_MESSAGES = 100;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
-  const lower = value => String(value || '').toLocaleLowerCase(ACTIVE_LOCALE === 'vi' ? 'vi-VN' : ACTIVE_LOCALE === 'en' ? 'en-US' : 'ru-RU');
+  const lower = value => String(value || '').toLocaleLowerCase(ACTIVE_LOCALE === 'vi' ? 'vi-VN' : ACTIVE_LOCALE === 'en' ? 'en-US' : ACTIVE_LOCALE === 'ko' ? 'ko-KR' : 'ru-RU');
   const clean = (value, max = 900) => String(value ?? '').trim().slice(0, max);
-  const localeText = (ru, vi, en) => ACTIVE_LOCALE === 'vi' ? vi : ACTIVE_LOCALE === 'en' ? en : ru;
+  const localeText = (ru, vi, en, ko) => ACTIVE_LOCALE === 'vi' ? vi : ACTIVE_LOCALE === 'en' ? en : ACTIVE_LOCALE === 'ko' ? ko : ru;
   const catalog = () => { try { return Array.isArray(TOURS) ? TOURS : []; } catch (_) { return []; } };
 
   function vietnamTodayIso() {
@@ -30,7 +30,7 @@
 
   function dateLabel(iso, options = {}) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(iso || ''))) return String(iso || '');
-    return new Intl.DateTimeFormat(ACTIVE_LOCALE === 'vi' ? 'vi-VN' : ACTIVE_LOCALE === 'en' ? 'en-US' : 'ru-RU', {
+    return new Intl.DateTimeFormat(ACTIVE_LOCALE === 'vi' ? 'vi-VN' : ACTIVE_LOCALE === 'en' ? 'en-US' : ACTIVE_LOCALE === 'ko' ? 'ko-KR' : 'ru-RU', {
       day: 'numeric', month: options.short ? 'short' : 'long', year: options.year === false ? undefined : 'numeric', timeZone: 'UTC',
     }).format(new Date(`${iso}T00:00:00Z`));
   }
@@ -133,7 +133,8 @@
     return { slots:freshSlots(), messages:[{ role:'bot', text:localeText(
       'Задавайте вопрос — я помогу подобрать экскурсию и сразу перейти к бронированию.',
       'Hãy đặt câu hỏi — tôi sẽ giúp bạn chọn tour và chuyển ngay đến bước đặt tour.',
-      'Ask a question — I will help you choose a tour and continue straight to booking.'
+      'Ask a question — I will help you choose a tour and continue straight to booking.',
+      '질문해 주세요. 알맞은 투어를 추천하고 바로 예약까지 도와드릴게요.'
     ) }], recommendations:[], selectedTourId:'' };
   }
   let state = freshState();
@@ -376,7 +377,7 @@
       format:s.tripType === 'group' ? 'group' : s.tripType === 'individual' ? 'individual' : item.format,
       date:/^\d{4}-\d{2}-\d{2}$/.test(s.date) ? s.date : (item.exactDeparture?.iso || ''),
       adults:Math.max(1, Number(s.adults) || 0), children:s.children.slice(), infants:Number(s.infants || 0),
-      createdAt:new Date().toISOString(), source:localeText('AI-консультант','Trợ lý AI','AI Assistant'),
+      createdAt:new Date().toISOString(), source:localeText('AI-консультант','Trợ lý AI','AI Assistant','AI 도우미'),
     };
   }
 
