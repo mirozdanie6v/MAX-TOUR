@@ -10,18 +10,6 @@ export interface Env {
   TELEGRAM_MINIAPP_URL?: string;
   TILDA_WEBHOOK_SECRET?: string;
   AUTH_MODE?: 'demo' | 'telegram';
-  BOKUN_APP_API_KEY?: string;
-  BOKUN_APP_API_SECRET?: string;
-  BOKUN_TOKEN_ENCRYPTION_KEY?: string;
-  BOKUN_EXPECTED_VENDOR_ID?: string;
-  BOKUN_PRODUCT_ID?: string;
-  BOKUN_PRODUCT_CODE?: string;
-  BOKUN_REDIRECT_URI?: string;
-  BOKUN_SCOPES?: string;
-  BOKUN_OAUTH_HOST_SUFFIX?: string;
-  BOKUN_REST_ACCESS_KEY?: string;
-  BOKUN_REST_SECRET_KEY?: string;
-  BOKUN_REST_BASE_URL?: string;
 }
 
 type TourRow = {
