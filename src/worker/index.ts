@@ -15,8 +15,6 @@ import { adminPatchGroupDeparture, createGroupDeparture, joinGroupDeparture, lis
 import { campaignRecipients, createCampaign, listAdminCustomers, listCampaigns } from './services/admin-crm';
 import { listRefundCases } from './services/refund-policy';
 import { listSiteSyncOutbox } from './services/site-sync';
-import { getBokunIntegrationStatus, handleBokunCallback, handleBokunInstall } from './services/bokun';
-import { getBokunAvailabilities, getBokunProduct, getBokunRestReadiness } from './services/bokun-rest';
 import { sourceSiteCatalog } from '../shared/site-catalog';
 import { managerStatusSchema } from '../shared/schemas';
 
@@ -102,12 +100,6 @@ export default {
           headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
         });
       }
-      if (path === '/api/integrations/bokun/install' && request.method === 'GET') {
-        return handleBokunInstall(request, env);
-      }
-      if (path === '/api/integrations/bokun/callback' && request.method === 'GET') {
-        return handleBokunCallback(request, env);
-      }
 
       const session = await ensureSession(request, env);
       const finish = (r: Response) => withCookie(r, session.setCookie);
@@ -130,12 +122,6 @@ export default {
       if (path === '/api/integrations/telegram/webhook' && request.method === 'POST') return finish(json(await configureTelegramWebhook(env, url.origin)));
       if (path === '/api/integrations/telegram/webhook' && request.method === 'GET') return finish(json(await getTelegramWebhookInfo(env)));
       if (path === '/api/integrations/tilda/status' && request.method === 'GET') return finish(json(await getTildaIntegrationStatus(env)));
-      if (path === '/api/integrations/bokun/status' && request.method === 'GET') {
-        const oauth = await getBokunIntegrationStatus(env);
-        return finish(json({ ...oauth, rest: getBokunRestReadiness(env) }));
-      }
-      if (path === '/api/integrations/bokun/product' && request.method === 'GET') return finish(json(await getBokunProduct(env)));
-      if (path === '/api/integrations/bokun/availabilities' && request.method === 'GET') return finish(json(await getBokunAvailabilities(env, url)));
 
       let staffActor: Awaited<ReturnType<typeof requireStaffRole>> | null = null;
       if (path.startsWith('/api/manager/')) staffActor = await requireStaffRole(env, request, 'manager');
