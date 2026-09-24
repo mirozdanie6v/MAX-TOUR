@@ -19,6 +19,9 @@ export interface Env {
   BOKUN_REDIRECT_URI?: string;
   BOKUN_SCOPES?: string;
   BOKUN_OAUTH_HOST_SUFFIX?: string;
+  BOKUN_REST_ACCESS_KEY?: string;
+  BOKUN_REST_SECRET_KEY?: string;
+  BOKUN_REST_BASE_URL?: string;
 }
 
 type TourRow = {
