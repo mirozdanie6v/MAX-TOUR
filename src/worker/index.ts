@@ -137,9 +137,9 @@ export default {
         return finish(json({ items: publishedOnly ? all.filter(t => t.published) : all }));
       }
 
-      let m = match(path, /^/api/tours/([^/]+)/availability$/);
+      let m = match(path, /^\/api\/tours\/([^/]+)\/availability$/);
       if (m && request.method === 'GET') return finish(json({ items: await getAvailability(env.DB, session.id, m[0], locale), demo: true }));
-      m = match(path, /^/api/tours/([^/]+)$/);
+      m = match(path, /^\/api\/tours\/([^/]+)$/);
       if (m && request.method === 'GET') {
         const tours = await getMergedTours(env.DB, session.id, locale);
         const tour = tours.find(t => t.id === m![0] || t.slug === m![0]);
@@ -149,7 +149,7 @@ export default {
 
       if (path === '/api/group-departures' && request.method === 'GET') return finish(json({ items: await listGroupDepartures(env, session.id, url.searchParams.get('tourId') ?? undefined) }));
       if (path === '/api/group-departures' && request.method === 'POST') return finish(json({ item: await createGroupDeparture(env, session.id, await body(request)) }, 201));
-      m = match(path, /^/api/group-departures/([^/]+)/join$/);
+      m = match(path, /^\/api\/group-departures\/([^/]+)\/join$/);
       if (m && request.method === 'POST') return finish(json({ item: await joinGroupDeparture(env, session.id, m[0], await body(request)) }));
 
       if (path === '/api/booking/quote' && request.method === 'POST') {
@@ -168,7 +168,7 @@ export default {
         const { raw: _raw, ...safe } = order;
         return finish(json({ order: safe }, 201));
       }
-      m = match(path, /^/api/orders/([^/]+)$/);
+      m = match(path, /^\/api\/orders\/([^/]+)$/);
       if (m && request.method === 'GET') {
         const order = await getOrder(env.DB, session.id, m[0]);
         if (!order || Number(order.raw.customer_visible ?? 0) !== 1) throw new HttpError(404, 'Заказ не найден', 'ORDER_NOT_FOUND');
@@ -189,14 +189,14 @@ export default {
 
       if (path === '/api/manager/staff' && request.method === 'GET') return finish(json(await listAssignableStaff(env)));
       if (path === '/api/manager/orders' && request.method === 'GET') return finish(json({ items: await listOrders(env.DB, session.id) }));
-      m = match(path, /^/api/manager/orders/([^/]+)$/);
+      m = match(path, /^\/api\/manager\/orders\/([^/]+)$/);
       if (m && request.method === 'GET') {
         const order = await getOrder(env.DB, session.id, m[0]);
         if (!order) throw new HttpError(404, 'Заказ не найден', 'ORDER_NOT_FOUND');
         const { raw: _raw, ...safe } = order;
         return finish(json({ order: safe }));
       }
-      m = match(path, /^/api/manager/orders/([^/]+)/status$/);
+      m = match(path, /^\/api\/manager\/orders\/([^/]+)\/status$/);
       if (m && request.method === 'PATCH') {
         const parsed = managerStatusSchema.safeParse(await body(request));
         if (!parsed.success) throw new HttpError(400, 'Некорректный статус', 'VALIDATION_ERROR');
@@ -206,10 +206,10 @@ export default {
         return finish(json({ order: safe }));
       }
 
-      m = match(path, /^/api/manager/orders/([^/]+)/ops$/);
+      m = match(path, /^\/api\/manager\/orders\/([^/]+)\/ops$/);
       if (m && request.method === 'GET') return finish(json({ ops: await getManagerOps(env, session.id, m[0]) }));
       if (m && request.method === 'PATCH') return finish(json({ ops: await patchManagerOps(env, session.id, m[0], await body(request), actorId) }));
-      m = match(path, /^/api/manager/orders/([^/]+)/workflow$/);
+      m = match(path, /^\/api\/manager\/orders\/([^/]+)\/workflow$/);
       if (m && request.method === 'GET') return finish(json({ workflow: await getOrderWorkflow(env, session.id, m[0]) }));
       if (m && request.method === 'PATCH') return finish(json({ workflow: await patchOrderWorkflow(env, session.id, m[0], await body(request), actorId) }));
 
@@ -228,23 +228,23 @@ export default {
       if (path === '/api/owner/staff' && request.method === 'PUT') return finish(json({ item: await upsertStaffAccount(env, session.id, await body(request), actorId) }));
 
       if (path === '/api/admin/group-departures' && request.method === 'GET') return finish(json({ items: await listGroupDepartures(env, session.id) }));
-      m = match(path, /^/api/admin/group-departures/([^/]+)$/);
+      m = match(path, /^\/api\/admin\/group-departures\/([^/]+)$/);
       if (m && request.method === 'PATCH') return finish(json({ item: await adminPatchGroupDeparture(env, session.id, m[0], await body(request), actorId) }));
       if (path === '/api/admin/customers' && request.method === 'GET') return finish(json({ items: await listAdminCustomers(env, session.id) }));
       if (path === '/api/admin/campaigns' && request.method === 'GET') return finish(json({ items: await listCampaigns(env, session.id) }));
       if (path === '/api/admin/campaigns' && request.method === 'POST') return finish(json({ item: await createCampaign(env, session.id, await body(request), actorId) }, 201));
-      m = match(path, /^/api/admin/campaigns/([^/]+)/recipients$/);
+      m = match(path, /^\/api\/admin\/campaigns\/([^/]+)\/recipients$/);
       if (m && request.method === 'GET') return finish(json({ items: await campaignRecipients(env, session.id, m[0]) }));
       if (path === '/api/admin/refunds' && request.method === 'GET') return finish(json({ items: await listRefundCases(env, session.id) }));
       if (path === '/api/admin/site-sync' && request.method === 'GET') return finish(json({ items: await listSiteSyncOutbox(env, session.id) }));
 
       if (path === '/api/admin/tours' && request.method === 'GET') return finish(json({ items: await adminTours(env, session.id) }));
       if (path === '/api/admin/tours' && request.method === 'POST') return finish(json({ item: await addTour(env, session.id, await body(request), actorId) }, 201));
-      m = match(path, /^/api/admin/tours/([^/]+)$/);
+      m = match(path, /^\/api\/admin\/tours\/([^/]+)$/);
       if (m && request.method === 'PATCH') return finish(json({ item: await patchTour(env, session.id, m[0], await body(request), actorId) }));
-      m = match(path, /^/api/admin/tours/([^/]+)/schedule$/);
+      m = match(path, /^\/api\/admin\/tours\/([^/]+)\/schedule$/);
       if (m && (request.method === 'POST' || request.method === 'PATCH')) return finish(json({ item: await setAvailability(env, session.id, m[0], await body(request), actorId) }));
-      m = match(path, /^/api/admin/tours/([^/]+)/promo$/);
+      m = match(path, /^\/api\/admin\/tours\/([^/]+)\/promo$/);
       if (m && (request.method === 'POST' || request.method === 'PATCH')) return finish(json({ item: await setPromo(env, session.id, m[0], await body(request), actorId) }));
       if (path === '/api/admin/directions' && request.method === 'GET') return finish(json({ items: await getDestinations(env.DB, session.id) }));
       if (path === '/api/admin/directions' && request.method === 'POST') return finish(json({ item: await addDirection(env, session.id, await body(request), actorId) }, 201));
