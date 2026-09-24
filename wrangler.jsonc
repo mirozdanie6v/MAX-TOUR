@@ -5,7 +5,13 @@
   "compatibility_date": "2026-09-08",
   "vars": {
     "TELEGRAM_MINIAPP_URL": "https://max-tour-demo.viiversion.com",
-    "AUTH_MODE": "demo"
+    "AUTH_MODE": "demo",
+    "BOKUN_EXPECTED_VENDOR_ID": "137689",
+    "BOKUN_PRODUCT_ID": "1287578",
+    "BOKUN_PRODUCT_CODE": "5690738P8",
+    "BOKUN_REDIRECT_URI": "https://max-tour.viiversion.com/api/integrations/bokun/callback",
+    "BOKUN_SCOPES": "PRODUCTS_READ,BOOKINGS_READ,BOOKINGS_WRITE,CHECKOUTS_READ,CHECKOUTS_WRITE,CUSTOMERS_READ,CUSTOMERS_WRITE,CUSTOMERS_CONTACT_READ,LEGACY_API",
+    "BOKUN_OAUTH_HOST_SUFFIX": "bokun.is"
   },
   "assets": {
     "directory": "./dist/client",
